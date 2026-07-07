@@ -13,5 +13,4 @@ public:
 
 private:
     MySqlConnectionPool* m_mySql;
-    RedisClient* m_redis;
 };

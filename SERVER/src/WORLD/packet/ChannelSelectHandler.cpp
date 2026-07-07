@@ -3,7 +3,7 @@
 #include "ChannelManager.h"
 #include "K_slog.h"
 #include "PacketParser.h"
-
+#include "RedisConnectionPool.h"
 
 void ChannelSelectHandler::Execute(PacketContext* ctx)
 {
@@ -70,7 +70,14 @@ err:
         else
         {
             ChannelInfo info = *opt;
-            int channel_state = (int)channel_manager->CanEnterChannel(channel_id);
+            RedisConnectionGuard redisGuard(ctx->redis_pool);
+            if (!redisGuard)
+            {
+                session->SendNok(PKT_SELECT_CHANNEL, "redis connection acquire failed");
+                return;
+            }
+            
+            int channel_state = channel_manager->CanEnterChannel(channel_id, *redisGuard.Get());
             // switch (channel_state)
             // {
             // case ChannelState::E_Normal: //정상

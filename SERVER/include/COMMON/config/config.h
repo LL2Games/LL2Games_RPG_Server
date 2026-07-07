@@ -16,6 +16,7 @@ struct RedisConfig
 {
     std::string host;
     int port;
+    int poolCount;
 };
 
 struct CommonConfig

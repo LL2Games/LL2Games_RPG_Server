@@ -10,6 +10,7 @@
 #include "MapUpdateTask.h"
 #include <thread>
 #include <atomic>
+#include <mutex>
 
 class ChannelServer;
 
@@ -42,5 +43,7 @@ public:
     void Stop();
 private:
     std::atomic<bool> m_running{false};
+    std::mutex m_mapsMutex;
+    std::mutex m_destroyQueueMutex;
     std::thread m_thread;
 };

@@ -3,13 +3,14 @@
 #include <sys/select.h>
 #include "Client.h"
 #include "LoginPacketFactory.h"
+#include "RedisConnectionPool.h"
 
 // Reactor
 
 class Server
 {
 public:
-    bool Init(int port);
+    bool Init(int port, const RedisConfig& redisConfig);
     void Run();
 
 private:
@@ -19,4 +20,6 @@ private:
 
     void AcceptNewClient();
     void ProcessClient(Client* cli);
+
+    RedisConnectionPool m_redisPool;
 };

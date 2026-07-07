@@ -1,5 +1,6 @@
 #include "CommandReceiver.h"
 #include "K_slog.h"
+#include <chrono>
 
 CommandReceiver::CommandReceiver(): m_mq(MSG_KEY, MSG_COMMAND_SEND, MSG_COMMAND_RECV)
 {
@@ -45,7 +46,10 @@ void CommandReceiver::Run() {
         //K_slog_trace(K_SLOG_DEBUG, "[%s][%d] MQ recv[%s]", __FILE__, __LINE__, msg.c_str()); 
         
         if (ret <= 0)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
             continue;
+        }
 
         K_slog_trace(K_SLOG_DEBUG, "[%s][%d] TEST", __FILE__, __LINE__); 
 

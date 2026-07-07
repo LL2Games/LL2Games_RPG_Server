@@ -12,8 +12,14 @@ PlayerManager::~PlayerManager()
 
 bool PlayerManager::AddPlayer(std::unique_ptr<Player> player)
  {
+     if (player == nullptr)
+    {
+        return false;
+    }
+
     int playerId = player->GetId();
 
+    std::lock_guard<std::mutex> lock(m_PlayerMutex);
     if(m_players.find(playerId) != m_players.end())
     {
         return false; 
@@ -30,6 +36,7 @@ bool PlayerManager::AddPlayer(std::unique_ptr<Player> player)
 
 Player* PlayerManager::GetPlayer(int playerId)
 {
+    std::lock_guard<std::mutex> lock(m_PlayerMutex);
     auto it = m_players.find(playerId);
 
     if(it == m_players.end()) return nullptr;
@@ -137,22 +144,24 @@ Player* PlayerManager::GetPlayer(const std::string& playerName)
         m_mySql->ReleaseConnection(conn);
         return nullptr;
     }
-    auto it = m_players.find(playerId);
-    if(it == m_players.end()) 
+    Player* result = nullptr;
     {
-        mysql_stmt_free_result(stmt);
-        mysql_stmt_close(stmt);
-        m_mySql->ReleaseConnection(conn);
-        return nullptr;
+        std::lock_guard<std::mutex> lock(m_PlayerMutex);
+        auto it = m_players.find(playerId);
+        if (it != m_players.end())
+        {
+            result = it->second.get();
+        }
     }
     mysql_stmt_free_result(stmt);
     mysql_stmt_close(stmt);
     m_mySql->ReleaseConnection(conn);
-    return it->second.get();
+    return result;
 }
 
 bool PlayerManager::RemovePlayer(int playerId)
 {
+    std::lock_guard<std::mutex> lock(m_PlayerMutex);
     auto it = m_players.find(playerId);
 
     if(it == m_players.end()) return false;

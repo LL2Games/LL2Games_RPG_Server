@@ -1,7 +1,7 @@
 #include "RedisClient.h"
 
 
-RedisClient *RedisClient::m_instance =nullptr;
+//RedisClient *RedisClient::m_instance =nullptr;
 
 RedisClient::RedisClient(const RedisConfig& redisConfig) : m_ctx(nullptr)
 {
@@ -9,6 +9,7 @@ RedisClient::RedisClient(const RedisConfig& redisConfig) : m_ctx(nullptr)
 
     if (m_ctx == nullptr) {
         K_slog_trace(K_SLOG_ERROR, "[%s][%d] Redis Connect error: ctx is null", __FUNCTION__, __LINE__);
+        return;
     }
 
     if (m_ctx->err) {
@@ -34,42 +35,43 @@ bool RedisClient::IsConnected() const
     return m_ctx != nullptr;
 }
 
-int RedisClient::Init(const RedisConfig& redisConfig)
-{
-    if (m_instance != nullptr)
-    {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] Already Init ", __FUNCTION__, __LINE__);
-        return -1;
-    }
+//int RedisClient::Init(const RedisConfig& redisConfig)
+//{
+//    if (m_instance != nullptr)
+//    {
+//        K_slog_trace(K_SLOG_ERROR, "[%s][%d] Already Init ", __FUNCTION__, __LINE__);
+//        return -1;
+//    }
+//
+//    RedisClient* client = new RedisClient(redisConfig);
+//    if (client == nullptr)
+//    {
+//        K_slog_trace(K_SLOG_ERROR, "[%s][%d] Memory error(new RedisClient(redisConfig)) ", __FUNCTION__, __LINE__);
+//        return -1;
+//    }
+//
+//    if (!client->IsConnected())
+//    {
+//        K_slog_trace(K_SLOG_ERROR, "[%s][%d] connect fail host=%s, port=%d", __FUNCTION__, __LINE__, redisConfig.host.c_str(), redisConfig.port);
+//        delete client;
+//        return -1;
+//    }
+//    
+//    m_instance = client;
+//    return EXIT_SUCCESS;
+//}
 
-    RedisClient* client = new RedisClient(redisConfig);
-    if (client == nullptr)
-    {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] Memory error(new RedisClient(redisConfig)) ", __FUNCTION__, __LINE__);
-        return -1;
-    }
 
-    if (!client->IsConnected())
-    {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] connect fail host=%s, port=%d", __FUNCTION__, __LINE__, redisConfig.host.c_str(), redisConfig.port);
-        delete client;
-        return -1;
-    }
-    
-    m_instance = client;
-    return EXIT_SUCCESS;
-}
-
-RedisClient *RedisClient::GetInstance()
-{
-    if(m_instance == nullptr)
-    {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] Not Initialized redis (first call RedisClient::Init) ", __FUNCTION__, __LINE__);
-        return nullptr;
-    }
-    
-    return m_instance;
-}
+//RedisClient *RedisClient::GetInstance()
+//{
+//    if(m_instance == nullptr)
+//    {
+//        K_slog_trace(K_SLOG_ERROR, "[%s][%d] Not Initialized redis (first call RedisClient::Init) ", __FUNCTION__, __LINE__);
+//        return nullptr;
+//    }
+//    
+//    return m_instance;
+//}
 
 int RedisClient::HSet(const std::string key, const std::string& field, const std::string& value, const int expire)
 {

@@ -9,7 +9,7 @@ class CharacterService
 public:
     CharacterService();
     ~CharacterService();
-    std::vector<std::string> GetCharacterList(const std::string& account_id);
+    std::vector<std::string> GetCharacterList(const std::string& account_id, RedisClient& redis);
     int LoadCharacterSummary(const std::string& char_id);
     int CacheCharacterSummary(const std::string& char_id);
 private:

@@ -20,7 +20,7 @@ CharacterService::~CharacterService()
 
 }
 
-std::vector<std::string> CharacterService::GetCharacterList(const std::string& account_id)
+std::vector<std::string> CharacterService::GetCharacterList(const std::string& account_id, RedisClient& redis)
 {  
     long long charId =0;
     std::string name;
@@ -28,25 +28,24 @@ std::vector<std::string> CharacterService::GetCharacterList(const std::string& a
     int job = 0;
     std::vector<std::string> char_list;
     MYSQL* conn = nullptr;
-    RedisClient* redis = RedisClient::GetInstance();
+    
 
     //test
     K_slog_trace(K_SLOG_DEBUG, "[%s][%d] id[%s]", __FUNCTION__, __LINE__, account_id.c_str());
 
     //1.Redis charlist 조회
-    if (redis != nullptr)
+   
+    auto cached = redis.HGetAll("charlist:" + account_id);
+    if (cached.has_value() && !cached->empty())
     {
-        auto cached = redis->HGetAll("charlist:" + account_id);
-        if (cached.has_value() && !cached->empty())
+        K_slog_trace(K_SLOG_DEBUG, "[%s][%d] redis cache hit for account_id[%s]", __FUNCTION__, __LINE__, account_id.c_str());
+        for (auto& [cid, value] : cached.value())
         {
-            K_slog_trace(K_SLOG_DEBUG, "[%s][%d] redis cache hit for account_id[%s]", __FUNCTION__, __LINE__, account_id.c_str());
-            for (auto& [cid, value] : cached.value())
-            {
-                char_list.push_back(value);
-            }
-            return char_list;
+            char_list.push_back(value);
         }
+        return char_list;
     }
+    
     K_slog_trace(K_SLOG_DEBUG, "[%s][%d] redis miss for account_id[%s]", __FUNCTION__, __LINE__, account_id.c_str());
 
     //2.Redis miss-> MySQL 조회
@@ -164,10 +163,8 @@ std::vector<std::string> CharacterService::GetCharacterList(const std::string& a
         char_list.push_back(summary);
 
          //Redis캐시 적재
-        if (redis != nullptr)
-        {
-            redis->HSet("charlist:" + account_id, std::to_string(charId), summary, E_TTL_CHARLIST); 
-        }
+      
+        redis.HSet("charlist:" + account_id, std::to_string(charId), summary, E_TTL_CHARLIST);  
     }
     
     mysql_stmt_close(stmt);

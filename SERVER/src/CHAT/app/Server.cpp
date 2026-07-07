@@ -18,8 +18,13 @@ Server::Server() : m_dispatcher(MSG_KEY, MSG_COMMAND_SEND, MSG_COMMAND_RECV)
 {
 }
 
-bool Server::Init(const int port)
+bool Server::Init(const int port, const RedisConfig& redisConfig)
 {
+    if (!m_redisPool.Init(redisConfig, redisConfig.poolCount))
+    {
+        K_slog_trace(K_SLOG_ERROR, "RedisConnectionPool init failed");
+        return false;
+    }
     m_listenFd = socket(AF_INET, SOCK_STREAM, 0);
     if (m_listenFd < 0)
     {
@@ -144,6 +149,7 @@ void Server::ProcessClient(Client *cli)
 
     auto handler = m_factory.Create(pkt->type);
     PacketContext ctx;
+    ctx.redis_pool = &m_redisPool;
     ctx.dispatcher = &m_dispatcher;
     ctx.client = cli;
     ctx.clients = &m_clients;

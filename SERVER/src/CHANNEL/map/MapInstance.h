@@ -48,12 +48,13 @@ public:
 	void OnLeave(int PlayerID);
 
     void GiveExp(int platerID, float exp);
+    void HandleMove(Player* sender, Vec2 pos, float speed);
     void HandleMove(Player* sender, Vec2 pos, float speed, int dir);
-    void ResolveSkillHit(Player* Attacker, SkillDef& skillDef, std::vector<std::pair<Monster*, int>> hits);
+    void ResolveSkillHit(Player* Attacker, SkillDef& skillDef, std::vector<std::pair<Monster*, int>>& hits);
     void SetPlayerHitResult(Player* player, int monster_instanceId, PlayerHitResult& result);
     bool PickupDropItem(Player* player, int dropItemId, std::vector<AddItemResult>& addItemResults);
     bool CanPickupByDistance(Vec2 playerPos, Vec2 ItemPos);
-    bool SpawnDropItem(Monster* monster, std::vector<DropResult> dropItems);
+    bool SpawnDropItem(const Vec2& dropPos, Player* owner, const std::vector<DropResult>& dropItems);
     void CheckDropItem();
     
 private:
@@ -78,6 +79,8 @@ public:
 
     std::vector<Monster>& GetMonsterList(){ return m_monsterList;};
     ProjectileManager& GetProjectileManager() { return m_projectileManager; }
+
+    bool HasPlayer();
 
     std::unordered_map<int, Player*>& GetPlayerList(){return m_playerList;}
 private:
@@ -114,7 +117,8 @@ private:
 
     // 동기화
     std::mutex m_playerMutex;
-
+    std::mutex m_dropItemMutex;
+    std::mutex m_monsterMutex;
 private:
     MonsterManager* m_monsterManager;
     CombatService* m_combatService;

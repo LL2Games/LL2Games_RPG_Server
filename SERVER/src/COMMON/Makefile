@@ -60,6 +60,7 @@ SRCS := \
 	\
 	db/MySqlConnectionPool.cpp \
 	db/RedisClient.cpp \
+	db/RedisConnectionPool.cpp \
 	\
 	ipc/CommandMsgQueue.cpp \
 	\

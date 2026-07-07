@@ -5,8 +5,13 @@
 #include <cstring>
 #include "K_slog.h"
 
-bool Server::Init(int port)
+bool Server::Init(int port, const RedisConfig& redisConfig)
 {
+    if (!m_redisPool.Init(redisConfig, redisConfig.poolCount))
+    {
+        K_slog_trace(K_SLOG_ERROR, "RedisConnectionPool init failed");
+        return false;
+    }
     m_listen_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (m_listen_fd < 0)
         return false;
@@ -114,7 +119,7 @@ void Server::ProcessClient(Client *cli)
     } while (tempLen == BUFFER_SIZE);
 
     // 버퍼 누적
-    cli->m_recvBuffer.insert(cli->m_recvBuffer.end(), temp, temp + tempLen);
+    cli->m_recvBuffer.insert(cli->m_recvBuffer.end(), buf.begin(), buf.end());
 
     // 패킷 파싱
     K_slog_trace(K_SLOG_DEBUG, "[%s][%d] recv from fd=%d, len=%d", __FUNCTION__, __LINE__, fd, buf.size());
@@ -128,6 +133,7 @@ void Server::ProcessClient(Client *cli)
 
     auto handler = m_factory.Create(pkt->type);
     PacketContext ctx;
+    ctx.redis_pool = &m_redisPool;
     ctx.client = cli;
     ctx.payload = (char *)pkt->payload.c_str();
     ctx.payload_len = pkt->payload.size(); 

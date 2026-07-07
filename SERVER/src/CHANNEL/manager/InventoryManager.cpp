@@ -41,7 +41,7 @@ bool InventoryManager::MoveItemSlots(const MoveItem& moveData,std::vector<Invent
 }
 
 bool InventoryManager::AddItem(int itemId, int count, std::vector<AddItemResult>& addItemResults)
-{
+{ 
     auto itemManager = ItemManager::GetInstance();
     if(itemManager == nullptr)
     {
@@ -56,14 +56,8 @@ bool InventoryManager::AddItem(int itemId, int count, std::vector<AddItemResult>
         K_slog_trace(K_SLOG_ERROR,"[%s : %s : %d] ItemData is nullptr. itemId[%d]",__FILE__, __FUNCTION__, __LINE__,itemId);
         return false;
     }
+    
     int inventoryType = inven::ConvertItemTypeToInventoryType(ItemData->type);
-    K_slog_trace(K_SLOG_DEBUG, "[%s : %s : %d] inventoryType[%d]",__FILE__, __FUNCTION__, __LINE__, inventoryType);
-    auto iter = m_inventories.find(inventoryType);
-    if (iter == m_inventories.end())
-    {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] inventory not found. inventoryType[%d]",__FILE__, __FUNCTION__, __LINE__, inventoryType);
-        return false;
-    }
 
     AddItemData addItemData{};
 
@@ -71,10 +65,26 @@ bool InventoryManager::AddItem(int itemId, int count, std::vector<AddItemResult>
     addItemData.count = count;
     addItemData.stackable = ItemData->stackable;
     addItemData.max_stack = ItemData->max_stack;
-    if(!iter->second.AddItem(addItemData, addItemResults))
+
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] failed to add item. itemId[%d], count[%d], inventoryType[%d]", __FILE__, __FUNCTION__, __LINE__, itemId, count, inventoryType);
-        return false; 
+        std::lock_guard<std::mutex> lock(m_inventoryMutex);
+
+        auto iter = m_inventories.find(inventoryType);
+        if (iter == m_inventories.end())
+        {
+            K_slog_trace(K_SLOG_ERROR,
+                "[%s : %s : %d] inventory not found. inventoryType[%d]",
+                __FILE__, __FUNCTION__, __LINE__, inventoryType);
+            return false;
+        }
+
+        if (!iter->second.AddItem(addItemData, addItemResults))
+        {
+            K_slog_trace(K_SLOG_ERROR,
+                "[%s : %s : %d] failed to add item. itemId[%d], count[%d], inventoryType[%d]",
+                __FILE__, __FUNCTION__, __LINE__, itemId, count, inventoryType);
+            return false;
+        }
     }
 
     return true;

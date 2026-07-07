@@ -5,6 +5,7 @@
 #include "MySQLManager.h"
 #include "ConfigLoader.h"
 
+
 #if 1
 namespace
 {
@@ -63,15 +64,9 @@ int main(int ac, char **av)
             return -1;
         }
         K_slog_trace(K_SLOG_TRACE, "==============MySqlConnectionPool Count: %d==============", MySqlConnectionPool::GetInstance()->GetPoolSize());
-        if (RedisClient::Init(g_config.redis) != EXIT_SUCCESS)
-        {
-            K_slog_trace(K_SLOG_ERROR, "Failed to init RedisClient");
-            K_slog_close();
-            return -1;
-        }
         
         Server server;
-        bool start = server.Init(g_config.loginServer.port);
+        bool start = server.Init(g_config.loginServer.port, g_config.redis);
         if (start == false)
         {
             K_slog_close();

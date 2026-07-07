@@ -22,8 +22,15 @@ int WorldServer::Init(const std::string &configPath)
     return 0;
 }
 
-int WorldServer::Init(const int port)
+int WorldServer::Init(const int port,const RedisConfig& redisConfig)
 {
+
+    if (!m_redisPool.Init(redisConfig, redisConfig.poolCount))
+    {
+        K_slog_trace(K_SLOG_ERROR, "RedisConnectionPool init failed");
+        return -1;
+    }
+    
     if(m_channel_manager.Init() != EXIT_SUCCESS)
     {
         K_slog_trace(K_SLOG_ERROR, "m_channel_manager.Init failed");
@@ -165,6 +172,7 @@ int WorldServer::OnReceive(int fd)
     ctx.world_session = m_sessions[fd];
     ctx.char_service = &m_char_service;
     ctx.channel_manager = &m_channel_manager;
+    ctx.redis_pool = &m_redisPool;
     ctx.fd = fd;
     ctx.payload = (char *)pkt->payload.c_str();
     ctx.payload_len = pkt->payload.size();

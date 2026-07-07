@@ -13,19 +13,18 @@
 
 
 MySqlConnectionPool *PlayerService::m_mySql = nullptr;
-RedisClient *PlayerService::m_redis = nullptr;
 
 PlayerService::PlayerService()
 {
     m_mySql = MySqlConnectionPool::GetInstance();
-    m_redis = RedisClient::GetInstance();
 }
 
 PlayerService::~PlayerService()
 {
 }
 
-std::unique_ptr<Player> PlayerService::LoadPlayer(int characterId)
+
+std::unique_ptr<Player> PlayerService::LoadPlayer(int characterId, RedisClient* redis)
 {
     std::unique_ptr<Player> player = nullptr;
     PlayerInitData playerInit{};
@@ -33,13 +32,15 @@ std::unique_ptr<Player> PlayerService::LoadPlayer(int characterId)
     std::map<std::string, std::string> redis_map;
     int result = 0;
 
-    if (m_redis != nullptr)
+    const std::string redisKey = "characterID:" + std::to_string(characterId);
+
+    if (redis != nullptr)
     {
-        auto redis_value = m_redis->HGetAll("characterID:" + std::to_string(characterId));
+        auto redis_value = redis->HGetAll(redisKey);
         if (redis_value.has_value() && !redis_value->empty())
         {
             player = std::make_unique<Player>();
-
+            GetInt(*redis_value, "char_id", playerInit.char_id);
             GetStr(*redis_value, "name", playerInit.name);
             GetStr(*redis_value, "account_id", playerInit.account_id);
             GetInt(*redis_value, "level", playerInit.level);
@@ -49,6 +50,11 @@ std::unique_ptr<Player> PlayerService::LoadPlayer(int characterId)
             GetFloat(*redis_value, "xPos", playerInit.xPos);
             GetFloat(*redis_value, "yPos", playerInit.yPos);
 
+            if (playerInit.char_id == 0)
+            {
+                playerInit.char_id = characterId;
+            }
+
             BaseStat base{};
             DerivedStat derived{};
             ExpStat expStat{};
@@ -56,7 +62,6 @@ std::unique_ptr<Player> PlayerService::LoadPlayer(int characterId)
             int curHp;
             int curMp;
             
-
             GetInt(*redis_value, "base_str", base.str);
             GetInt(*redis_value, "base_dex", base.dex);
             GetInt(*redis_value, "base_intel", base.intel);
@@ -95,7 +100,13 @@ std::unique_ptr<Player> PlayerService::LoadPlayer(int characterId)
     player->SetInitData(playerInit, stat);
     redis_map = PlayerInfoToRedisMap(playerInit, stat);
 
-    result = m_redis->HSetAll("characterID" + std::to_string(characterId), redis_map, 600);
+    if (redis == nullptr)
+    {
+        K_slog_trace(K_SLOG_ERROR, "redis is nullptr");
+        return nullptr;
+    }
+
+    result = redis->HSetAll(redisKey, redis_map, 600);
 
     K_slog_trace(K_SLOG_TRACE, "HSetAll SUCCESS");
 

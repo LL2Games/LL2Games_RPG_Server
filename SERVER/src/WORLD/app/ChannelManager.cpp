@@ -131,17 +131,12 @@ ChannelInfo ChannelManager::SelectBestChannel()
     return info;
 }
 
-int ChannelManager::CanEnterChannel(const std::string& channel_id)
+int ChannelManager::CanEnterChannel(const std::string& channel_id, RedisClient& redis)
 {
     E_ChannelState result_state = E_ChannelState::Die;
-    RedisClient* redis = RedisClient::GetInstance();
-    if (redis == nullptr)
-    {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] RedisClient is nullptr", __FUNCTION__, __LINE__);
-        return (int)E_ChannelState::Die;
-    }
+   
 
-    auto redis_value = redis->HGetAll("channel:" + channel_id + ":status");
+    auto redis_value = redis.HGetAll("channel:" + channel_id + ":status");
     if (redis_value.has_value() && !redis_value->empty())
     {
         auto it = redis_value->find("state");

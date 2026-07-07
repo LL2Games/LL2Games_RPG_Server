@@ -71,6 +71,8 @@ AppConfig ConfigLoader::ToAppConfig() const
     
     try {appConfig.mysql.poolCount = GetInt("MYSQL", "POOL_COUNT");} catch (const std::exception&) {printf("MYSQL POOL_COUNT not found, using default value"); appConfig.mysql.poolCount = 8;} 
 
+    try {appConfig.redis.poolCount = GetInt("REDIS", "POOL_COUNT");} catch (const std::exception&) {printf("REDIS POOL_COUNT not found, using default value"); appConfig.redis.poolCount = 8;}
+
     try {appConfig.channelServer.maxUserCount = GetInt("CHANNEL_SERVER", "MAX_USER_COUNT");} catch (const std::exception&) {printf("CHANNEL_SERVER MAX_USER_COUNT not found, using default value"); appConfig.channelServer.maxUserCount = 1000;} 
     
     try {appConfig.channelServer.threadCount = GetInt("CHANNEL_SERVER", "THREAD_COUNT");} catch (const std::exception&) {printf("CHANNEL_SERVER THREAD_COUNT not found, using default value"); appConfig.channelServer.threadCount = 0;} 

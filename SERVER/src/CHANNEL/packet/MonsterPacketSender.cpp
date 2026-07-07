@@ -2,7 +2,7 @@
 #include "ChannelSession.h"
 
 
-void MonsterPacketSender::SendMonsterSnapShot(Player* player, const std::vector<Monster*>& monsters)
+void MonsterPacketSender::SendMonsterSnapShot(Player* player, const std::vector<MonsterSnapshotInfo>& monsters)
 {
     if (player == nullptr)
         return;
@@ -16,37 +16,24 @@ void MonsterPacketSender::SendMonsterSnapShot(Player* player, const std::vector<
 
     payload.push_back(std::to_string(monsters.size()));
 
-    for (auto* monster : monsters)
+    for (const auto& monster : monsters)
     {
-        if (monster == nullptr)
-            continue;
-
-        payload.push_back(std::to_string(monster->GetId()));          // monsterTemplateId
-        payload.push_back(std::to_string(monster->GetInstanceId()));  // monsterObjectId
-        payload.push_back(std::to_string(monster->GetPos().xPos));
-        payload.push_back(std::to_string(monster->GetPos().yPos));
-        payload.push_back(std::to_string(static_cast<int>(monster->GetDir().xPos)));
-        payload.push_back(std::to_string(monster->GetMoveSpeed()));
-        payload.push_back(std::to_string(monster->GetCurrentHP()));
-        payload.push_back(std::to_string(monster->GetMaxHP()));
-        payload.push_back(std::to_string(static_cast<int>(monster->GetState())));
-// 테스트용 로그
-        //K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] MonsterId [%d]", __FILE__, __FUNCTION__, __LINE__, monster->GetId());
-        //K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] Monster InstanceId [%d]", __FILE__, __FUNCTION__, __LINE__, monster->GetInstanceId());
-        //K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] Monster xPos [%f]", __FILE__, __FUNCTION__, __LINE__, monster->GetPos().xPos);
-        //K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] Monster yPos [%f]", __FILE__, __FUNCTION__, __LINE__, monster->GetPos().yPos);
-        //K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] Monster Dir [%d]", __FILE__, __FUNCTION__, __LINE__, (int)monster->GetDir().xPos);
-        //K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] Monster CurrentHp", __FILE__, __FUNCTION__, __LINE__, monster->GetCurrentHP());
-        //K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] Monster State", __FILE__, __FUNCTION__, __LINE__, static_cast<int>(monster->GetState()));
+        payload.push_back(std::to_string(monster.monsterId));          // monsterTemplateId
+        payload.push_back(std::to_string(monster.instanceId));  // monsterObjectId
+        payload.push_back(std::to_string(monster.xPos));
+        payload.push_back(std::to_string(monster.yPos));
+        payload.push_back(std::to_string(monster.dirX));
+        payload.push_back(std::to_string(monster.moveSpeed));
+        payload.push_back(std::to_string(monster.currentHp));
+        payload.push_back(std::to_string(monster.maxHp));
+        payload.push_back(std::to_string(monster.state));
     }
-
-    K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] Monster SnapShot Data Send", __FILE__, __FUNCTION__, __LINE__);
     session->Send(PKT_MONSTER_SNAPSHOT, payload);
 }
 
-void MonsterPacketSender::SendMonsterMove(Player* player, const std::vector<Monster*>& monsters)
+void MonsterPacketSender::SendMonsterMove(Player* player, const std::vector<MonsterMoveInfo>& monsters)
 {
-     if (player == nullptr)
+    if (player == nullptr)
         return;
 
     auto session = player->GetSession();
@@ -54,33 +41,21 @@ void MonsterPacketSender::SendMonsterMove(Player* player, const std::vector<Mons
         return;
 
     std::vector<std::string> payload;
-    payload.reserve(1 + monsters.size() * 8);
+    payload.reserve(1 + monsters.size() * 7);
 
     payload.push_back(std::to_string(monsters.size()));
 
-    for (auto* monster : monsters)
+    for (const auto& monster : monsters)
     {
-        if (monster == nullptr)
-            continue;
-
-        payload.push_back(std::to_string(monster->GetInstanceId()));          // monster instanceid
-        payload.push_back(std::to_string(static_cast<int>(monster->GetState())));
-        payload.push_back(std::to_string(static_cast<int>(monster->GetDir().xPos)));
-        payload.push_back(std::to_string(monster->GetPos().xPos));
-        payload.push_back(std::to_string(monster->GetPos().yPos));
-        payload.push_back(std::to_string(monster->GetCurrentHP()));
-        payload.push_back(std::to_string(monster->GetMaxHP()));
-// 테스트용 로그
-        //K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] Monster InstanceId [%d]", __FILE__, __FUNCTION__, __LINE__, monster->GetInstanceId());
-        //K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] Monster State [%d]", __FILE__, __FUNCTION__, __LINE__, static_cast<int>(monster->GetState()));
-        //K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] Monster Dir [%d]", __FILE__, __FUNCTION__, __LINE__, (int)monster->GetDir().xPos);
-        //K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] Monster xPos [%f]", __FILE__, __FUNCTION__, __LINE__, monster->GetPos().xPos);
-        //K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] Monster yPos [%f]", __FILE__, __FUNCTION__, __LINE__, monster->GetPos().yPos);
-        //K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] Monster CurrentHp [%d]", __FILE__, __FUNCTION__, __LINE__, monster->GetCurrentHP());
-        //K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] Monster State [%d]", __FILE__, __FUNCTION__, __LINE__, static_cast<int>(monster->GetState()));
+        payload.push_back(std::to_string(monster.instanceId));
+        payload.push_back(std::to_string(monster.state));
+        payload.push_back(std::to_string(monster.dirX));
+        payload.push_back(std::to_string(monster.xPos));
+        payload.push_back(std::to_string(monster.yPos));
+        payload.push_back(std::to_string(monster.currentHp));
+        payload.push_back(std::to_string(monster.maxHp));
     }
 
-    //K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] Monster Move Data Send", __FILE__, __FUNCTION__, __LINE__);
     session->Send(PKT_MONSTER_MOVE, payload);
 }
 
@@ -110,17 +85,18 @@ void MonsterPacketSender::SendMonsterOnDamaged(Player* Attacker, int SkillID, st
     
 	for(auto it = playerList.begin(); it != playerList.end(); ++it)
 	{
-		//if(it->second == Attacker) continue;
-		
-		auto session = it->second->GetSession();
+		if (it->second == nullptr)
+            return;
+
+        auto session = it->second->GetSession();
         if (session == nullptr)
             continue;
-		
-		session->Send(PKT_MONSTER_ONDAMAGED, payload);
-	}
+
+        session->Send(PKT_MONSTER_ONDAMAGED, payload);
+    }
 }
 
-void MonsterPacketSender::SendMonsterRespawn(std::unordered_map<int, Player *> &playerList, const std::vector<Monster*>& monsters)
+void MonsterPacketSender::SendMonsterRespawn(std::unordered_map<int, Player *> &playerList, const std::vector<MonsterRespawnInfo>& monsters)
 {
     std::vector<std::string> payload;
 	
@@ -128,15 +104,14 @@ void MonsterPacketSender::SendMonsterRespawn(std::unordered_map<int, Player *> &
 
 	for(const auto& monster : monsters)
     {
-        payload.push_back(std::to_string(monster->GetInstanceId()));
-        payload.push_back(std::to_string(monster->GetId()));
-        payload.push_back(std::to_string(monster->GetPos().xPos));
-        payload.push_back(std::to_string(monster->GetPos().yPos));
-        payload.push_back(std::to_string((int)monster->GetDir().xPos));
-        payload.push_back(std::to_string(monster->GetCurrentHP()));
-        payload.push_back(std::to_string(monster->GetMaxHP()));
-        payload.push_back(std::to_string(static_cast<int>(monster->GetState())
-    ));
+        payload.push_back(std::to_string(monster.instanceId));
+        payload.push_back(std::to_string(monster.monsterId));
+        payload.push_back(std::to_string(monster.xPos));
+        payload.push_back(std::to_string(monster.yPos));
+        payload.push_back(std::to_string(monster.dirX));
+        payload.push_back(std::to_string(monster.currentHp));
+        payload.push_back(std::to_string(monster.MaxHp));
+        payload.push_back(std::to_string(monster.state));
     }
     
 	for(auto it = playerList.begin(); it != playerList.end(); ++it)

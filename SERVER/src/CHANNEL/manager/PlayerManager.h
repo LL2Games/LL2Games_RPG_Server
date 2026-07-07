@@ -5,6 +5,7 @@
 #include <memory>
 #include "Player.h"
 #include "MySqlConnectionPool.h"
+#include <mutex>
 class PlayerManager
 {   
 public:
@@ -24,6 +25,6 @@ public:
 private:
     std::unordered_map<int, std::unique_ptr<Player>> m_players;
     MySqlConnectionPool* m_mySql;
-    
+    std::mutex m_PlayerMutex;
 
 };

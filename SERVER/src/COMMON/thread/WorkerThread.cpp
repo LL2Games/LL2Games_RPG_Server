@@ -39,12 +39,13 @@ void WorkerThread::PushTask(std::unique_ptr<Task> task)
 
 void WorkerThread::Run()
 {
-    while (m_running)
+    while (true)
     {
         std::unique_ptr<Task> task;
 
         {
             std::unique_lock<std::mutex> lock(m_mutex);
+
             m_cv.wait(lock, [&]() {
                 return !m_tasks.empty() || !m_running;
             });
@@ -59,6 +60,19 @@ void WorkerThread::Run()
         }
 
         if (task)
-            task->Execute();
+        {
+            try
+            {
+                task->Execute();
+            }
+            catch (const std::exception& e)
+            {
+               
+            }
+            catch (...)
+            {
+             
+            }
+        }
     }
 }

@@ -19,7 +19,7 @@ int K_slog_init(const char* path, const char *fileName, int logLevel)
 	g_logLevel = std::min(logLevel, (int)K_SLOG_TRACE);
 	g_logName = fileName;
 
-    slog_init(fileName, SLOG_FLAGS_ALL, 0);
+    slog_init(fileName, SLOG_FLAGS_ALL, 1);
 
     slog_config_t config;
     slog_config_get(&config);

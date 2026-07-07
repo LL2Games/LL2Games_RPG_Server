@@ -63,15 +63,10 @@ int main(int ac, char **av)
             return -1;
         }
         K_slog_trace(K_SLOG_TRACE, "==============MySqlConnectionPool Count: %d==============", MySqlConnectionPool::GetInstance()->GetPoolSize());
-        if (RedisClient::Init(g_config.redis) != EXIT_SUCCESS)
-        {
-            K_slog_trace(K_SLOG_ERROR, "Failed to init RedisClient");
-            K_slog_close();
-            return -1;
-        }
+    
         WorldServer server;
 
-        if (server.Init(g_config.worldServer.port) != 0)
+        if (server.Init(g_config.worldServer.port, g_config.redis) != 0)
         {
             K_slog_close();
             return -1;

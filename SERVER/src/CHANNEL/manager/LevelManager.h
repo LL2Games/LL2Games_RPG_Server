@@ -24,5 +24,4 @@ private:
     static LevelManager *m_instance;
 
     static MySqlConnectionPool* m_mySql;
-    static RedisClient* m_redis;
 };

@@ -8,6 +8,7 @@ class Client;
 
 class RedisClient;
 class MySqlconnectionPool;
+class RedisConnectionPool;
 
 class WorldServer;
 class WorldSession;
@@ -121,7 +122,8 @@ struct PacketContext
     WorldSession *world_session = nullptr;
     CharacterService *char_service = nullptr;
     ChannelManager *channel_manager = nullptr;
-
+    RedisConnectionPool* redis_pool = nullptr;
+    
     //Channel에서 사용
     ChannelSession *channel_session = nullptr;
     PlayerService* player_service = nullptr;

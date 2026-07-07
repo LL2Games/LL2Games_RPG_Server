@@ -5,6 +5,7 @@
 //#include "RedisClient.h"
 #include "K_slog.h"
 
+std::mutex TradeService::m_TradeMutex;
 std::unordered_map<int, TradeSession *> TradeService::m_sessions;
 
 
@@ -98,67 +99,78 @@ int TradeService::Start(Player *requester, Player *accepter, std::string &errMsg
 
 int TradeService::UploadItem(Player* player, const TradeItem& item, std::string &errMsg)
 {
-    TradeSession *session = nullptr;
-    // 1. 예외처리: player 객체가 유효한지
-    if (player == nullptr )
+    if (player == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] Invalid player", __FUNCTION__, __LINE__);
         errMsg = "Invalid player";
         return -1;
     }
+    std::lock_guard<std::mutex> lock(m_TradeMutex);
 
-    session = m_sessions[player->GetId()];
-    // 2. 예외처리: player의 TradeSession 유효하지않음
-    if (session == nullptr)
+    auto it = m_sessions.find(player->GetId());
+    if (it == m_sessions.end() || it->second == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] player trade session Not Found", __FUNCTION__, __LINE__);
         errMsg = "player trade session Not Found";
         return -1;
     }
 
-    // 3. Item 등록
+    TradeSession* session = it->second;
+
     if (session->a_player == player)
         session->a_items.push_back(item);
     else
         session->b_items.push_back(item);
-
     return 0;
 }
 
 int TradeService::Ready(Player* player, const std::vector<TradeItem>& , std::string &errMsg)
 {
-    TradeSession *session = nullptr;
-    // 1. 예외처리: player 객체가 유효한지
-    if (player == nullptr )
+    if (player == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] Invalid player", __FUNCTION__, __LINE__);
         errMsg = "Invalid player";
         return -1;
     }
 
-    session = m_sessions[player->GetId()];
-    // 2. 예외처리: player의 TradeSession 유효하지않음
-    if (session == nullptr)
+    TradeExecuteData executeData;
+    bool shouldExecute = false;
+
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] player trade session Not Found", __FUNCTION__, __LINE__);
-        errMsg = "player trade session Not Found";
-        return -1;
+        std::lock_guard<std::mutex> lock(m_TradeMutex);
+
+        auto it = m_sessions.find(player->GetId());
+        if (it == m_sessions.end() || it->second == nullptr)
+        {
+            errMsg = "player trade session Not Found";
+            return -1;
+        }
+
+        TradeSession* session = it->second;
+
+        if (session->a_player == player)
+            session->a_ready = true;
+        else
+            session->b_ready = true;
+
+        shouldExecute =
+            (session->a_id == player->GetId() && session->b_ready) ||
+            (session->b_id == player->GetId() && session->a_ready);
+
+        if (shouldExecute)
+        {
+            executeData.a_id = session->a_id;
+            executeData.b_id = session->b_id;
+            executeData.a_items = session->a_items;
+            executeData.b_items = session->b_items;
+
+            m_sessions.erase(session->a_id);
+            m_sessions.erase(session->b_id);
+            delete session;
+        }
     }
 
-    // 3. Ready 처리 및 Item 등록 --> UploadItem에서 아이템등록으로 변경
-    if (session->a_player == player)
-        session->a_ready = true;
-    else
-        session->b_ready = true;
+    if (shouldExecute)
+        return Execute(executeData);
 
-    // 4. 상대방 Ready 확인 후 교환 수행
-    if ((session->a_id == player->GetId() && session->b_ready == true)
-    || (session->b_id == player->GetId() && session->a_ready == true))
-    {
-        return Execute(session);
-    }
-
-    return 2; //상대방 교환 준비 대기
+    return 2;
 }
 
 int TradeService::Execute(TradeSession *session)
@@ -256,10 +268,64 @@ err:
     return 0;
 }
 
+int TradeService::Execute(TradeExecuteData& data)
+{
+     MYSQL* conn = m_mySql->GetConnection();
+
+    if (!conn)
+    {
+        K_slog_trace(K_SLOG_ERROR, "[%s][%d] MYSQL GetConnection failed", __FUNCTION__, __LINE__);
+        return -1;
+    }
+
+    int result = 0;
+
+    if (mysql_query(conn, "START TRANSACTION") != 0)
+    {
+        K_slog_trace(K_SLOG_ERROR, "[%s][%d] START TRANSACTION failed", __FUNCTION__, __LINE__);
+        m_mySql->ReleaseConnection(conn);
+        return -1;
+    }
+
+    for (auto& item : data.a_items)
+    {
+        if (DecreaseItem(conn, std::to_string(data.a_id), item) != 0 ||
+            IncreaseItem(conn, std::to_string(data.b_id), item) != 0)
+        {
+            result = -1;
+            break;
+        }
+    }
+
+    if (result == 0)
+    {
+        for (auto& item : data.b_items)
+        {
+            if (DecreaseItem(conn, std::to_string(data.b_id), item) != 0 ||
+                IncreaseItem(conn, std::to_string(data.a_id), item) != 0)
+            {
+                result = -1;
+                break;
+            }
+        }
+    }
+
+    if (result == 0)
+    {
+        if (mysql_query(conn, "COMMIT") != 0)
+            result = -1;
+    }
+    else
+    {
+        mysql_query(conn, "ROLLBACK");
+    }
+
+    m_mySql->ReleaseConnection(conn);
+    return result;
+}
+
 int TradeService::Cancel(Player *requester, std::string &errMsg)
 {
-    TradeSession *session = nullptr;
-
     // 1. 예외처리: target_player와 requester 객체가 유효한지
     if (requester == nullptr)
     {
@@ -268,17 +334,25 @@ int TradeService::Cancel(Player *requester, std::string &errMsg)
         return -1;
     }
 
-    session = m_sessions[requester->GetId()];
+    std::lock_guard<std::mutex> lock(m_TradeMutex);
+    auto it = m_sessions.find(requester->GetId());
     // 2. 예외처리: player의 TradeSession 유효하지않음
-    if (session == nullptr)
+    if (it == m_sessions.end() || it->second == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] player trade session Not Found", __FUNCTION__, __LINE__);
+         K_slog_trace(K_SLOG_ERROR, "[%s][%d] player trade session Not Found", __FUNCTION__, __LINE__); 
         errMsg = "player trade session Not Found";
         return -1;
     }
 
-    //3. 교환세션 삭제
-    DeleteTradeSession(session); 
+    TradeSession* session = it->second; 
+
+    // 기존에 DecreaseSession을 호출했지만 DecreaseSession 내부에서도 m_session 접근을 위해 
+    // lock을 걸다 보니 같은 변수에 대한 2번의 락을 걸게 되어 deadlock이 발생할 수 있어
+    // DecreaseSession 호출 없이 이 함수 내에서 삭제를 진행한다.
+    m_sessions.erase(session->a_id);
+    m_sessions.erase(session->b_id);
+
+    delete session;
 
     return 0;
 }
@@ -297,6 +371,13 @@ void TradeService::CreateTradeSession(Player *a_player, Player *b_player)
     session->b_player = b_player;
     session->a_id = a_player->GetId();
     session->b_id = b_player->GetId();
+    std::lock_guard<std::mutex> lock(m_TradeMutex);
+    if (m_sessions.find(a_player->GetId()) != m_sessions.end() ||
+    m_sessions.find(b_player->GetId()) != m_sessions.end())
+    {
+        delete session;
+        return;
+    }
     m_sessions[a_player->GetId()] = session;
     m_sessions[b_player->GetId()] = session;
 }
@@ -308,6 +389,7 @@ void TradeService::DeleteTradeSession(TradeSession *session)
         K_slog_trace(K_SLOG_ERROR, "[%s][%d] session is nullptr", __FUNCTION__, __LINE__);
         return;
     }
+    std::lock_guard<std::mutex> lock(m_TradeMutex);
     m_sessions.erase(session->a_id);
     m_sessions.erase(session->b_id);
 
@@ -322,6 +404,7 @@ TradeSession *TradeService::GetTradeSession(Player *player)
         return nullptr;
     }
 
+    std::lock_guard<std::mutex> lock(m_TradeMutex);
     auto it = m_sessions.find(player->GetId());
     if (it == m_sessions.end())
     {
@@ -342,6 +425,7 @@ Player* TradeService::GetTargetPlayer(Player *player)
         return nullptr;
     }
 
+    std::lock_guard<std::mutex> lock(m_TradeMutex);
     auto it = m_sessions.find(player->GetId());
     if (it == m_sessions.end())
     {
@@ -367,6 +451,7 @@ const std::vector<TradeItem>& TradeService::GetMyItems(Player *player)
         return nullVector;
     }
 
+    std::lock_guard<std::mutex> lock(m_TradeMutex);
     auto it = m_sessions.find(player->GetId());
     if (it == m_sessions.end())
     {
@@ -390,6 +475,7 @@ const std::vector<TradeItem>& TradeService::GetTargetItems(Player *player)
         return nullVector;
     }
 
+    std::lock_guard<std::mutex> lock(m_TradeMutex);
     auto it = m_sessions.find(player->GetId());
     if (it == m_sessions.end())
     {

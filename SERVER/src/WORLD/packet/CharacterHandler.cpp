@@ -3,7 +3,7 @@
 #include "WorldSession.h"
 #include "K_slog.h"
 #include "PacketParser.h"
-
+#include "RedisConnectionPool.h"
 
 void CharacterHandler::Execute(PacketContext* ctx)
 {
@@ -43,8 +43,14 @@ err:
         session->SendNok(PKT_SELECT_CHARACTER, errMsg);
     }
     else
-    {
-        std::vector<std::string> char_list = char_service->GetCharacterList(session->GetID());
+    {   
+        RedisConnectionGuard redisGuard(ctx->redis_pool);
+        if (!redisGuard)
+        {
+            session->SendNok(PKT_SELECT_CHARACTER, "redis connection acquire failed");
+            return;
+        }
+        std::vector<std::string> char_list = char_service->GetCharacterList(session->GetID(), *redisGuard.Get());
         session->SendOk(PKT_SELECT_CHARACTER, char_list);
     }
 }

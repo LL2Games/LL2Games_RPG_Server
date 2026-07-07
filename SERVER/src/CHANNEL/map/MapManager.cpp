@@ -58,13 +58,18 @@ void MapManager::Update()
 
 MapInstance *MapManager::GetOrCreate(int mapId)
 {
-    auto it = m_maps.find(mapId);
-
-    if (it != m_maps.end())
     {
-        K_slog_trace(K_SLOG_TRACE, "[%s][%d] 이미 생성되어 있는 맵입니다. 맵의 정보를 반환합니다.", __FUNCTION__, __LINE__);
-        return it->second;
+        std::lock_guard<std::mutex> lock(m_mapsMutex);
+
+        auto it = m_maps.find(mapId);
+        if (it != m_maps.end())
+        {
+            K_slog_trace(K_SLOG_TRACE, "[%s][%d] 이미 생성되어 있는 맵입니다. 맵의 정보를 반환합니다.", __FUNCTION__, __LINE__);
+            return it->second;
+        }
+            
     }
+    
     MapInitData mapData;
 
     auto itInit = m_maps_initData.find(mapId);
@@ -84,11 +89,7 @@ MapInstance *MapManager::GetOrCreate(int mapId)
 
     newMap->SetCombatService(m_server->GetCombatService());
 
-    if (newMap->Init(mapData) == 1)
-    {
-        m_maps[mapId] = newMap;
-    }
-    else
+    if (newMap->Init(mapData) != 1)
     {
         delete newMap;
         return nullptr;
@@ -96,8 +97,24 @@ MapInstance *MapManager::GetOrCreate(int mapId)
 
     // 맵 생성 후 삭제 예약을 걸어둔다. 맵에 플레이어가 없는 경우에 일정 시간이 지나면 맵을 삭제할 수 있도록 설정
     newMap->SetDestroyCallback([this](int id)
-                               { m_destroyQueue.push(id); });
+    { 
+        std::lock_guard<std::mutex> lock(m_destroyQueueMutex);
+        m_destroyQueue.push(id); 
+    });
 
+
+    {
+        std::lock_guard<std::mutex> lock(m_mapsMutex);
+
+        auto it = m_maps.find(mapId);
+        if (it != m_maps.end())
+        {
+            delete newMap;
+            return it->second;
+        }
+
+        m_maps[mapId] = newMap;
+    }
     return newMap;
 }
 
@@ -170,8 +187,6 @@ bool MapManager::LoadJsonFile(int mapId, MapInitData &mapData)
 
 void MapManager::LoadMonster(nlohmann::json &j, std::vector<MonsterSpawnData>& MonstersData)
 {
-
-
     const auto& arr = j.at("monsters");
     MonstersData.clear();
     MonstersData.reserve(arr.size());
@@ -191,6 +206,9 @@ void MapManager::LoadMonster(nlohmann::json &j, std::vector<MonsterSpawnData>& M
 
 void MapManager::RemoveMap()
 {
+    // m_maps, m_destroyQueue 접근은 mutex로 보호했고, 
+    // MapInstance 수명 문제는 shared_ptr 기반 관리 또는 삭제 지연 큐로 개선할 수 있도록 식별했다.
+    std::scoped_lock(m_destroyQueueMutex, m_mapsMutex);
     while (!m_destroyQueue.empty())
     {
         int mapId = m_destroyQueue.front();

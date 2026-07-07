@@ -5,16 +5,26 @@
 #include "Packet.h"
 #include "MapInstance.h"
 #include "PlayerManager.h"
+#include "ChannelAuthTask.h"
+#include "PacketProcessTask.h"
 
-ChannelSession::ChannelSession(int fd, ChannelServer* server) : m_fd(fd), m_server(server), m_player(nullptr), m_playerManager(nullptr)
+ChannelSession::ChannelSession(int fd, ChannelServer* server, uint64_t sessionId, uint64_t generation)
+    : m_fd(fd),
+      m_server(server),
+      m_player(nullptr),
+      m_playerManager(nullptr),
+      m_sessionId(sessionId),
+      m_generation(generation)
 {
-   m_recvBuf.reserve(8192);
+    m_recvBuf.reserve(8192);
 }
 
 ChannelSession::~ChannelSession()
 {
     if (m_player != nullptr)
     {
+        m_player->SetSession(nullptr);
+
         MapInstance *map = m_player->GetCurrentMap();
         
         if (map != nullptr)
@@ -26,10 +36,14 @@ ChannelSession::~ChannelSession()
 
         if (m_playerManager != nullptr)
         {
+            K_slog_trace(K_SLOG_TRACE, "[ChannelSession Destroy] RemovePlayer id:%d", m_player->GetId());
             m_playerManager->RemovePlayer(m_player->GetId());
         }
+        else
+        {
+            K_slog_trace(K_SLOG_ERROR, "[ChannelSession Destroy] playerManager is null. player id:%d", m_player->GetId());
+        }
     }
-    K_slog_trace(K_SLOG_DEBUG, "[%s:%s][%d] ChannelSession Destroy(fd:%d)", __FILE__, __FUNCTION__, __LINE__, m_fd);
 }
 
 
@@ -40,7 +54,6 @@ bool ChannelSession::OnBytes(const uint8_t* data, size_t len)
     while (true)
     {
         ParseResult result = PacketParser::TryParse(m_recvBuf);
-
         if (result.status == ParseStatus::NeedMoreData)
         {
             return true;
@@ -59,31 +72,32 @@ bool ChannelSession::OnBytes(const uint8_t* data, size_t len)
 
 void ChannelSession::Dispatch(const ParsedPacket &pkt)
 {
-    auto handler = m_factory.Create(pkt.type);
-    if(handler)
+    if (pkt.type == PKT_CHANNEL_AUTH && m_server)
     {
-        PacketContext ctx;
-        ctx.type = pkt.type;
-        ctx.channel_session = this;
-        ctx.fd = m_fd;
-        ctx.type = pkt.type;
-        ctx.payload = const_cast<char*>(pkt.payload.c_str());
-        ctx.payload_len = pkt.payload.size();
-        
-        // PlayerManager 설정
-        if (m_server) {
-            ctx.player_manager = m_server->GetPlayerManager();
-            //K_slog_trace(K_SLOG_DEBUG, "Player_Manager [%p]\n", ctx.player_manager);
-            ctx.map_service = m_server->GetMapService();
-            ctx.player_service = m_server->GetPlayerService();
-            ctx.stat_service = m_server->GetStatService();
-            ctx.item_service = m_server->GetItemService();
-            ctx.combat_service = m_server->GetCombatService();
-            ctx.trade_service = m_server->GetTradeService();
-        }
-        
-        handler->Execute(&ctx);
+        auto task = std::make_unique<ChannelAuthTask>(
+            m_server,
+            m_fd,
+            pkt.payload
+        );
+
+        m_server->GetAuthThreadPool()->Submit(std::move(task));
+        return;
     }
+
+    if (m_server == nullptr)
+        return;
+
+    auto task = std::make_unique<PacketProcessTask>(
+        m_server,
+        this,
+        m_fd,
+        m_sessionId,
+        m_generation,
+        pkt.type,
+        pkt.payload
+    );
+
+    m_server->GetThreadPool()->SubmitByKey(m_sessionId, std::move(task));
 }
 // 지금 방식은 클라이언트 하나에 해당해서 Send를 하는 방식인데 Player 클래스를 vector로 가지고 있고
 // 같은 맵, 시야 범위 등등 환경요소들을 확인해서 보내는 방식으로 변경 필요
@@ -128,30 +142,47 @@ int ChannelSession::SendNok(int type, const std::string &errMsg)
 
 int ChannelSession::EnqueueSend(std::string packet)
 {
-    if (packet.empty())
+     if (packet.empty())
         return -1;
 
-    m_sendQueue.push_back(std::move(packet));
+    if (m_closing.load())
+        return -1;
 
-    if (m_server != nullptr)
+    bool needEnableWrite = false;
+
+    {
+        std::lock_guard<std::mutex> lock(m_sendMutex);
+
+        needEnableWrite = m_sendQueue.empty();
+        m_sendQueue.push_back(std::move(packet));
+
+    }
+
+    if (needEnableWrite && m_server != nullptr)
+    {
+        K_slog_trace(K_SLOG_TRACE, "[EnqueueSend] EnableWriteEvent fd:%d", m_fd);
         m_server->EnableWriteEvent(m_fd);
+    }
 
     return 0;
 }
 
 bool ChannelSession::FlushSend()
 {
+    if (m_closing.load())
+        return false;
+
+    std::lock_guard<std::mutex> lock(m_sendMutex);
+
     while (!m_sendQueue.empty())
     {
         std::string& packet = m_sendQueue.front();
-
         ssize_t sent = send(
             m_fd,
             packet.data() + m_sendOffset,
             packet.size() - m_sendOffset,
             MSG_NOSIGNAL
         );
-
         if (sent > 0)
         {
             m_sendOffset += static_cast<size_t>(sent);
@@ -173,16 +204,6 @@ bool ChannelSession::FlushSend()
             if (errno == EAGAIN || errno == EWOULDBLOCK)
                 return true;
 
-            K_slog_trace(
-                K_SLOG_ERROR,
-                "[%s : %s : %d] send failed fd:%d errno:%d",
-                __FILE__,
-                __FUNCTION__,
-                __LINE__,
-                m_fd,
-                errno
-            );
-
             return false;
         }
 
@@ -194,6 +215,42 @@ bool ChannelSession::FlushSend()
 
 bool ChannelSession::HasPendingSend() const
 {
+   std::lock_guard<std::mutex> lock(m_sendMutex);
    return !m_sendQueue.empty();
 }
 
+bool ChannelSession::TryBeginTask()
+{
+    std::lock_guard<std::mutex> lock(m_taskMutex);
+    if (m_closing.load())
+        return false;
+
+    ++m_inFlightTasks;
+    return true;
+}
+
+void ChannelSession::EndTask()
+{
+    std::lock_guard<std::mutex> lock(m_taskMutex);
+    if (m_inFlightTasks > 0)
+        --m_inFlightTasks;
+
+    if (m_inFlightTasks == 0)
+        m_taskCv.notify_all();
+}
+
+void ChannelSession::MarkClosing()
+{
+    m_closing.store(true);
+    std::lock_guard<std::mutex> lock(m_taskMutex);
+    if (m_inFlightTasks == 0)
+        m_taskCv.notify_all();
+}
+
+void ChannelSession::WaitForNoTasks()
+{
+    std::unique_lock<std::mutex> lock(m_taskMutex);
+    m_taskCv.wait(lock, [this]() {
+        return m_inFlightTasks == 0;
+    });
+}

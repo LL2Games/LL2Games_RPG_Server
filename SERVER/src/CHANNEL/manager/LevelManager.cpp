@@ -2,12 +2,12 @@
 
 LevelManager *LevelManager::m_instance =nullptr;
 MySqlConnectionPool *LevelManager::m_mySql = nullptr;
-RedisClient *LevelManager::m_redis = nullptr;
+
 
 LevelManager::LevelManager()
 {
     m_mySql = MySqlConnectionPool::GetInstance();
-    m_redis = RedisClient::GetInstance();
+
 }
 
 

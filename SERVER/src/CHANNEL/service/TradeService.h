@@ -4,6 +4,7 @@
 //#include "RedisClient.h"
 #include <vector>
 #include <unordered_map>
+#include <mutex>
 struct TradeItem
 {
     std::string id;
@@ -25,6 +26,14 @@ struct TradeSession
     std::vector<TradeItem> a_items;
     std::vector<TradeItem> b_items;
 };
+
+struct TradeExecuteData
+{
+    int a_id;
+    int b_id;
+    std::vector<TradeItem> a_items;
+    std::vector<TradeItem> b_items;
+};
 class TradeService
 {
 private:
@@ -40,6 +49,7 @@ public:
 
 private:
     int Execute(TradeSession *);
+    int Execute(TradeExecuteData& data);
     int DecreaseItem(MYSQL *conn, const std::string &char_id, const TradeItem &item);
     int IncreaseItem(MYSQL *conn, const std::string &char_id, TradeItem &item);
 
@@ -63,4 +73,6 @@ public:
 private:
     MySqlConnectionPool* m_mySql;
     //RedisClient* m_redis;
+
+    static std::mutex m_TradeMutex;
 };

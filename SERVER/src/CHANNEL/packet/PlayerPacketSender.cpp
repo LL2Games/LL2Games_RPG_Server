@@ -30,6 +30,9 @@ void PlayerPacketSender::SendPlayerInfo(Player* player)
 
 void PlayerPacketSender::SendPlayerStat(Player* player)
 {
+    if (player == nullptr)
+        return;
+
     auto session = player->GetSession();
 
     if(!session) 
@@ -85,9 +88,9 @@ void PlayerPacketSender::SendPlayerSkillList(Player* player)
         payload.push_back(std::to_string(skill.skill_id));
         payload.push_back(std::to_string(skill.skill_level));
     }
-
-    session->Send(PKT_PLAYER_SKILLLIST, payload);
-
+    K_slog_trace(K_SLOG_TRACE, "[SendPlayerSkillList] before Send payload_count:%zu", payload.size());
+    int ret = session->Send(PKT_PLAYER_SKILLLIST, payload);
+    K_slog_trace(K_SLOG_TRACE, "[SendPlayerSkillList] after Send ret:%d", ret);
     K_slog_trace(K_SLOG_TRACE, "[%s][%d] SendPlayerSkillList Send Success.", __FUNCTION__, __LINE__);
 }
 
@@ -106,8 +109,10 @@ void PlayerPacketSender::SendPlayersMove(Player* sender, Vec2 pos, float speed, 
 	for(auto it = playerList.begin(); it != playerList.end(); ++it)
 	{
 		if(it->second == sender) continue;
+        if(it->second == nullptr) continue;
 		
 		auto session = it->second->GetSession();
+        if(session == nullptr) continue;
 		
 		session->Send(PKT_PLAYER_MOVE, payload);
 	}
@@ -150,16 +155,21 @@ void PlayerPacketSender::SendPlayerOnDamaged(Player* Defender, PlayerHitResult r
 
 void PlayerPacketSender::SendExpGain(Player *player, const ExpResult& expResult)
 {
+    if (player == nullptr)
+        return;
+
+    auto session = player->GetSession();
+    if (session == nullptr)
+        return;
+
     std::vector<std::string> payload;
-	payload.reserve(5);
-   
+	
 	payload.push_back(std::to_string(expResult.gainedExp));
 	payload.push_back(std::to_string(expResult.newLevel));
 	payload.push_back(std::to_string(expResult.curExp));
 	payload.push_back(std::to_string(expResult.needExp));
     payload.push_back(std::to_string(static_cast<int>(expResult.levelUp)));
 
-	auto session = player->GetSession();	
 	session->Send(PKI_PLAYER_EXP_GAIN, payload);
     
 }

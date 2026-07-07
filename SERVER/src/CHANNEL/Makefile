@@ -66,6 +66,7 @@ TARGET := $(BIN_DIR)/channelD
 SRCS := \
 	app/ChannelServer.cpp \
 	app/ChannelSession.cpp \
+	app/ChannelAuthTask.cpp \
     \
 	db/PlayerService.cpp \
 	db/RedisUtility.cpp \
@@ -110,6 +111,7 @@ SRCS := \
 	packet/ItemPacketSender.cpp\
 	packet/HandleTrade.cpp \
 	packet/InventoryPacketHandler.cpp\
+	packet/PacketProcessTask.cpp \
 	\
 	service/MapService.cpp \
 	service/StatService.cpp \

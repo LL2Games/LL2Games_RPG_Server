@@ -1,7 +1,7 @@
 #pragma once
 #include "common.h"
 #include "Inventory.h"
-
+#include <mutex>
 
 class InventoryManager
 {
@@ -25,5 +25,5 @@ public:
 	void Clear();
 private:
     std::unordered_map<int, Inventory> m_inventories;
-
+	std::mutex m_inventoryMutex;
 };

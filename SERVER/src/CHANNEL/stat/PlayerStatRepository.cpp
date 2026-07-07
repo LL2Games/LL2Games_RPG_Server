@@ -6,7 +6,6 @@
 PlayerStatRepository::PlayerStatRepository()
 {
     m_mySql = MySqlConnectionPool::GetInstance();
-    m_redis = RedisClient::GetInstance();
 }
 
 PlayerStatRepository::~PlayerStatRepository()
