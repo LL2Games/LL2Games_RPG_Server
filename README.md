@@ -1,12 +1,38 @@
 # LL2Games RPG Server
 
-> C++17 기반 Linux MMORPG 게임 서버 - 멀티 프로세스 아키텍처
+> C++17/Linux 기반 2D MMORPG 서버 프로젝트입니다.
+> MAIN, LOGIN, WORLD, CHANNEL, CHAT으로 책임을 분리한 멀티 프로세스 구조이며,
+> ChannelServer는 실제 게임 플레이 트래픽, 채널 인증, 맵 입장, 이동/전투/아이템/교환/채팅 패킷 처리를 담당합니다.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![C++](https://img.shields.io/badge/C++-17-00599C.svg?logo=c%2B%2B)](https://isocpp.org/)
 [![Platform](https://img.shields.io/badge/platform-Linux-lightgrey.svg)](https://www.linux.org/)
 
 ---
+
+## Highlights
+
+- MAIN / LOGIN / WORLD / CHANNEL / CHAT 멀티 프로세스 서버 구조
+- LOGIN 서버 기반 계정 인증 및 MySQL 계정 데이터 연동
+- WORLD 서버 기반 캐릭터 선택, 채널 선택, ChannelServer 접속 정보 제공
+- CHANNEL 서버 기반 맵 입장, 이동 동기화, 전투, 몬스터, 아이템, 인벤토리, 퀵슬롯, 교환 처리
+- CHAT 서버 기반 채팅 및 커맨드 처리
+- TCP Socket + epoll 기반 non-blocking I/O
+- TCP stream 기반 partial/coalesced/invalid packet 처리
+- MySQL + Redis 기반 계정/캐릭터/세션/상태 데이터 관리
+- POSIX Message Queue 기반 서버 프로세스 간 통신
+- 채널 인증 비동기 처리와 게임 패킷 worker 처리를 통한 ChannelServer 안정성 개선
+- Python socket client 기반 부하 테스트 및 Valgrind 메모리 검증
+
+## Test Results
+
+| Test | Result |
+| --- | --- |
+| TCP boundary test | partial/coalesced/invalid packet 5/5 PASS |
+| Repeated packet test | 1,000 clients x 1,000 packets, failed 0 |
+| Channel auth load test | 5,000 requests, success 5,000 / failed 0 |
+| Channel move load test | 300 clients, crash/restart 없이 유지 |
+| Valgrind Memcheck | definitely lost / indirectly lost 0 bytes |
 
 ## 📋 목차
 
