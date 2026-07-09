@@ -49,8 +49,8 @@ void ProcessManager::StartDaemons()
     m_login->Run();
     m_world->Run();
 
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d]m_chats.size[%d]", __FILE__, __LINE__, m_chats.size());
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d]m_channels.size[%d]", __FILE__, __LINE__, m_channels.size());
+    K_LOG_DEBUG( "m_chats.size[%d]", m_chats.size());
+    K_LOG_DEBUG( "m_channels.size[%d]", m_channels.size());
 
 
     for (int i = 0; i < CHANNEL_COUNT; i++)
@@ -60,7 +60,7 @@ void ProcessManager::StartDaemons()
 
         m_chat->Run(i);
         m_channel->Run(i);
-        K_slog_trace(K_SLOG_DEBUG, "[%s][%d]m_channels->Run(%d)", __FILE__, __LINE__, i);
+        K_LOG_DEBUG( "m_channels->Run(%d)", i);
     }
 
     m_monitor.AddWatch(m_login->GetPID(), [this]() -> pid_t
