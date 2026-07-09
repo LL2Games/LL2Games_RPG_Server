@@ -12,7 +12,7 @@ bool RedisConnectionPool::Init(const RedisConfig& redisConfig, std::size_t count
 
     if (count == 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[RedisConnectionPool] init failed. count is zero");
+        K_LOG_ERROR( "[RedisConnectionPool] init failed. count is zero");
         return false;
     }
 
@@ -23,7 +23,7 @@ bool RedisConnectionPool::Init(const RedisConfig& redisConfig, std::size_t count
         auto conn = std::make_unique<RedisClient>(redisConfig);
         if (!conn->IsConnected())
         {
-            K_slog_trace(K_SLOG_ERROR, "[RedisConnectionPool] redis connect failed. index:%zu", i);
+            K_LOG_ERROR( "[RedisConnectionPool] redis connect failed. index:%zu", i);
 
             m_connections.clear();
             while (!m_available.empty())
@@ -38,7 +38,7 @@ bool RedisConnectionPool::Init(const RedisConfig& redisConfig, std::size_t count
         m_connections.push_back(std::move(conn));
     }
 
-    K_slog_trace(K_SLOG_TRACE, "[RedisConnectionPool] init success. count:%zu", count);
+    K_LOG_TRACE( "[RedisConnectionPool] init success. count:%zu", count);
     return true;
 }
 

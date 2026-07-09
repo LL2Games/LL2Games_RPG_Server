@@ -6,21 +6,21 @@ int MySqlConnectionPool::Init(const MySqlConfig& mysqlConfig, const int pool_siz
 {
     if (m_instance != nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] Already Init ", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "Already Init ");
         return -1;
     }
 
     MySqlConnectionPool* client = new MySqlConnectionPool(mysqlConfig, pool_size == 0 ? MYSQL_POOL_SIZE : pool_size);
     if (client == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] Memory error(new MySqlConnectionPool(mysqlConfig, pool_size)) ", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "Memory error(new MySqlConnectionPool(mysqlConfig, pool_size)) ");
         return -1;
     }
 
     if (client->GetPoolSize() == 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] connect fail host=%s, port=%d", __FUNCTION__, __LINE__, mysqlConfig.host.c_str(), mysqlConfig.port);
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] connect fail user=%s, database=%s", __FUNCTION__, __LINE__, mysqlConfig.user.c_str(), mysqlConfig.database.c_str());
+        K_LOG_ERROR( "connect fail host=%s, port=%d", mysqlConfig.host.c_str(), mysqlConfig.port);
+        K_LOG_ERROR( "connect fail user=%s, database=%s", mysqlConfig.user.c_str(), mysqlConfig.database.c_str());
         delete client;
         return -1;
     }
@@ -43,7 +43,7 @@ MySqlConnectionPool::MySqlConnectionPool(const MySqlConfig& mysqlConfig, const i
         MYSQL* conn = mysql_init(nullptr);
         if (!conn)
         {
-            K_slog_trace(K_SLOG_ERROR, "[%s][%d] mysql_init ERROR", __FUNCTION__, __LINE__);
+            K_LOG_ERROR( "mysql_init ERROR");
             continue;
         }
 
@@ -60,8 +60,7 @@ MySqlConnectionPool::MySqlConnectionPool(const MySqlConfig& mysqlConfig, const i
 
         if (result == nullptr)
         {
-            K_slog_trace(K_SLOG_ERROR, "[%s][%d] mysql_real_connect failed : %s",
-                         __FUNCTION__, __LINE__, mysql_error(conn));
+            K_LOG_ERROR( "mysql_real_connect failed : %s", mysql_error(conn));
             mysql_close(conn);
             continue;
         }
@@ -71,7 +70,7 @@ MySqlConnectionPool::MySqlConnectionPool(const MySqlConfig& mysqlConfig, const i
         cnt++;
     }
 
-    K_slog_trace(K_SLOG_TRACE, "[%s][%d] db pool created[%d]", __FUNCTION__, __LINE__, cnt);
+    K_LOG_TRACE( "db pool created[%d]", cnt);
 }
 
 MySqlConnectionPool::~MySqlConnectionPool()
@@ -87,7 +86,7 @@ MySqlConnectionPool* MySqlConnectionPool::GetInstance()
 {
     if(m_instance == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] Not Initialized mysql (first call MySqlConnectionPool::Init) ", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "Not Initialized mysql (first call MySqlConnectionPool::Init) ");
         return nullptr;
     }
 

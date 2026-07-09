@@ -8,12 +8,12 @@ RedisClient::RedisClient(const RedisConfig& redisConfig) : m_ctx(nullptr)
     m_ctx = redisConnect(redisConfig.host.c_str(), redisConfig.port);
 
     if (m_ctx == nullptr) {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] Redis Connect error: ctx is null", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "Redis Connect error: ctx is null");
         return;
     }
 
     if (m_ctx->err) {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] Redis Connect error(%d): %s",__FUNCTION__, __LINE__, m_ctx->err, m_ctx->errstr);
+        K_LOG_ERROR( "Redis Connect error(%d): %s", m_ctx->err, m_ctx->errstr);
         redisFree(m_ctx);
         m_ctx = nullptr;
     }
@@ -39,20 +39,20 @@ bool RedisClient::IsConnected() const
 //{
 //    if (m_instance != nullptr)
 //    {
-//        K_slog_trace(K_SLOG_ERROR, "[%s][%d] Already Init ", __FUNCTION__, __LINE__);
+//        K_LOG_ERROR( "Already Init ");
 //        return -1;
 //    }
 //
 //    RedisClient* client = new RedisClient(redisConfig);
 //    if (client == nullptr)
 //    {
-//        K_slog_trace(K_SLOG_ERROR, "[%s][%d] Memory error(new RedisClient(redisConfig)) ", __FUNCTION__, __LINE__);
+//        K_LOG_ERROR( "Memory error(new RedisClient(redisConfig)) ");
 //        return -1;
 //    }
 //
 //    if (!client->IsConnected())
 //    {
-//        K_slog_trace(K_SLOG_ERROR, "[%s][%d] connect fail host=%s, port=%d", __FUNCTION__, __LINE__, redisConfig.host.c_str(), redisConfig.port);
+//        K_LOG_ERROR( "connect fail host=%s, port=%d", redisConfig.host.c_str(), redisConfig.port);
 //        delete client;
 //        return -1;
 //    }
@@ -66,7 +66,7 @@ bool RedisClient::IsConnected() const
 //{
 //    if(m_instance == nullptr)
 //    {
-//        K_slog_trace(K_SLOG_ERROR, "[%s][%d] Not Initialized redis (first call RedisClient::Init) ", __FUNCTION__, __LINE__);
+//        K_LOG_ERROR( "Not Initialized redis (first call RedisClient::Init) ");
 //        return nullptr;
 //    }
 //    
@@ -80,27 +80,27 @@ int RedisClient::HSet(const std::string key, const std::string& field, const std
     redisReply* reply = nullptr;
     if(m_ctx == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] redis context is null", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "redis context is null");
         rc = EXIT_FAILURE;
         goto err;
     }
 
     //HSET
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d] HSET %s %s %s", __FUNCTION__, __LINE__, key.c_str(), field.c_str(), value.c_str());
+    K_LOG_DEBUG( "HSET %s %s %s", key.c_str(), field.c_str(), value.c_str());
     reply = (redisReply*)redisCommand(m_ctx, "HSET %s %s %s", key.c_str(), field.c_str(), value.c_str());
     if (reply == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] HSET command failed for key: %s", __FUNCTION__, __LINE__, key.c_str());
+        K_LOG_ERROR( "HSET command failed for key: %s", key.c_str());
         rc = EXIT_FAILURE;
         goto err;
     }
     
     //유효기간 설정
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d] EXPIRE %s %d", __FUNCTION__, __LINE__, key.c_str(), expire);
+    K_LOG_DEBUG( "EXPIRE %s %d", key.c_str(), expire);
     reply = (redisReply*)redisCommand(m_ctx, "EXPIRE %s %d", key.c_str(), expire);
     if (reply == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] EXPIRE command failed for key: %s, expire: %d", __FUNCTION__, __LINE__, key.c_str(), expire);
+        K_LOG_ERROR( "EXPIRE command failed for key: %s, expire: %d", key.c_str(), expire);
         rc = EXIT_FAILURE;
         goto err;
     }
@@ -132,14 +132,14 @@ int RedisClient::HSetAll(const std::string& key, std::map<std::string, std::stri
 
     if(m_ctx == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] redis context is null", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "redis context is null");
         rc = EXIT_FAILURE;
     
     }
 
     if(redis_map.empty())
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] redis context is null", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "redis context is null");
         rc = EXIT_FAILURE;
         goto err;
     }
@@ -163,7 +163,7 @@ int RedisClient::HSetAll(const std::string& key, std::map<std::string, std::stri
 
     if(!reply)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] redisCommandArgv is failed", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "redisCommandArgv is failed");
         rc = EXIT_FAILURE;
         goto err;
     }
@@ -174,7 +174,7 @@ int RedisClient::HSetAll(const std::string& key, std::map<std::string, std::stri
     reply = (redisReply*)redisCommand(m_ctx, "EXPIRE %s %d", key.c_str(), expire);
      if(!reply)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] redisCommand EXPIIRE is failed", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "redisCommand EXPIIRE is failed");
         rc = EXIT_FAILURE;
         goto err;
     }
@@ -195,14 +195,14 @@ std::optional<std::map<std::string, std::string>> RedisClient::HGetAll(const std
     redisReply* reply = nullptr;
     if(m_ctx == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] redis context is null", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "redis context is null");
         return std::nullopt;
     }
 
     reply = (redisReply*)redisCommand(m_ctx, "HGETALL %s", key.c_str());
     if(reply == nullptr || reply->type != REDIS_REPLY_ARRAY)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] HGETALL command failed for key: %s", __FUNCTION__, __LINE__, key.c_str());
+        K_LOG_ERROR( "HGETALL command failed for key: %s", key.c_str());
         if(reply)
         {
             freeReplyObject(reply);
