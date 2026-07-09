@@ -18,7 +18,7 @@ void LoginHandler::Execute(PacketContext* ctx)
     client = ctx->client;
     if (client == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] client is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "client is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]client is nullptr";
         goto err;
@@ -33,7 +33,7 @@ void LoginHandler::Execute(PacketContext* ctx)
             errMsg))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] ParseLengthPrefixedString fail", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ParseLengthPrefixedString fail");
         goto err;
     }
     //pw
@@ -45,15 +45,15 @@ void LoginHandler::Execute(PacketContext* ctx)
             errMsg))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] ParseLengthPrefixedString fail", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ParseLengthPrefixedString fail");
         goto err;
     }
     
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d] id=%s pw=%s\n", __FUNCTION__, __LINE__, id.c_str(), pw.c_str());
+    K_LOG_DEBUG( "id=%s pw=%s\n", id.c_str(), pw.c_str());
 
     if (!MySQLManager::GetInstance()->Login(id, pw))
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] Login fail invalid ID/PW\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "Login fail invalid ID/PW\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]Login fail invalid ID/PW";
         goto err;
@@ -62,12 +62,12 @@ void LoginHandler::Execute(PacketContext* ctx)
 err:
     if (rc != EXIT_SUCCESS)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] Err=%s", __FUNCTION__, __LINE__, errMsg.c_str());
+        K_LOG_ERROR( "Err=%s", errMsg.c_str());
         client->SendNok(PKT_LOGIN, errMsg);
     }
     else
     {
-        K_slog_trace(K_SLOG_TRACE, "[%s][%d] Login SUCCESS ID=%s", __FUNCTION__, __LINE__,id.c_str());
+        K_LOG_TRACE( "Login SUCCESS ID=%s", id.c_str());
         client->SendOk(PKT_LOGIN);
     }
 }
