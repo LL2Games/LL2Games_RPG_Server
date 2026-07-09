@@ -13,15 +13,15 @@ ChannelManager::~ChannelManager()
 
 // static void LogChannelInfo(ChannelInfo info)
 // {
-//     K_slog_trace(K_SLOG_DEBUG, "[%s][%d]--------------------------", __FUNCTION__, __LINE__);
-//     K_slog_trace(K_SLOG_DEBUG, "[%s][%d]channel_id: %s", __FUNCTION__, __LINE__, info.channel_id.c_str());
-//     K_slog_trace(K_SLOG_DEBUG, "[%s][%d]ip: %s", __FUNCTION__, __LINE__, info.ip.c_str());
-//     K_slog_trace(K_SLOG_DEBUG, "[%s][%d]port: %d", __FUNCTION__, __LINE__, info.port);
-//     K_slog_trace(K_SLOG_DEBUG, "[%s][%d]max_users: %d", __FUNCTION__, __LINE__, info.max_users);
-//     K_slog_trace(K_SLOG_DEBUG, "[%s][%d]current_users: %d", __FUNCTION__, __LINE__, info.current_users);
-//     K_slog_trace(K_SLOG_DEBUG, "[%s][%d]alive: %d", __FUNCTION__, __LINE__, info.alive);
-//     K_slog_trace(K_SLOG_DEBUG, "[%s][%d]last_heartbeat: %s", __FUNCTION__, __LINE__, info.last_heartbeat.c_str());
-//     K_slog_trace(K_SLOG_DEBUG, "[%s][%d]--------------------------\r\n", __FUNCTION__, __LINE__);
+//     K_LOG_DEBUG( "--------------------------");
+//     K_LOG_DEBUG( "channel_id: %s", info.channel_id.c_str());
+//     K_LOG_DEBUG( "ip: %s", info.ip.c_str());
+//     K_LOG_DEBUG( "port: %d", info.port);
+//     K_LOG_DEBUG( "max_users: %d", info.max_users);
+//     K_LOG_DEBUG( "current_users: %d", info.current_users);
+//     K_LOG_DEBUG( "alive: %d", info.alive);
+//     K_LOG_DEBUG( "last_heartbeat: %s", info.last_heartbeat.c_str());
+//     K_LOG_DEBUG( "--------------------------\r\n");
 // }
 
 int ChannelManager::Init()
@@ -34,20 +34,20 @@ int ChannelManager::Init()
     conn = MySqlConnectionPool::GetInstance()->GetConnection();
     if (!conn)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] MYSQL GetConnection failed", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "MYSQL GetConnection failed");
         goto err; 
     }
 
     //channel_id, ip, port, max_users, current_users, alive, last_heartbeat
     query = std::string("SELECT * FROM channel");
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d] query[%s]", __FUNCTION__, __LINE__, query.c_str());
+    K_LOG_DEBUG( "query[%s]", query.c_str());
 
     if (mysql_query(conn, query.c_str()) == 0)
     {
         MYSQL_RES* res = mysql_store_result(conn);
         if (!res)
         {
-            K_slog_trace(K_SLOG_ERROR, "mysql_store_result failed: %s", mysql_error(conn));
+            K_LOG_ERROR( "mysql_store_result failed: %s", mysql_error(conn));
             rc = EXIT_FAILURE;
             goto err;
         }
@@ -88,13 +88,13 @@ std::optional<ChannelInfo> ChannelManager::SelectChannel(const std::string &chan
     auto it = m_channels.find(channel_id);
     if (it == m_channels.end())
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] channel(%s) is none", __FUNCTION__, __LINE__, channel_id.c_str());
+        K_LOG_ERROR( "channel(%s) is none", channel_id.c_str());
         return std::nullopt;
     }
     info = it->second;
     if (info.alive == 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] channel(%s) is die", __FUNCTION__, __LINE__, channel_id);
+        K_LOG_ERROR( "channel(%s) is die", channel_id);
         return std::nullopt;
     }
 
@@ -110,13 +110,13 @@ ChannelInfo ChannelManager::SelectBestChannel()
     // conn = MySqlConnectionPool::GetInstance()->GetConnection();
     // if (!conn)
     // {
-    //     K_slog_trace(K_SLOG_ERROR, "[%s][%d] MYSQL GetConnection failed", __FUNCTION__, __LINE__);
+    //     K_LOG_ERROR( "MYSQL GetConnection failed");
     //     goto err; 
     // }
 
     // //channel_id, ip, port, max_users, current_users, alive, last_heartbeat
     // query = std::string("SELECT ip, port, alive FROM channel WHERE channel_id='" + channel_id + "'");
-    // K_slog_trace(K_SLOG_DEBUG, "[%s][%d] query[%s]", __FUNCTION__, __LINE__, query.c_str());
+    // K_LOG_DEBUG( "query[%s]", query.c_str());
 
     // if (mysql_query(conn, query.c_str()) == 0)
     // {
@@ -152,13 +152,13 @@ int ChannelManager::CanEnterChannel(const std::string& channel_id, RedisClient& 
             else 
                 result_state = E_ChannelState::Die;
 
-            K_slog_trace(K_SLOG_DEBUG, "[%s][%d] channel(%s) status from Redis: state=%s", __FUNCTION__, __LINE__, channel_id.c_str(), state.c_str());
-            K_slog_trace(K_SLOG_DEBUG, "[%s][%d] channel(%s) percentage from Redis: percentage=%s%%", __FUNCTION__, __LINE__, channel_id.c_str(), redis_value->find("percentage") != redis_value->end() ? redis_value->find("percentage")->second.c_str() : "N/A");
+            K_LOG_DEBUG( "channel(%s) status from Redis: state=%s", channel_id.c_str(), state.c_str());
+            K_LOG_DEBUG( "channel(%s) percentage from Redis: percentage=%s%%", channel_id.c_str(), redis_value->find("percentage") != redis_value->end() ? redis_value->find("percentage")->second.c_str() : "N/A");
         }
     }
     else
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] Failed to get channel status from Redis for channel(%s)", __FUNCTION__, __LINE__, channel_id.c_str());
+        K_LOG_ERROR( "Failed to get channel status from Redis for channel(%s)", channel_id.c_str());
         return (int)E_ChannelState::Die;
     }
 

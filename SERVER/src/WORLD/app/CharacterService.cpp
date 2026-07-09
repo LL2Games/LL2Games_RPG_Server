@@ -31,14 +31,14 @@ std::vector<std::string> CharacterService::GetCharacterList(const std::string& a
     
 
     //test
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d] id[%s]", __FUNCTION__, __LINE__, account_id.c_str());
+    K_LOG_DEBUG( "id[%s]", account_id.c_str());
 
     //1.Redis charlist 조회
    
     auto cached = redis.HGetAll("charlist:" + account_id);
     if (cached.has_value() && !cached->empty())
     {
-        K_slog_trace(K_SLOG_DEBUG, "[%s][%d] redis cache hit for account_id[%s]", __FUNCTION__, __LINE__, account_id.c_str());
+        K_LOG_DEBUG( "redis cache hit for account_id[%s]", account_id.c_str());
         for (auto& [cid, value] : cached.value())
         {
             char_list.push_back(value);
@@ -46,20 +46,20 @@ std::vector<std::string> CharacterService::GetCharacterList(const std::string& a
         return char_list;
     }
     
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d] redis miss for account_id[%s]", __FUNCTION__, __LINE__, account_id.c_str());
+    K_LOG_DEBUG( "redis miss for account_id[%s]", account_id.c_str());
 
     //2.Redis miss-> MySQL 조회
     conn = m_db->GetConnection();
     if (!conn)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] MYSQL GetConnection failed", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "MYSQL GetConnection failed");
         return char_list;
     }
 
     MYSQL_STMT* stmt = mysql_stmt_init(conn);
     if(!stmt)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_prepare Error [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_error(conn));
+        K_LOG_ERROR( "mysql_stmt_prepare Error [%s]", mysql_error(conn));
         m_db->ReleaseConnection(conn);
         return char_list;
     }
@@ -68,7 +68,7 @@ std::vector<std::string> CharacterService::GetCharacterList(const std::string& a
 
     if(mysql_stmt_prepare(stmt, query, strlen(query)) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_prepare Error [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_prepare Error [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         m_db->ReleaseConnection(conn);
         return char_list;
@@ -86,7 +86,7 @@ std::vector<std::string> CharacterService::GetCharacterList(const std::string& a
 
     if(mysql_stmt_bind_param(stmt, param) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_bind_param Error [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_bind_param Error [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         m_db->ReleaseConnection(conn);
         return char_list;
@@ -94,7 +94,7 @@ std::vector<std::string> CharacterService::GetCharacterList(const std::string& a
 
     if(mysql_stmt_execute(stmt) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_execute Error [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_execute Error [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         m_db->ReleaseConnection(conn);
         return char_list;
@@ -125,7 +125,7 @@ std::vector<std::string> CharacterService::GetCharacterList(const std::string& a
 
     if(mysql_stmt_bind_result(stmt, resultBind) !=0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_bind_result Error [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_bind_result Error [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         m_db->ReleaseConnection(conn);
         return char_list;
@@ -133,7 +133,7 @@ std::vector<std::string> CharacterService::GetCharacterList(const std::string& a
 
     if(mysql_stmt_store_result(stmt) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_bind_result Error [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_bind_result Error [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         m_db->ReleaseConnection(conn);
         return char_list; 
@@ -172,7 +172,7 @@ std::vector<std::string> CharacterService::GetCharacterList(const std::string& a
     //test
     for (auto list: char_list)
     {
-        K_slog_trace(K_SLOG_DEBUG, "[%s][%d] list[%s]", __FUNCTION__, __LINE__, list.c_str());
+        K_LOG_DEBUG( "list[%s]", list.c_str());
     }
 
     return char_list;

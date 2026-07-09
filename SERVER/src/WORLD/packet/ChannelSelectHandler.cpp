@@ -16,7 +16,7 @@ void ChannelSelectHandler::Execute(PacketContext* ctx)
 
     if (ctx == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] ctx is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ctx is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]ctx is nullptr";
         goto err;
@@ -24,7 +24,7 @@ void ChannelSelectHandler::Execute(PacketContext* ctx)
     session = ctx->world_session;
     if (session == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] session is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "session is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]session is nullptr";
         goto err;
@@ -32,7 +32,7 @@ void ChannelSelectHandler::Execute(PacketContext* ctx)
     channel_manager = ctx->channel_manager;
     if (channel_manager == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] channel_manager is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "channel_manager is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]channel_manager is nullptr";
         goto err;
@@ -46,13 +46,11 @@ void ChannelSelectHandler::Execute(PacketContext* ctx)
             errMsg))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] ParseLengthPrefixedString fail", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ParseLengthPrefixedString fail");
         goto err;
     }
 
-    K_slog_trace(K_SLOG_DEBUG,
-        "[%s] client(%d) channel_id=[%s]",
-        __FUNCTION__, session->GetFD(), channel_id.c_str());
+    K_LOG_DEBUG( "client(%d) channel_id=[%s]", session->GetFD(), channel_id.c_str());
 
 err:
     if (rc != EXIT_SUCCESS)

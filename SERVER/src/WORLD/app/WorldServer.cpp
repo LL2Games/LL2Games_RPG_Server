@@ -17,7 +17,7 @@ int WorldServer::Init(const std::string &configPath)
         return -1;
     }
     //server conf read, parsing
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d] configPath[%s]", __FUNCTION__, __LINE__, configPath); //test
+    K_LOG_DEBUG( "configPath[%s]", configPath); //test
 
     return 0;
 }
@@ -27,20 +27,20 @@ int WorldServer::Init(const int port,const RedisConfig& redisConfig)
 
     if (!m_redisPool.Init(redisConfig, redisConfig.poolCount))
     {
-        K_slog_trace(K_SLOG_ERROR, "RedisConnectionPool init failed");
+        K_LOG_ERROR( "RedisConnectionPool init failed");
         return -1;
     }
     
     if(m_channel_manager.Init() != EXIT_SUCCESS)
     {
-        K_slog_trace(K_SLOG_ERROR, "m_channel_manager.Init failed");
+        K_LOG_ERROR( "m_channel_manager.Init failed");
         return -1;
     }
 
     m_listen_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (m_listen_fd < 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s] socket", WORLD_DAEMON_NAME);
+        K_LOG_ERROR( "[%s] socket", WORLD_DAEMON_NAME);
         return -1;
     }
 
@@ -54,16 +54,16 @@ int WorldServer::Init(const int port,const RedisConfig& redisConfig)
 
     if (bind(m_listen_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s] bind [port=%d]", WORLD_DAEMON_NAME, port);
+        K_LOG_ERROR( "[%s] bind [port=%d]", WORLD_DAEMON_NAME, port);
         return -1;
     }
     if (listen(m_listen_fd, 10) < 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s] listen", WORLD_DAEMON_NAME);
+        K_LOG_ERROR( "[%s] listen", WORLD_DAEMON_NAME);
         return -1;
     }
 
-    K_slog_trace(K_SLOG_TRACE, "[%s] Listening on %d", WORLD_DAEMON_NAME, port);
+    K_LOG_TRACE( "[%s] Listening on %d", WORLD_DAEMON_NAME, port);
 
     return 0;
 }
@@ -75,7 +75,7 @@ int WorldServer::Run()
 
     while (true)
     {
-        K_slog_trace(K_SLOG_TRACE, "[%s][%d] Run[%d]", __FUNCTION__, __LINE__, ++idx);
+        K_LOG_TRACE( "Run[%d]", ++idx);
         FD_ZERO(&reads);
         FD_SET(m_listen_fd, &reads);
 
@@ -90,7 +90,7 @@ int WorldServer::Run()
         int ret = select(fd_max + 1, &reads, nullptr, nullptr, nullptr);
         if (ret < 0)
         {
-            K_slog_trace(K_SLOG_ERROR, "select() error");
+            K_LOG_ERROR( "select() error");
             break;
         }
 
@@ -120,11 +120,11 @@ int WorldServer::OnAccept()
     int client_fd = accept(m_listen_fd, (struct sockaddr *)&clnt_addr, &addr_len);
     if (client_fd < 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] accept", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "accept");
         return -1;
     }
 
-    K_slog_trace(K_SLOG_TRACE, "[%s][%d] client_accept[fd=%d]", __FUNCTION__, __LINE__, client_fd);
+    K_LOG_TRACE( "client_accept[fd=%d]", client_fd);
     WorldSession *session = new WorldSession(client_fd);
     m_sessions[client_fd] = session;
 
@@ -140,7 +140,7 @@ int WorldServer::OnReceive(int fd)
 
     if (session == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] session error", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "session error");
         return -1;
     }
 
@@ -158,11 +158,11 @@ int WorldServer::OnReceive(int fd)
 
     session->m_recvBuffer.insert(session->m_recvBuffer.end(), buf.begin(), buf.end());
 
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d] recv from fd=%d, len=%d", __FUNCTION__, __LINE__, fd, buf.size());
+    K_LOG_DEBUG( "recv from fd=%d, len=%d", fd, buf.size());
     auto pkt = PacketParser::Parse(session->m_recvBuffer);
     if (!pkt.has_value())
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] Packet Parse failed", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "Packet Parse failed");
         return -1;
     }
     
@@ -180,7 +180,7 @@ int WorldServer::OnReceive(int fd)
     {
         handler->Execute(&ctx);
     }
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d] ProcessClient fd=%d done", __FUNCTION__, __LINE__, fd);
+    K_LOG_DEBUG( "ProcessClient fd=%d done", fd);
 
     return 0;
 }
@@ -193,8 +193,7 @@ int WorldServer::OnDisconnect(int fd)
         return 0;
     }
 
-    K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d ] Client %d disconnected",
-                 __FILE__, __FUNCTION__, __LINE__, fd);
+    K_LOG_TRACE( "Client %d disconnected", fd);
     close(fd);
     delete it->second;
     m_sessions.erase(it);

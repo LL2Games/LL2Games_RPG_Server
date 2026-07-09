@@ -14,7 +14,7 @@ void CharacterHandler::Execute(PacketContext* ctx)
 
     if (ctx == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] ctx is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ctx is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]ctx is nullptr";
         goto err;
@@ -22,7 +22,7 @@ void CharacterHandler::Execute(PacketContext* ctx)
     session = ctx->world_session;
     if (session == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] session is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "session is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]session is nullptr";
         goto err;
@@ -30,7 +30,7 @@ void CharacterHandler::Execute(PacketContext* ctx)
     char_service = ctx->char_service;
     if (char_service == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] char_service is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "char_service is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]char_service is nullptr";
         goto err;
