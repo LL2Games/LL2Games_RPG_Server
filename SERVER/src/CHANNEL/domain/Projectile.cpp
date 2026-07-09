@@ -27,13 +27,13 @@ void Projectile::Update(float dt)
     m_pos.yPos += delta.yPos;
 
 
-    K_slog_trace(K_SLOG_TRACE, "[%s : %s][%d] Projectile Update dt[%.2f] pos[%.2f, %.2f] delta[%.2f, %.2f]", __FILE__, __FUNCTION__, __LINE__, dt, m_pos.xPos, m_pos.yPos, delta.xPos, delta.yPos);
+    K_LOG_TRACE( "Projectile Update dt[%.2f] pos[%.2f, %.2f] delta[%.2f, %.2f]", dt, m_pos.xPos, m_pos.yPos, delta.xPos, delta.yPos);
     m_travelled += Length(delta);
 }
 
 bool Projectile::IsExpired() const
 {
-    K_slog_trace(K_SLOG_TRACE, "[%s : %s][%d] Projectile IsExpired travelled[%.2f] range[%.2f]", __FILE__, __FUNCTION__, __LINE__, m_travelled, m_range);
+    K_LOG_TRACE( "Projectile IsExpired travelled[%.2f] range[%.2f]", m_travelled, m_range);
     return m_travelled >= m_range;
 }
 

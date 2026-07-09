@@ -54,10 +54,10 @@ int MapInstance::Init(const MapInitData& data)
 	{
 		//"100000000”
 		std::vector<MonsterSpawnData>& list = this->m_monsterSpawnList;
-		K_slog_trace(K_SLOG_DEBUG, "[%s][%d]gunoo22_TEST size[%d]", __FUNCTION__, __LINE__, list.size());
+		K_LOG_DEBUG( "gunoo22_TEST size[%d]", list.size());
 		for (auto& m : list)
 		{
-			K_slog_trace(K_SLOG_DEBUG, "[%s][%d]gunoo22_TEST m.monsterId[%d]", __FUNCTION__, __LINE__, m.monsterId);
+			K_LOG_DEBUG( "gunoo22_TEST m.monsterId[%d]", m.monsterId);
 		}
 	}
 #endif
@@ -67,7 +67,7 @@ int MapInstance::Init(const MapInitData& data)
 
 int MapInstance::Update()
 {
-	//K_slog_trace(K_SLOG_TRACE, "[%s:%s][%d] MapInstance Pointer[%p]", __FILE__, __FUNCTION__, __LINE__, this);
+	//K_LOG_TRACE( "MapInstance Pointer[%p]", this);
 	if(!HasPlayer())
 	{
 		RemoveMap();
@@ -118,7 +118,7 @@ int MapInstance::InitSpawnMonster()
 		
 		if(!m_monsterManager->EnsureLoaded(m_monsterSpawnListIter->monsterId))
 		{
-			K_slog_trace(K_SLOG_ERROR, "[%s][%d] FAILED OPEN [%s] FILE", __FUNCTION__, __LINE__, m_monsterSpawnListIter->monsterId);
+			K_LOG_ERROR( "FAILED OPEN [%s] FILE", m_monsterSpawnListIter->monsterId);
 			return -1;
 		}
 			
@@ -136,7 +136,7 @@ int MapInstance::InitSpawnMonster()
 			(*monsterTemplate).mapInstance = this;
 			monster.Init(*monsterTemplate, *m_monsterSpawnListIter);
 		}else {
-			K_slog_trace(K_SLOG_ERROR, "[%s][%d] MonsterTemplate Get Failed Monster_Id[%d] FILE", __FUNCTION__, __LINE__, m_monsterSpawnListIter->monsterId);
+			K_LOG_ERROR( "MonsterTemplate Get Failed Monster_Id[%d] FILE", m_monsterSpawnListIter->monsterId);
 			return -1;
 		}
 
@@ -150,7 +150,7 @@ int MapInstance::InitSpawnMonster()
 
 int MapInstance::UpdateMonster()
 {
-	//K_slog_trace(K_SLOG_ERROR, "[%s][%d] 몬스터 업데이트 시작", __FUNCTION__, __LINE__);
+	//K_LOG_ERROR( "몬스터 업데이트 시작");
 	std::lock_guard<std::mutex> lock(m_monsterMutex);
 	for(auto& monster : m_monsterList) 
 	{
@@ -171,7 +171,7 @@ int MapInstance::SpawnMonster()
 	
 	{
 		std::lock_guard<std::mutex> lock(m_monsterMutex);
-		//K_slog_trace(K_SLOG_TRACE, "[%s][%d] 몬스터 리스폰 시작", __FUNCTION__, __LINE__);
+		//K_LOG_TRACE( "몬스터 리스폰 시작");
 		for(auto& monster : m_monsterList) 
 		{
 			if(monster.IsAlive()) continue;
@@ -231,8 +231,8 @@ void MapInstance::OnEnter(int PlayerID, Player* player)
         }
 		playerCount = m_playerCount;
 	}
-	K_slog_trace(K_SLOG_DEBUG, "[%s:%s][%d] PlayerID(%d)", __FILE__, __FUNCTION__, __LINE__, PlayerID);
-	K_slog_trace(K_SLOG_DEBUG, "[%s:%s][%d] m_playerCount(%d)", __FILE__, __FUNCTION__, __LINE__, playerCount);
+	K_LOG_DEBUG( "PlayerID(%d)", PlayerID);
+	K_LOG_DEBUG( "m_playerCount(%d)", playerCount);
 	// 들어온 플레이어 한테 몬스터 정보 전달
 	SendMonsterSnapshot(player);
 }
@@ -261,8 +261,8 @@ void MapInstance::OnLeave(int PlayerID)
         playerCount = m_playerCount;
     }
 
-	K_slog_trace(K_SLOG_DEBUG, "[%s:%s][%d] PlayerID(%d)", __FILE__, __FUNCTION__, __LINE__, PlayerID);
-    K_slog_trace(K_SLOG_DEBUG, "[%s:%s][%d] m_playerCount(%d)", __FILE__, __FUNCTION__, __LINE__, playerCount);
+	K_LOG_DEBUG( "PlayerID(%d)", PlayerID);
+    K_LOG_DEBUG( "m_playerCount(%d)", playerCount);
 }
 
 void MapInstance::GiveExp(int playerID, float exp)
@@ -275,7 +275,7 @@ void MapInstance::HandleMove(Player* sender, Vec2 pos, float speed, int dir)
 {
 	if(!sender) return;
 
-	//K_slog_trace(K_SLOG_TRACE, "[%s][%d] 플레이어 ID [%d]", __FUNCTION__, __LINE__, sender->GetId());
+	//K_LOG_TRACE( "플레이어 ID [%d]", sender->GetId());
 	std::unordered_map<int, Player*> playerSnapshot;
 	{
 		std::lock_guard<std::mutex> lock(m_playerMutex);
@@ -283,7 +283,7 @@ void MapInstance::HandleMove(Player* sender, Vec2 pos, float speed, int dir)
 
 		if(it == m_playerList.end())
 		{
-			K_slog_trace(K_SLOG_ERROR, "[%s][%d] [%d]해당 맵에 존재하지 않은 플레이어 입니다.", __FUNCTION__, __LINE__, m_mapID);
+			K_LOG_ERROR( "[%d]해당 맵에 존재하지 않은 플레이어 입니다.", m_mapID);
 			return;
 		}
 		sender->SetPos(pos);
@@ -299,7 +299,7 @@ void MapInstance::SendMonsterSnapshot(Player* player)
 {
      if (player == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] player is nullptr", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "player is nullptr");
         return;
     }
 
@@ -338,7 +338,7 @@ void MapInstance::SendMonsterSnapshot(Player* player)
  {
 	  if (player == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] player is nullptr", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "player is nullptr");
         return;
     }
 
@@ -390,7 +390,7 @@ void MapInstance::RemoveMap()
         mapId = m_mapID;
     }
 
-    K_slog_trace(K_SLOG_TRACE, "[%s][%d] [%d]맵 삭제",__FUNCTION__, __LINE__, mapId);
+    K_LOG_TRACE( "[%d]맵 삭제", mapId);
 
     if (destroyCallback)
         destroyCallback(mapId);
@@ -469,7 +469,7 @@ void MapInstance::ProcessContactDamage(int64_t nowMs)
 	std::vector<ContactDamageEvent> events;
     std::unordered_map<int, Player*> playerSnapshot;
 
-	//K_slog_trace(K_SLOG_DEBUG, "[%s : %s : %d]START", __FILE__, __FUNCTION__, __LINE__);
+	//K_LOG_DEBUG( "START");
 	{
 		std::scoped_lock lock(m_playerMutex, m_monsterMutex);
 
@@ -479,11 +479,11 @@ void MapInstance::ProcessContactDamage(int64_t nowMs)
 			Player* player = p.second;
 
 			// 플레이어가 죽었다면 스킵
-			//K_slog_trace(K_SLOG_DEBUG, "[%s : %s : %d]player->IsAlive()", __FILE__, __FUNCTION__, __LINE__);
+			//K_LOG_DEBUG( "player->IsAlive()");
 			if(!player || !player->IsAlive()) continue;
 
 			// 플레이어가 이미 피격 당했고 무적 상태라면 스킵
-			//K_slog_trace(K_SLOG_DEBUG, "[%s : %s : %d]CanTakeAnyContactDamage", __FILE__, __FUNCTION__, __LINE__);
+			//K_LOG_DEBUG( "CanTakeAnyContactDamage");
 			if(!player->CanTakeAnyContactDamage(nowMs)) continue;
 
 			const Vec2 player_pos = player->GetPos();
@@ -491,33 +491,33 @@ void MapInstance::ProcessContactDamage(int64_t nowMs)
 			for(Monster& monster : m_monsterList)
 			{
 				// 몬스터가 죽은 상태라면 스킵
-				//K_slog_trace(K_SLOG_DEBUG, "[%s : %s : %d]monster.IsAlive", __FILE__, __FUNCTION__, __LINE__);
+				//K_LOG_DEBUG( "monster.IsAlive");
 				if(!monster.IsAlive()) continue;
 
 			const Vec2 monster_pos = monster.GetPos();
 			// 플레이어와 몬스터의 거리가 일정 이상이라면 스킵
-			//K_slog_trace(K_SLOG_DEBUG, "[%s : %s : %d]m_contactCheckRadiusSq [%f]", __FILE__, __FUNCTION__, __LINE__, m_contactCheckRadiusSq);
-			//K_slog_trace(K_SLOG_DEBUG, "[%s : %s : %d]Distancesquare(player_pos, monster_pos) [%f]", __FILE__, __FUNCTION__, __LINE__, Distancesquare(player_pos, monster_pos));
+			//K_LOG_DEBUG( "m_contactCheckRadiusSq [%f]", m_contactCheckRadiusSq);
+			//K_LOG_DEBUG( "Distancesquare(player_pos, monster_pos) [%f]", Distancesquare(player_pos, monster_pos));
 			if(Distancesquare(player_pos, monster_pos) > m_contactCheckRadiusSq) continue;
 			
-			//K_slog_trace(K_SLOG_DEBUG, "[%s : %s : %d]Intersects", __FILE__, __FUNCTION__, __LINE__);
+			//K_LOG_DEBUG( "Intersects");
 			 // 정밀 충돌(AABB/원형)
             if (!Collision::Intersects(player_pos, player->GetCollider(), monster_pos, monster.GetCollider())) continue;
 
-			//K_slog_trace(K_SLOG_DEBUG, "[%s : %s : %d]ApplyContactDamage", __FILE__, __FUNCTION__, __LINE__);
+			//K_LOG_DEBUG( "ApplyContactDamage");
 			int dmg = m_combatService->ApplyContactDamage(player, monster);
 			
-			//K_slog_trace(K_SLOG_DEBUG, "[%s : %s : %d]OnDamaged", __FILE__, __FUNCTION__, __LINE__);
+			//K_LOG_DEBUG( "OnDamaged");
 			player->OnDamaged(dmg,nowMs);
 			PlayerHitResult result;
 			result.damage = dmg;
 			SetPlayerHitResult(player, monster.GetInstanceId(), result);
 			
 			events.push_back({ player, result });
-			//K_slog_trace(K_SLOG_DEBUG, "[%s : %s : %d]SendPlayerOnDamaged", __FILE__, __FUNCTION__, __LINE__);
+			//K_LOG_DEBUG( "SendPlayerOnDamaged");
 			}
 		}
-	//K_slog_trace(K_SLOG_DEBUG, "[%s : %s : %d]END\n\n", __FILE__, __FUNCTION__, __LINE__);
+	//K_LOG_DEBUG( "END\n\n");
 	}
 
 	for (const auto& event : events)
@@ -542,12 +542,12 @@ void MapInstance::ProcessRangedDamage(int64_t nowMs)
 		
 				const Vec2 player_pos = player->GetPos();
 		
-				K_slog_trace(K_SLOG_TRACE, "\n\n[%s:%s][%d] PLAYER POS [%f, %f]", __FILE__, __FUNCTION__, __LINE__, player_pos.xPos, player_pos.yPos);
+				K_LOG_TRACE( "\n\nPLAYER POS [%f, %f]", player_pos.xPos, player_pos.yPos);
 				for (const auto& p : m_projectileManager.GetProjectiles())
 				{
 					const Vec2& projectile_pos = p->GetPos();
 				
-					K_slog_trace(K_SLOG_DEBUG, "[%s:%s][%d] PROJECTILE POS [%f, %f]", __FILE__, __FUNCTION__, __LINE__, projectile_pos.xPos, projectile_pos.yPos);
+					K_LOG_DEBUG( "PROJECTILE POS [%f, %f]", projectile_pos.xPos, projectile_pos.yPos);
 				
 					//플레이어와 투사체 거리가 일정거리 이상이라면 스킵
 					if (Distancesquare(player_pos, projectile_pos) > m_contactCheckRadiusSq) continue;
@@ -575,7 +575,7 @@ bool MapInstance::PickupDropItem(Player *player, int dropItemId, std::vector<Add
 {
 	if (player == nullptr)
 	{
-		K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] player is nullptr.\n", __FILE__, __FUNCTION__, __LINE__);
+		K_LOG_ERROR( "player is nullptr.\n");
 		return false;
 	}
        DropItems dropItem;
@@ -584,7 +584,7 @@ bool MapInstance::PickupDropItem(Player *player, int dropItemId, std::vector<Add
     	auto it = m_dropItems.find(dropItemId);
     	if (it == m_dropItems.end())
 		{
-			K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] dropItemId [%d] is nullptr.\n", __FILE__, __FUNCTION__, __LINE__, dropItemId);
+			K_LOG_ERROR( "dropItemId [%d] is nullptr.\n", dropItemId);
 			return false;
 		}
 	
@@ -593,14 +593,14 @@ bool MapInstance::PickupDropItem(Player *player, int dropItemId, std::vector<Add
 
     if (!CanPickupByDistance(player->GetPos(), dropItem.pos))
 	{
-		K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] CanPickupByDistance.\n", __FILE__, __FUNCTION__, __LINE__);
+		K_LOG_TRACE( "CanPickupByDistance.\n");
 		return false;
 	}
         
 
     if (dropItem.owner != nullptr &&dropItem.owner->GetId() != player->GetId())
 	{
-			K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] 아이템 소유권이 없습니다.\n", __FILE__, __FUNCTION__, __LINE__);
+			K_LOG_TRACE( "아이템 소유권이 없습니다.\n");
 			return false;
 	}
 
@@ -619,12 +619,12 @@ bool MapInstance::PickupDropItem(Player *player, int dropItemId, std::vector<Add
     if (inven == nullptr)
 	{
 		std::lock_guard<std::mutex> lock(m_dropItemMutex);
-		K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] inven is nullptr.\n", __FILE__, __FUNCTION__, __LINE__);
+		K_LOG_ERROR( "inven is nullptr.\n");
     	m_dropItems[dropItem.dropId] = dropItem;
 		return false;
 	}
-    K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] dropItem.itemId [%d].\n", __FILE__, __FUNCTION__, __LINE__, dropItem.itemId);
-	K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] dropItem.dropId [%d].\n", __FILE__, __FUNCTION__, __LINE__,dropItem.dropId);
+    K_LOG_TRACE( "dropItem.itemId [%d].\n", dropItem.itemId);
+	K_LOG_TRACE( "dropItem.dropId [%d].\n", dropItem.dropId);
     if (!inven->AddItem(dropItem.itemId, dropItem.count, addItemResults))
 	{
 		std::lock_guard<std::mutex> lock(m_dropItemMutex);

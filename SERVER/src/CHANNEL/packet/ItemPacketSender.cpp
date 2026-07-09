@@ -43,10 +43,10 @@ void ItemPacketSender::SendAddItem(Player *player, std::vector<AddItemResult> &a
 	
 	for(size_t i =0; i < addItemResult.size(); i++)
 	{
-		K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] inventoryType [%d]\n", __FILE__, __FUNCTION__, __LINE__,addItemResult[i].inventoryType);
-		K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] slotPos [%d]\n", __FILE__, __FUNCTION__, __LINE__,addItemResult[i].slotPos);
-		K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] itemId [%d]\n", __FILE__, __FUNCTION__, __LINE__,addItemResult[i].itemId);
-		K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] itemCount [%d]\n", __FILE__, __FUNCTION__, __LINE__,addItemResult[i].itemCount);
+		K_LOG_TRACE( "inventoryType [%d]\n", addItemResult[i].inventoryType);
+		K_LOG_TRACE( "slotPos [%d]\n", addItemResult[i].slotPos);
+		K_LOG_TRACE( "itemId [%d]\n", addItemResult[i].itemId);
+		K_LOG_TRACE( "itemCount [%d]\n", addItemResult[i].itemCount);
 
 		payload.push_back(std::to_string(addItemResult[i].inventoryType));
     	payload.push_back(std::to_string(addItemResult[i].slotPos));
@@ -54,7 +54,7 @@ void ItemPacketSender::SendAddItem(Player *player, std::vector<AddItemResult> &a
     	payload.push_back(std::to_string(addItemResult[i].itemCount));  
 	}
 	session->Send(PKT_PLAYER_PICKUP_ITEM, payload);
-	K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] Send PickUpItem Success\n", __FILE__, __FUNCTION__, __LINE__);
+	K_LOG_TRACE( "Send PickUpItem Success\n");
 }
 
 void ItemPacketSender::SendRemoveDropItem(const std::vector<int>& removeItems, const std::unordered_map<int, Player*>& playerList)
@@ -73,7 +73,7 @@ void ItemPacketSender::SendRemoveDropItem(const std::vector<int>& removeItems, c
 		}
 
 		session->Send(PKT_REMOVEITEMS, payload);
-		K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] Send PKT_REMOVEITEMS Success\n", __FILE__, __FUNCTION__, __LINE__);
+		K_LOG_TRACE( "Send PKT_REMOVEITEMS Success\n");
     }	
 }
 

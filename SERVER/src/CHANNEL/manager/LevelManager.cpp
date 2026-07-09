@@ -39,8 +39,8 @@ bool LevelManager::LoadLevelTable()
     result = mysql_query(conn, query.c_str());
     if(result != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "LoadLevelTable ERROR [%s]", mysql_error(conn));
-        K_slog_trace(K_SLOG_ERROR, "SQL [%s]", query.c_str());
+        K_LOG_ERROR( "LoadLevelTable ERROR [%s]", mysql_error(conn));
+        K_LOG_ERROR( "SQL [%s]", query.c_str());
         m_mySql->ReleaseConnection(conn);
         return false;
     }
@@ -48,7 +48,7 @@ bool LevelManager::LoadLevelTable()
     res = mysql_store_result(conn);
     if(!res)
     {
-        K_slog_trace(K_SLOG_ERROR, "LoadLevelTable ERROR [%s]", mysql_error(conn));
+        K_LOG_ERROR( "LoadLevelTable ERROR [%s]", mysql_error(conn));
         m_mySql->ReleaseConnection(conn);
         return false;
     }
@@ -64,7 +64,7 @@ bool LevelManager::LoadLevelTable()
         m_needExpTable[level] = needExp;
     }
 
-    K_slog_trace(K_SLOG_TRACE, "LoadLevelTable Success");
+    K_LOG_TRACE( "LoadLevelTable Success");
 
     mysql_free_result(res);
     m_mySql->ReleaseConnection(conn);
@@ -76,7 +76,7 @@ int64_t LevelManager::GetNeedExp(int level) const
     auto it = m_needExpTable.find(level);
     if(it == m_needExpTable.end())
     {
-        K_slog_trace(K_SLOG_ERROR, "m_needExpTable is end Level [%d]",level);
+        K_LOG_ERROR( "m_needExpTable is end Level [%d]",level);
         return 0;
     }
 

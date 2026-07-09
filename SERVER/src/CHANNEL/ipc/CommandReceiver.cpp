@@ -13,7 +13,7 @@ CommandReceiver::~CommandReceiver() {
 void CommandReceiver::Start() {
     m_running = true;
     m_thread = std::thread(&CommandReceiver::Run, this);
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d] CommandReceiver Start", __FILE__, __LINE__);
+    K_LOG_DEBUG( "CommandReceiver Start");
 }
 
 void CommandReceiver::Stop() {
@@ -40,10 +40,10 @@ void CommandReceiver::Run() {
         //     0   // blocking
         // );
 
-        //K_slog_trace(K_SLOG_DEBUG, "[%s][%d] recv wait...", __FILE__, __LINE__);
+        //K_LOG_DEBUG( "recv wait...");
         std::string msg;
         ssize_t ret = m_mq.Recv(msg);
-        //K_slog_trace(K_SLOG_DEBUG, "[%s][%d] MQ recv[%s]", __FILE__, __LINE__, msg.c_str()); 
+        //K_LOG_DEBUG( "MQ recv[%s]", msg.c_str()); 
         
         if (ret <= 0)
         {
@@ -51,7 +51,7 @@ void CommandReceiver::Run() {
             continue;
         }
 
-        K_slog_trace(K_SLOG_DEBUG, "[%s][%d] TEST", __FILE__, __LINE__); 
+        K_LOG_DEBUG( "TEST"); 
 
 
         // TODO:

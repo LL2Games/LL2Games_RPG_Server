@@ -81,5 +81,5 @@ void CharacterStat::Up(const std::string &statType)
         break;
     }
 
-    K_slog_trace(K_SLOG_DEBUG, "[%s(%s)][%d] stat[%s] up", __FILE__, __FUNCTION__, __LINE__, statType);
+    K_LOG_DEBUG( "stat[%s] up", statType);
 }

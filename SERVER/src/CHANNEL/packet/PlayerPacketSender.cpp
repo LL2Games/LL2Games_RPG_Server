@@ -9,7 +9,7 @@ void PlayerPacketSender::SendPlayerInfo(Player* player)
     auto session = player->GetSession();
     if(!session) 
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] session이 nullptr입니다.", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "session이 nullptr입니다.");
         return;
     }
 
@@ -24,7 +24,7 @@ void PlayerPacketSender::SendPlayerInfo(Player* player)
     payload.push_back(std::to_string(player->GetPos().yPos));
     session->Send(PKT_PLAYER_INFO, payload);
 
-    K_slog_trace(K_SLOG_TRACE, "[%s][%d] PlayerInfo Send Success.", __FUNCTION__, __LINE__);
+    K_LOG_TRACE( "PlayerInfo Send Success.");
 }
 
 
@@ -37,7 +37,7 @@ void PlayerPacketSender::SendPlayerStat(Player* player)
 
     if(!session) 
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] session이 nullptr입니다.", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "session이 nullptr입니다.");
         return;
     }
 
@@ -62,7 +62,7 @@ void PlayerPacketSender::SendPlayerStat(Player* player)
     payload.push_back(std::to_string(playerStat.GetNeedExp()));
     session->Send(PKT_PLAYER_STAT, payload);
 
-    K_slog_trace(K_SLOG_TRACE, "[%s][%d] SendPlayerStat Send Success.", __FUNCTION__, __LINE__);
+    K_LOG_TRACE( "SendPlayerStat Send Success.");
 }
 
 
@@ -73,7 +73,7 @@ void PlayerPacketSender::SendPlayerSkillList(Player* player)
 
     if(!session) 
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] session이 nullptr입니다.", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "session이 nullptr입니다.");
         return;
     }
 
@@ -88,10 +88,10 @@ void PlayerPacketSender::SendPlayerSkillList(Player* player)
         payload.push_back(std::to_string(skill.skill_id));
         payload.push_back(std::to_string(skill.skill_level));
     }
-    K_slog_trace(K_SLOG_TRACE, "[SendPlayerSkillList] before Send payload_count:%zu", payload.size());
+    K_LOG_TRACE( "[SendPlayerSkillList] before Send payload_count:%zu", payload.size());
     int ret = session->Send(PKT_PLAYER_SKILLLIST, payload);
-    K_slog_trace(K_SLOG_TRACE, "[SendPlayerSkillList] after Send ret:%d", ret);
-    K_slog_trace(K_SLOG_TRACE, "[%s][%d] SendPlayerSkillList Send Success.", __FUNCTION__, __LINE__);
+    K_LOG_TRACE( "[SendPlayerSkillList] after Send ret:%d", ret);
+    K_LOG_TRACE( "SendPlayerSkillList Send Success.");
 }
 
 
@@ -191,7 +191,7 @@ void PlayerPacketSender::SendPlayerEnter(Player *player, std::unordered_map<int,
         if(otherPlayer == player) continue;
 
         otherPlayer->GetSession()->Send(PKT_OTHERPLAYER_ENTER, payload);
-        K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] 플레이어 Enter 정보 전달 완료.\n", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_TRACE( "플레이어 Enter 정보 전달 완료.\n");
     }
 }
 

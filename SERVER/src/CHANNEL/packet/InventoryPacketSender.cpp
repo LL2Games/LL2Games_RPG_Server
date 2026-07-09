@@ -8,7 +8,7 @@ void InventoryPacketSender::SendInventoryMeta(Player* player)
 
     if(!session)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] session이 nullptr입니다.", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "session이 nullptr입니다.");
         return;
     }
 
@@ -36,7 +36,7 @@ void InventoryPacketSender::SendInventoryItems(Player* player)
 
     if(!session)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] session이 nullptr입니다.", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "session이 nullptr입니다.");
         return;
     }
 

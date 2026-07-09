@@ -26,7 +26,7 @@ void InventoryPacketHandler::Execute(PacketContext * ctx)
 
     if(ctx == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] ctx is nullptr\n", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ctx is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]ctx is nullptr";
         goto err;
@@ -35,7 +35,7 @@ void InventoryPacketHandler::Execute(PacketContext * ctx)
     session = ctx->channel_session;
     if(session == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] session is nullptr\n", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "session is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]session is nullptr";
         goto err;
@@ -45,7 +45,7 @@ void InventoryPacketHandler::Execute(PacketContext * ctx)
 
    if(player == nullptr)
    {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] player is nullptr\n", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "player is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]player is nullptr";
         goto err;
@@ -55,7 +55,7 @@ void InventoryPacketHandler::Execute(PacketContext * ctx)
 
    if(inventoryManager == nullptr)
    {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] inventoryManager is nullptr\n", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "inventoryManager is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]inventoryManager is nullptr";
         goto err;
@@ -70,7 +70,7 @@ void InventoryPacketHandler::Execute(PacketContext * ctx)
     ))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] ParseLengthPrefixedString fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ParseLengthPrefixedString fail");
         goto err;
     }
 
@@ -84,7 +84,7 @@ void InventoryPacketHandler::Execute(PacketContext * ctx)
     ))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] ParseLengthPrefixedString fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ParseLengthPrefixedString fail");
         goto err;
     }
 
@@ -98,28 +98,28 @@ void InventoryPacketHandler::Execute(PacketContext * ctx)
     ))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] ParseLengthPrefixedString fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ParseLengthPrefixedString fail");
         goto err;
     }
 
     if(!utility::StringToInt(str_inventoryType, moveData.inventorytype))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] playerid String To Int Fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "playerid String To Int Fail");
         goto err;
     }
 
     if(!utility::StringToInt(str_fromSlotPos, moveData.fromSlotPos))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] playerid String To Int Fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "playerid String To Int Fail");
         goto err;
     }
 
      if(!utility::StringToInt(str_toSlotPos, moveData.toSlotPos))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] playerid String To Int Fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "playerid String To Int Fail");
         goto err;
     }
    
@@ -128,16 +128,16 @@ void InventoryPacketHandler::Execute(PacketContext * ctx)
    if(!result)
    {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] MoveItemSlots Err [%s]", __FILE__, __FUNCTION__, __LINE__, errMsg);
+        K_LOG_ERROR( "MoveItemSlots Err [%s]", errMsg);
         goto err;
    }
 
-   K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] InventoryPacketHandler ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ", __FILE__, __FUNCTION__, __LINE__);
+   K_LOG_TRACE( "InventoryPacketHandler ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ");
 err:
     if (rc != EXIT_SUCCESS) {
         session->SendNok(PKT_INVENTORY_ITEM_MOVE, errMsg);
     } else {
-        K_slog_trace(K_SLOG_TRACE, "[%s : %s][%d] PKT_INVENTORY_ITEM_MOVE END", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_TRACE( "PKT_INVENTORY_ITEM_MOVE END");
         InventoryPacketSender::SendInventoryMoveItem(session,result, moveData.inventorytype, inventorySlotUpdate, errMsg);
     }
 }

@@ -23,7 +23,7 @@ void MapHandler::Execute(PacketContext * ctx)
 
     if(ctx == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] ctx is nullptr\n", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ctx is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]ctx is nullptr";
         goto err;
@@ -32,7 +32,7 @@ void MapHandler::Execute(PacketContext * ctx)
     session = ctx->channel_session;
     if(session == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] session is nullptr\n", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "session is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]session is nullptr";
         goto err;
@@ -49,11 +49,11 @@ void MapHandler::Execute(PacketContext * ctx)
     ))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] ParseLengthPrefixedString fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ParseLengthPrefixedString fail");
         goto err;
     }
 
-    K_slog_trace(K_SLOG_TRACE, "[%s : %s][%d] PlayerID [%s]", __FILE__, __FUNCTION__, __LINE__, player_id.c_str());
+    K_LOG_TRACE( "PlayerID [%s]", player_id.c_str());
 
     // mapID 
      if(!PacketParser::ParseLengthPrefixedString(
@@ -65,28 +65,28 @@ void MapHandler::Execute(PacketContext * ctx)
     ))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] ParseLengthPrefixedString fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ParseLengthPrefixedString fail");
         goto err;
     }
 
     if(!utility::StringToInt(player_id, playerid))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] playerid String To Int Fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "playerid String To Int Fail");
         goto err;
     }
 
     if(!utility::StringToInt(map_id, mapId))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] mapId String To Int Fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "mapId String To Int Fail");
         goto err;
     }
 
     if(!ctx->map_service)
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] HandlePortalUse fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "HandlePortalUse fail");
         errMsg = "map_service is NULL";
         goto err;
     }
@@ -96,7 +96,7 @@ void MapHandler::Execute(PacketContext * ctx)
     if(rc != EXIT_SUCCESS)
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] HandlePortalUse fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "HandlePortalUse fail");
         errMsg = "HandlePortalUse Failed";
         goto err;
     }
@@ -105,7 +105,7 @@ err:
     if (rc != EXIT_SUCCESS) {
         session->SendNok(PKT_ENTER_MAP, errMsg);
     } else {
-        K_slog_trace(K_SLOG_TRACE, "[%s : %s][%d] MAP HANDLER END", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_TRACE( "MAP HANDLER END");
         session->SendOk(PKT_ENTER_MAP);
     }
 }

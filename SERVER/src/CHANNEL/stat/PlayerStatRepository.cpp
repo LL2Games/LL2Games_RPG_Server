@@ -20,7 +20,7 @@ int PlayerStatRepository::Update(const std::string &charId, const std::string &s
     MYSQL *conn = m_mySql->GetConnection();
     if (!conn)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] MYSQL GetConnection failed Error", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "MYSQL GetConnection failed Error");
         errMsg = "MYSQL GetConnection failed";
         return -1;
     }
@@ -28,7 +28,7 @@ int PlayerStatRepository::Update(const std::string &charId, const std::string &s
     MYSQL_STMT* stmt = mysql_stmt_init(conn);
     if(!stmt)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_init failed Error [%s] ", __FILE__, __FUNCTION__, __LINE__, mysql_error(conn));
+        K_LOG_ERROR( "mysql_stmt_init failed Error [%s] ", mysql_error(conn));
         errMsg = mysql_error(conn);
         m_mySql->ReleaseConnection(conn);
         return -1;
@@ -56,7 +56,7 @@ int PlayerStatRepository::Update(const std::string &charId, const std::string &s
     
     if(mysql_stmt_prepare(stmt, query.c_str(), query.size()) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_prepare Error [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_prepare Error [%s]", mysql_stmt_error(stmt));
         errMsg = "mysql_stmt_prepare Error";
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
@@ -71,7 +71,7 @@ int PlayerStatRepository::Update(const std::string &charId, const std::string &s
 
     if(mysql_stmt_bind_param(stmt, param) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_bind_param Error [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_bind_param Error [%s]", mysql_stmt_error(stmt));
         errMsg = "mysql_stmt_bind_param Error";
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
@@ -80,7 +80,7 @@ int PlayerStatRepository::Update(const std::string &charId, const std::string &s
 
     if(mysql_stmt_execute(stmt) !=0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_execute Error [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_execute Error [%s]", mysql_stmt_error(stmt));
         errMsg = "mysql_stmt_execute Error";
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
@@ -91,7 +91,7 @@ int PlayerStatRepository::Update(const std::string &charId, const std::string &s
 
     if (affectedRows == 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] update affected 0 rows", __FILE__ ,__FUNCTION__, __LINE__);
+        K_LOG_ERROR( "update affected 0 rows");
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
         return -1;

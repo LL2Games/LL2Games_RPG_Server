@@ -25,7 +25,7 @@ int TradeService::Request(Player *requester, Player *target_player, std::string 
     // 1. 예외처리: target_player와 requester 객체가 유효한지
     if (requester == nullptr || target_player == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] Invalid player or target player", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "Invalid player or target player");
         errMsg = "Invalid player or target player";
         return -1;
     }
@@ -33,36 +33,36 @@ int TradeService::Request(Player *requester, Player *target_player, std::string 
     // 2. 예외처리: target_player가 거래 가능한 상태인지 (ex. 전투중, 피격중, 사망 등등)
     if (!target_player->IsAlive())
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] Target player is not alive", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "Target player is not alive");
         errMsg = "Target player is not alive";
         return -1;
     }
 
     // 3. target_player에게 거래 요청 패킷 보내기
     target_player->GetSession()->Send(PKT_TRADE_REQUEST, {std::to_string(requester->GetId()), requester->GetName()});
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d] Trade requester player id: [%d], name: [%s]", __FUNCTION__, __LINE__, requester->GetId(), requester->GetName().c_str());
+    K_LOG_DEBUG( "Trade requester player id: [%d], name: [%s]", requester->GetId(), requester->GetName().c_str());
 
     return 0;
 }
 
 int TradeService::Start(Player *requester, Player *accepter, std::string &errMsg)
 {
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d]gunoo22_TEST", __FUNCTION__, __LINE__);
+    K_LOG_DEBUG( "gunoo22_TEST");
 
     // 1. 예외처리: target_player와 requester 객체가 유효한지
     if (requester == nullptr || accepter == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] Invalid player or target player", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "Invalid player or target player");
         errMsg = "Invalid player or target player";
         return -1;
     }
-        K_slog_trace(K_SLOG_DEBUG, "[%s][%d]gunoo22_TEST", __FUNCTION__, __LINE__);
+        K_LOG_DEBUG( "gunoo22_TEST");
 
 
     // 2-1. 예외처리: accepter와 requester가 맵 안에 있는지
     if (!(requester->GetCurrentMap() && accepter->GetCurrentMap()))
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] players mapInstance Invalid", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "players mapInstance Invalid");
         errMsg = "players mapInstance Invalid";
         return -1;
     }
@@ -70,7 +70,7 @@ int TradeService::Start(Player *requester, Player *accepter, std::string &errMsg
     // 2-2. 예외처리: accepter와 requester 같은 맵에 있는지
     if (requester->GetCurrentMap()->GetMapId() != accepter->GetCurrentMap()->GetMapId())
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] Players map different", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "Players map different");
         errMsg = "Players map different";
         return -1;
     }
@@ -78,20 +78,20 @@ int TradeService::Start(Player *requester, Player *accepter, std::string &errMsg
     // 3. 예외처리: accepter와 requester가 거래 가능한 상태인지 (ex. 전투중, 피격중, 사망 등등)
     if (!requester->IsAlive() || !accepter->IsAlive())
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] player is not alive", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "player is not alive");
         errMsg = "player is not alive";
         return -1;
     }
 
     // 4. TradeSession 생성
     CreateTradeSession(requester, accepter);
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d]gunoo22_TEST CreateTradeSession", __FUNCTION__, __LINE__);
+    K_LOG_DEBUG( "gunoo22_TEST CreateTradeSession");
 
     // 5. player들에게 교환 실행 패킷 보내기
     requester->GetSession()->Send(PKT_TRADE_START, {std::to_string(accepter->GetId()), accepter->GetName()});
     accepter->GetSession()->Send(PKT_TRADE_START, {std::to_string(requester->GetId()), requester->GetName()});
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d]gunoo22_TEST PKT_TRADE_START->[name:%s]", __FUNCTION__, __LINE__, accepter->GetName().c_str());
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d]gunoo22_TEST PKT_TRADE_START->[name:%s]", __FUNCTION__, __LINE__, requester->GetName().c_str());
+    K_LOG_DEBUG( "gunoo22_TEST PKT_TRADE_START->[name:%s]", accepter->GetName().c_str());
+    K_LOG_DEBUG( "gunoo22_TEST PKT_TRADE_START->[name:%s]", requester->GetName().c_str());
 
 
     return 0;
@@ -181,18 +181,18 @@ int TradeService::Execute(TradeSession *session)
 
     if (session == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] session is nullptr", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "session is nullptr");
         return -1;
     }
 
     if (!conn)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] MYSQL GetConnection failed", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "MYSQL GetConnection failed");
         return -1;
     }
 
     mysql_query(conn, "START TRANSACTION");
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d] TRANSACTION", __FUNCTION__, __LINE__);
+    K_LOG_DEBUG( "TRANSACTION");
 
     //0. 아이템 검증(예외처리)
     //A player DB에서 A items 존재 및 수량 확인
@@ -215,7 +215,7 @@ int TradeService::Execute(TradeSession *session)
         //3-1 A인벤에 A의 아이템 삭제
         if (DecreaseItem(conn, std::to_string(session->a_id), item) != 0)
         {
-            K_slog_trace(K_SLOG_ERROR, "[%s][%d] DecreaseItem failed", __FUNCTION__, __LINE__);
+            K_LOG_ERROR( "DecreaseItem failed");
             result = -1;
             goto err;
         }
@@ -223,7 +223,7 @@ int TradeService::Execute(TradeSession *session)
         //3-2 B인벤에 A의 아이템 추가
         if (IncreaseItem(conn, std::to_string(session->b_id), item) != 0)
         {
-            K_slog_trace(K_SLOG_ERROR, "[%s][%d] IncreaseItem failed", __FUNCTION__, __LINE__);
+            K_LOG_ERROR( "IncreaseItem failed");
             result = -1;
             goto err;
         }
@@ -234,7 +234,7 @@ int TradeService::Execute(TradeSession *session)
         //3-3 B인벤에 B의 아이템 삭제
         if (DecreaseItem(conn, std::to_string(session->b_id), item) != 0)
         {
-            K_slog_trace(K_SLOG_ERROR, "[%s][%d] DecreaseItem failed", __FUNCTION__, __LINE__);
+            K_LOG_ERROR( "DecreaseItem failed");
             result = -1;
             goto err;
         } 
@@ -242,7 +242,7 @@ int TradeService::Execute(TradeSession *session)
         //3-4 A인벤에 B의 아이템 추가
         if (IncreaseItem(conn, std::to_string(session->a_id), item) != 0)
         {
-            K_slog_trace(K_SLOG_ERROR, "[%s][%d] IncreaseItem failed", __FUNCTION__, __LINE__);
+            K_LOG_ERROR( "IncreaseItem failed");
             result = -1;
             goto err;
         }
@@ -253,7 +253,7 @@ err:
     if (result != 0)
     {
         mysql_query(conn, "ROLLBACK");
-        K_slog_trace(K_SLOG_DEBUG, "[%s][%d] ROLLBACK", __FUNCTION__, __LINE__);
+        K_LOG_DEBUG( "ROLLBACK");
         return -1;
     }
     else
@@ -261,7 +261,7 @@ err:
         mysql_query(conn, "COMMIT");
 
         // //4. 교환세션 삭제
-        // K_slog_trace(K_SLOG_DEBUG, "[%s][%d] COMMIT", __FUNCTION__, __LINE__);
+        // K_LOG_DEBUG( "COMMIT");
         // DeleteTradeSession(session); 
     }
 
@@ -274,7 +274,7 @@ int TradeService::Execute(TradeExecuteData& data)
 
     if (!conn)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] MYSQL GetConnection failed", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "MYSQL GetConnection failed");
         return -1;
     }
 
@@ -282,7 +282,7 @@ int TradeService::Execute(TradeExecuteData& data)
 
     if (mysql_query(conn, "START TRANSACTION") != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] START TRANSACTION failed", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "START TRANSACTION failed");
         m_mySql->ReleaseConnection(conn);
         return -1;
     }
@@ -329,7 +329,7 @@ int TradeService::Cancel(Player *requester, std::string &errMsg)
     // 1. 예외처리: target_player와 requester 객체가 유효한지
     if (requester == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] Invalid player", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "Invalid player");
         errMsg = "Invalid player";
         return -1;
     }
@@ -339,7 +339,7 @@ int TradeService::Cancel(Player *requester, std::string &errMsg)
     // 2. 예외처리: player의 TradeSession 유효하지않음
     if (it == m_sessions.end() || it->second == nullptr)
     {
-         K_slog_trace(K_SLOG_ERROR, "[%s][%d] player trade session Not Found", __FUNCTION__, __LINE__); 
+         K_LOG_ERROR( "player trade session Not Found"); 
         errMsg = "player trade session Not Found";
         return -1;
     }
@@ -361,7 +361,7 @@ void TradeService::CreateTradeSession(Player *a_player, Player *b_player)
 {
     if (a_player == nullptr || b_player == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] a_player or b_player is nullptr", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "a_player or b_player is nullptr");
         return;
     }
 
@@ -386,7 +386,7 @@ void TradeService::DeleteTradeSession(TradeSession *session)
 {
     if (session == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] session is nullptr", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "session is nullptr");
         return;
     }
     std::lock_guard<std::mutex> lock(m_TradeMutex);
@@ -400,7 +400,7 @@ TradeSession *TradeService::GetTradeSession(Player *player)
 {
     if (player == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] player is nullptr", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "player is nullptr");
         return nullptr;
     }
 
@@ -408,7 +408,7 @@ TradeSession *TradeService::GetTradeSession(Player *player)
     auto it = m_sessions.find(player->GetId());
     if (it == m_sessions.end())
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] player_id(%d) TradeSession not found", __FUNCTION__, __LINE__, player->GetId());
+        K_LOG_ERROR( "player_id(%d) TradeSession not found", player->GetId());
         return nullptr;
     }
 
@@ -421,7 +421,7 @@ Player* TradeService::GetTargetPlayer(Player *player)
 
     if (player == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] player is nullptr", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "player is nullptr");
         return nullptr;
     }
 
@@ -429,7 +429,7 @@ Player* TradeService::GetTargetPlayer(Player *player)
     auto it = m_sessions.find(player->GetId());
     if (it == m_sessions.end())
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] player_id(%d) TradeSession not found", __FUNCTION__, __LINE__, player->GetId());
+        K_LOG_ERROR( "player_id(%d) TradeSession not found", player->GetId());
         return nullptr;
     }
 
@@ -447,7 +447,7 @@ const std::vector<TradeItem>& TradeService::GetMyItems(Player *player)
     static const std::vector<TradeItem> nullVector;
     if (player == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] player is nullptr", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "player is nullptr");
         return nullVector;
     }
 
@@ -455,7 +455,7 @@ const std::vector<TradeItem>& TradeService::GetMyItems(Player *player)
     auto it = m_sessions.find(player->GetId());
     if (it == m_sessions.end())
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] player_id(%d) TradeSession not found", __FUNCTION__, __LINE__, player->GetId());
+        K_LOG_ERROR( "player_id(%d) TradeSession not found", player->GetId());
         return nullVector;
     }
 
@@ -471,7 +471,7 @@ const std::vector<TradeItem>& TradeService::GetTargetItems(Player *player)
     static const std::vector<TradeItem> nullVector;
     if (player == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] player is nullptr", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "player is nullptr");
         return nullVector;
     }
 
@@ -479,7 +479,7 @@ const std::vector<TradeItem>& TradeService::GetTargetItems(Player *player)
     auto it = m_sessions.find(player->GetId());
     if (it == m_sessions.end())
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] player_id(%d) TradeSession not found", __FUNCTION__, __LINE__, player->GetId());
+        K_LOG_ERROR( "player_id(%d) TradeSession not found", player->GetId());
         return nullVector;
     }
 
@@ -497,13 +497,13 @@ int TradeService::DecreaseItem(MYSQL *conn, const std::string &char_id, const Tr
     
     if(updateInventoryItemCountMinus(conn,charId,itemId,item.amount) !=0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] updateInventoryItemCountMinus Fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "updateInventoryItemCountMinus Fail");
         return -1;
     }
 
     if(DeleteInventoryItem(conn, charId, itemId) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] DeleteInventoryItem Fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "DeleteInventoryItem Fail");
         return -1;
     }
 
@@ -519,7 +519,7 @@ int TradeService::IncreaseItem(MYSQL *conn, const std::string &char_id, TradeIte
     int slotPos = 0;
     if(SelectInventoryItemSlot(conn,char_id,item, hasItem) != 0)
     {
-        K_slog_trace(K_SLOG_DEBUG, "[%s : %s : %d] SelectInventoryItemSlot Error", __FILE__ ,__FUNCTION__, __LINE__);
+        K_LOG_DEBUG( "SelectInventoryItemSlot Error");
         return -1;
     }
 
@@ -529,7 +529,7 @@ int TradeService::IncreaseItem(MYSQL *conn, const std::string &char_id, TradeIte
         int itemId = std::stoi(item.id);
         if(UpdateInventoryItemCountPlus(conn, charId, itemId, item.amount) != 0)
         {
-            K_slog_trace(K_SLOG_DEBUG, "[%s : %s : %d] UpdateInventoryItemCount fail", __FILE__ ,__FUNCTION__, __LINE__);
+            K_LOG_DEBUG( "UpdateInventoryItemCount fail");
             return -1;    
         }
         return 0;
@@ -537,13 +537,13 @@ int TradeService::IncreaseItem(MYSQL *conn, const std::string &char_id, TradeIte
 
     if(SelectNextInventorySlotPos(conn, charId, inventoryType, slotPos) != 0)
     {
-        K_slog_trace(K_SLOG_DEBUG, "[%s : %s : %d] SelectNextInventorySlotPos fail", __FILE__ ,__FUNCTION__, __LINE__);
+        K_LOG_DEBUG( "SelectNextInventorySlotPos fail");
         return -1;
     }
 
     if(InsertInventoryItem(conn, charId, inventoryType, slotPos, itemId, item.amount))
     {
-        K_slog_trace(K_SLOG_DEBUG, "[%s : %s : %d] InsertInventoryItem fail", __FILE__ ,__FUNCTION__, __LINE__);
+        K_LOG_DEBUG( "InsertInventoryItem fail");
         return -1; 
     }
     //내 슬롯 index 업데이트
@@ -558,7 +558,7 @@ int TradeService::SelectInventoryItemSlot(MYSQL *conn, const std::string &char_i
     MYSQL_STMT* stmt = mysql_stmt_init(conn);
     if(!stmt)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] SELECT FAIL: %s", __FILE__, __FUNCTION__, __LINE__, mysql_error(conn));
+        K_LOG_ERROR( "SELECT FAIL: %s", mysql_error(conn));
         return -1;
     }
     // 아이템 보유 여부 확인
@@ -566,7 +566,7 @@ int TradeService::SelectInventoryItemSlot(MYSQL *conn, const std::string &char_i
 
     if(mysql_stmt_prepare(stmt, query, strlen(query)) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_prepare ERROR [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_error(conn));
+        K_LOG_ERROR( "mysql_stmt_prepare ERROR [%s]", mysql_error(conn));
         mysql_stmt_close(stmt);
         return -1;
     }
@@ -584,14 +584,14 @@ int TradeService::SelectInventoryItemSlot(MYSQL *conn, const std::string &char_i
     
     if(mysql_stmt_bind_param(stmt, param) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d ] mysql_stmt_bind_param ERROR [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_bind_param ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         return -1;
     }
 
     if(mysql_stmt_execute(stmt) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d ] mysql_stmt_execute ERROR [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_execute ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         return -1;
     }
@@ -603,14 +603,14 @@ int TradeService::SelectInventoryItemSlot(MYSQL *conn, const std::string &char_i
 
     if(mysql_stmt_bind_result(stmt, resultBind) !=0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d ] mysql_stmt_bind_result ERROR [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_bind_result ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         return -1;
     }
 
     if(mysql_stmt_store_result(stmt) !=0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d ] mysql_stmt_store_result ERROR [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_store_result ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         return -1;
     }
@@ -630,14 +630,14 @@ int TradeService::SelectInventoryItemSlot(MYSQL *conn, const std::string &char_i
     }
     else if (fetchResult == MYSQL_DATA_TRUNCATED)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d ] mysql_stmt_fetch DATA TRUNCATED  [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_fetch DATA TRUNCATED  [%s]", mysql_stmt_error(stmt));
         hasItem = true; // 존재 여부만 보면 true
         mysql_stmt_close(stmt);
         return 0;
     }
     else
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d ] mysql_stmt_fetch ERROR [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_fetch ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         return -1;
     }
@@ -648,7 +648,7 @@ int TradeService::UpdateInventoryItemCountPlus(MYSQL* conn, long long charId, in
     MYSQL_STMT* stmt = mysql_stmt_init(conn);
     if(!stmt)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_init ERROR [%s]", __FILE__ ,__FUNCTION__, __LINE__, mysql_error(conn));
+        K_LOG_ERROR( "mysql_stmt_init ERROR [%s]", mysql_error(conn));
         return -1;
     }
 
@@ -656,7 +656,7 @@ int TradeService::UpdateInventoryItemCountPlus(MYSQL* conn, long long charId, in
 
     if(mysql_stmt_prepare(stmt, query, strlen(query)) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_prepare ERROR [%s]", __FILE__ ,__FUNCTION__, __LINE__, mysql_error(conn));
+        K_LOG_ERROR( "mysql_stmt_prepare ERROR [%s]", mysql_error(conn));
         mysql_stmt_close(stmt);
         return -1;
     }
@@ -674,14 +674,14 @@ int TradeService::UpdateInventoryItemCountPlus(MYSQL* conn, long long charId, in
 
     if(mysql_stmt_bind_param(stmt, param) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_bind_param ERROR [%s]", __FILE__ ,__FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_bind_param ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         return -1;
     }
 
     if(mysql_stmt_execute(stmt) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_execute ERROR [%s]", __FILE__ ,__FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_execute ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         return -1;
     }
@@ -689,7 +689,7 @@ int TradeService::UpdateInventoryItemCountPlus(MYSQL* conn, long long charId, in
 
     if (affectedRows == 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] update affected 0 rows", __FILE__ ,__FUNCTION__, __LINE__);
+        K_LOG_ERROR( "update affected 0 rows");
         mysql_stmt_close(stmt);
         return -1;
     }
@@ -704,7 +704,7 @@ int TradeService::updateInventoryItemCountMinus(MYSQL *conn, long long charId, i
 
     if(!stmt)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_init Error [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_error(conn));
+        K_LOG_ERROR( "mysql_stmt_init Error [%s]", mysql_error(conn));
         return -1;
     }
 
@@ -712,7 +712,7 @@ int TradeService::updateInventoryItemCountMinus(MYSQL *conn, long long charId, i
 
     if(mysql_stmt_prepare(stmt, query, strlen(query)) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_prepare Error [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_prepare Error [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         return -1;    
     }
@@ -733,14 +733,14 @@ int TradeService::updateInventoryItemCountMinus(MYSQL *conn, long long charId, i
 
     if(mysql_stmt_bind_param(stmt, param) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_bind_param Error [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_bind_param Error [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         return -1;
     }
 
     if(mysql_stmt_execute(stmt) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_execute Error [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_execute Error [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         return -1;
     }
@@ -749,7 +749,7 @@ int TradeService::updateInventoryItemCountMinus(MYSQL *conn, long long charId, i
 
     if (affectedRows == 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] update affected 0 rows", __FILE__ ,__FUNCTION__, __LINE__);
+        K_LOG_ERROR( "update affected 0 rows");
         mysql_stmt_close(stmt);
         return -1;
     }
@@ -763,7 +763,7 @@ int TradeService::SelectNextInventorySlotPos(MYSQL* conn,long long charId,int in
     MYSQL_STMT* stmt = mysql_stmt_init(conn);
     if(!stmt)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_init Error [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_error(conn));
+        K_LOG_ERROR( "mysql_stmt_init Error [%s]", mysql_error(conn));
         return -1;
     }
     //query = "SELECT COALESCE(MAX(slot_pos) + 1, 0) FROM character_inventory WHERE char_id = " + char_id + " AND inventory_type = " + item.type;
@@ -771,7 +771,7 @@ int TradeService::SelectNextInventorySlotPos(MYSQL* conn,long long charId,int in
 
     if(mysql_stmt_prepare(stmt, query, strlen(query))!=0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_init Error [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_init Error [%s]", mysql_stmt_error(stmt));
         return -1;
     }
 
@@ -785,14 +785,14 @@ int TradeService::SelectNextInventorySlotPos(MYSQL* conn,long long charId,int in
 
     if(mysql_stmt_bind_param(stmt, param) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_bind_param Error [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_bind_param Error [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         return -1;
     }
     
     if(mysql_stmt_execute(stmt) !=0 )
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_execute Error [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_execute Error [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         return -1;
     }
@@ -805,14 +805,14 @@ int TradeService::SelectNextInventorySlotPos(MYSQL* conn,long long charId,int in
 
     if(mysql_stmt_bind_result(stmt, resultBind) !=0 )
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_bind_result Error [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_bind_result Error [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         return -1;
     }
 
     if(mysql_stmt_store_result(stmt) !=0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_bind_result Error [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_bind_result Error [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         return -1;
     }
@@ -827,7 +827,7 @@ int TradeService::SelectNextInventorySlotPos(MYSQL* conn,long long charId,int in
 
     if(fetchResult != 0 && fetchResult != MYSQL_DATA_TRUNCATED)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_fetch ERROR [%s] Error [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_fetch ERROR [%s] Error [%s]", mysql_stmt_error(stmt));
         mysql_stmt_free_result(stmt);
         mysql_stmt_close(stmt);
         return false;
@@ -843,7 +843,7 @@ int TradeService::InsertInventoryItem(MYSQL* conn,long long charId,int inventory
     MYSQL_STMT* stmt = mysql_stmt_init(conn);
     if(!stmt)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_init Error [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_error(conn));
+        K_LOG_ERROR( "mysql_stmt_init Error [%s]", mysql_error(conn));
         return -1;
     }
 
@@ -851,7 +851,7 @@ int TradeService::InsertInventoryItem(MYSQL* conn,long long charId,int inventory
     
     if(mysql_stmt_prepare(stmt, query, strlen(query)) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_prepare Error [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_prepare Error [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         return -1;
     }
@@ -875,14 +875,14 @@ int TradeService::InsertInventoryItem(MYSQL* conn,long long charId,int inventory
 
     if(mysql_stmt_bind_param(stmt, param) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_bind_param Error [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_bind_param Error [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         return -1;
     }
 
     if(mysql_stmt_execute(stmt) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_execute Error [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_execute Error [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         return -1;
     }
@@ -897,7 +897,7 @@ int TradeService::DeleteInventoryItem(MYSQL *conn, long long charId, int itemId)
 
     if(!stmt)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_init Error [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_error(conn));
+        K_LOG_ERROR( "mysql_stmt_init Error [%s]", mysql_error(conn));
         return -1;
     }
 
@@ -905,7 +905,7 @@ int TradeService::DeleteInventoryItem(MYSQL *conn, long long charId, int itemId)
 
     if(mysql_stmt_prepare(stmt, query, strlen(query)) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_prepare Error [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_prepare Error [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         return -1;
     }
@@ -921,14 +921,14 @@ int TradeService::DeleteInventoryItem(MYSQL *conn, long long charId, int itemId)
 
     if(mysql_stmt_bind_param(stmt, param) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_bind_param Error [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_bind_param Error [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         return -1;
     }
 
     if(mysql_stmt_execute(stmt) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_execute Error [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_execute Error [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         return -1;
     }

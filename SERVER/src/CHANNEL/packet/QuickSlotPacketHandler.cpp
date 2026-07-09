@@ -30,7 +30,7 @@ void QuickSlotPacketHandler::HandleSetQuickSlot(PacketContext* ctx)
      
     if(ctx == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] ctx is nullptr\n", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ctx is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]ctx is nullptr";
         goto err;
@@ -39,7 +39,7 @@ void QuickSlotPacketHandler::HandleSetQuickSlot(PacketContext* ctx)
     session = ctx->channel_session;
     if(session == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] session is nullptr\n", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "session is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]session is nullptr";
         goto err;
@@ -48,7 +48,7 @@ void QuickSlotPacketHandler::HandleSetQuickSlot(PacketContext* ctx)
     player = session->GetPlayer();
     if(player == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] player is nullptr\n", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "player is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]player is nullptr";
         goto err;
@@ -57,7 +57,7 @@ void QuickSlotPacketHandler::HandleSetQuickSlot(PacketContext* ctx)
     quickSlotManager = player->GetQuickSlotManager();
     if(quickSlotManager == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] quickSlotManager is nullptr\n", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "quickSlotManager is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]quickSlotManager is nullptr";
         goto err;
@@ -67,48 +67,48 @@ void QuickSlotPacketHandler::HandleSetQuickSlot(PacketContext* ctx)
     if(!PacketParser::ParseNextIntField(ctx->payload,ctx->payload_len,offset,quickSlotData.slot_index,errMsg))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] ParseNextIntField fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ParseNextIntField fail");
         goto err;
     }
 
     if(!PacketParser::ParseNextIntField(ctx->payload,ctx->payload_len,offset,type,errMsg))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] ParseNextIntField fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ParseNextIntField fail");
         goto err;
     }
     
     if(!PacketParser::ParseNextIntField(ctx->payload, ctx->payload_len, offset, quickSlotData.ref_id, errMsg))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] ParseNextIntField fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ParseNextIntField fail");
         goto err;
     }
 
     if(!PacketParser::ParseNextIntField(ctx->payload, ctx->payload_len, offset, quickSlotData.inventory_type, errMsg))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] ParseNextIntField fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ParseNextIntField fail");
         goto err;
     }
 
     if(!PacketParser::ParseNextIntField(ctx->payload, ctx->payload_len, offset, quickSlotData.inventory_slotPos, errMsg))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] ParseNextIntField fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ParseNextIntField fail");
         goto err;
     }
 
     if(!PacketParser::ParseNextIntField(ctx->payload, ctx->payload_len, offset, quickSlotData.count, errMsg))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] ParseNextIntField fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ParseNextIntField fail");
         goto err;
     }
   
     quickSlotData.type = QuickSlot::SetSlotType(type);
 
-    K_slog_trace(K_SLOG_DEBUG, "[%s : %s : %d] quickSlotData.type [%d] ", __FILE__, __FUNCTION__, __LINE__,type);
+    K_LOG_DEBUG( "quickSlotData.type [%d] ", type);
     
     result = quickSlotManager->SetSlot(quickSlotData);
 
@@ -123,7 +123,7 @@ err:
         session->SendNok(PKT_QUICKSLOT_SET, errMsg);
     } else {
         QuickSlotPacketSender::SendQuickSlotSet(player, result);
-        K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] QuickSlotSet END", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_TRACE( "QuickSlotSet END");
     
     }
 

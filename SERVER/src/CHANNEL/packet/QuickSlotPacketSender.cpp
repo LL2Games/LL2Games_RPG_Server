@@ -8,7 +8,7 @@ void QuickSlotPacketSender::SendQuickSlotList(Player* player)
 
     if(!session) 
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] session이 nullptr입니다.", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "session이 nullptr입니다.");
         return;
     }
 
@@ -29,7 +29,7 @@ void QuickSlotPacketSender::SendQuickSlotList(Player* player)
 
     session->Send(PKT_QUICKSLOT_LIST, payload);
 
-    K_slog_trace(K_SLOG_TRACE, "[%s][%d] SendQuickSlotList Send Success.", __FUNCTION__, __LINE__);
+    K_LOG_TRACE( "SendQuickSlotList Send Success.");
 }
 
 void QuickSlotPacketSender::SendQuickSlotSet(Player* player, std::vector<QuickSlotData>& result)
@@ -38,7 +38,7 @@ void QuickSlotPacketSender::SendQuickSlotSet(Player* player, std::vector<QuickSl
 
     if(!session) 
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] session이 nullptr입니다.", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "session이 nullptr입니다.");
         return;
     }
 
@@ -58,5 +58,5 @@ void QuickSlotPacketSender::SendQuickSlotSet(Player* player, std::vector<QuickSl
 
     session->Send(PKT_QUICKSLOT_SET, payload);
 
-    K_slog_trace(K_SLOG_TRACE, "[%s][%d] PKT_QUICKSLOT_SET Send Success.", __FUNCTION__, __LINE__);
+    K_LOG_TRACE( "PKT_QUICKSLOT_SET Send Success.");
 }
