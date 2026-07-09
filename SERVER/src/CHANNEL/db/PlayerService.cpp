@@ -78,21 +78,21 @@ std::unique_ptr<Player> PlayerService::LoadPlayer(int characterId, RedisClient* 
             CharacterStat stat(base, derived, expStat, curHp, curMp, remainAp);
             player->SetInitData(playerInit, stat);
 
-            K_slog_trace(K_SLOG_TRACE, "[Redis]LoadPlayer_stat SUCCESS [%d]", player->GetId());
+            K_LOG_TRACE( "[Redis]LoadPlayer_stat SUCCESS [%d]", player->GetId());
             return player;
         }
     }
 
     if(!LoadPlayerInfo(characterId, playerInit))
     {
-        K_slog_trace(K_SLOG_ERROR, "LoadPlayerInfo failed [%d]", characterId);
+        K_LOG_ERROR( "LoadPlayerInfo failed [%d]", characterId);
         return nullptr;
     }
 
 
     if(!LoadPlayerStat(characterId, allStat))
     {
-        K_slog_trace(K_SLOG_ERROR, "LoadPlayerInfo failed [%d]", characterId);
+        K_LOG_ERROR( "LoadPlayerInfo failed [%d]", characterId);
         return nullptr;
     }
     CharacterStat stat(allStat.baseStat, allStat.derivedStat, allStat.expStat, allStat.curHp, allStat.curMp, allStat.remainAp);
@@ -102,17 +102,17 @@ std::unique_ptr<Player> PlayerService::LoadPlayer(int characterId, RedisClient* 
 
     if (redis == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "redis is nullptr");
+        K_LOG_ERROR( "redis is nullptr");
         return nullptr;
     }
 
     result = redis->HSetAll(redisKey, redis_map, 600);
 
-    K_slog_trace(K_SLOG_TRACE, "HSetAll SUCCESS");
+    K_LOG_TRACE( "HSetAll SUCCESS");
 
     if (result != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "HSetAll ERROR");
+        K_LOG_ERROR( "HSetAll ERROR");
         return nullptr;
     }
     return player;
@@ -125,7 +125,7 @@ bool PlayerService::LoadInventoryMeta(Player* player)
 
     if(InventoryManager == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "InventoryManager is nullptr");
+        K_LOG_ERROR( "InventoryManager is nullptr");
         return false;
     }
 
@@ -136,7 +136,7 @@ bool PlayerService::LoadInventoryMeta(Player* player)
     MYSQL_STMT* stmt = mysql_stmt_init(conn);
     if (!stmt)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_init ERROR [%s]", mysql_error(conn));
+        K_LOG_ERROR( "mysql_stmt_init ERROR [%s]", mysql_error(conn));
         m_mySql->ReleaseConnection(conn);
         return false;
     }
@@ -146,7 +146,7 @@ bool PlayerService::LoadInventoryMeta(Player* player)
 
     if (mysql_stmt_prepare(stmt, query, strlen(query)) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_prepare ERROR [%s]", mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_prepare ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
         return false;
@@ -160,7 +160,7 @@ bool PlayerService::LoadInventoryMeta(Player* player)
 
     if (mysql_stmt_bind_param(stmt, param) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_bind_param ERROR [%s]", mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_bind_param ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
         return false;
@@ -168,8 +168,8 @@ bool PlayerService::LoadInventoryMeta(Player* player)
 
     if (mysql_stmt_execute(stmt) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_execute ERROR [%s]", mysql_stmt_error(stmt));
-        K_slog_trace(K_SLOG_ERROR, "SQL [%s]", query);
+        K_LOG_ERROR( "mysql_stmt_execute ERROR [%s]", mysql_stmt_error(stmt));
+        K_LOG_ERROR( "SQL [%s]", query);
 
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
@@ -189,7 +189,7 @@ bool PlayerService::LoadInventoryMeta(Player* player)
   
     if (mysql_stmt_bind_result(stmt, resultBind) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_bind_result ERROR [%s]", mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_bind_result ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
         return false;
@@ -197,7 +197,7 @@ bool PlayerService::LoadInventoryMeta(Player* player)
 
     if (mysql_stmt_store_result(stmt) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_store_result ERROR [%s]", mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_store_result ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
         return false;
@@ -212,7 +212,7 @@ bool PlayerService::LoadInventoryMeta(Player* player)
 
         if (fetchResult != 0)
         {
-            K_slog_trace(K_SLOG_ERROR, "mysql_stmt_fetch ERROR [%s]", mysql_stmt_error(stmt));
+            K_LOG_ERROR( "mysql_stmt_fetch ERROR [%s]", mysql_stmt_error(stmt));
 
             mysql_stmt_free_result(stmt);
             mysql_stmt_close(stmt);
@@ -240,7 +240,7 @@ bool PlayerService::LoadInventory(Player* player)
     auto inventoryManager = player->GetInventoryManager();
     if(inventoryManager == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "inventoryManager is nullptr");
+        K_LOG_ERROR( "inventoryManager is nullptr");
         return false;
     }
 
@@ -250,7 +250,7 @@ bool PlayerService::LoadInventory(Player* player)
     MYSQL_STMT* stmt = mysql_stmt_init(conn);
     if (!stmt)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_init ERROR [%s]", mysql_error(conn));
+        K_LOG_ERROR( "mysql_stmt_init ERROR [%s]", mysql_error(conn));
         m_mySql->ReleaseConnection(conn);
         return false;
     }
@@ -259,7 +259,7 @@ bool PlayerService::LoadInventory(Player* player)
     
     if (mysql_stmt_prepare(stmt, query, strlen(query)) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_prepare ERROR [%s]", mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_prepare ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
         return false;
@@ -272,7 +272,7 @@ bool PlayerService::LoadInventory(Player* player)
 
     if (mysql_stmt_bind_param(stmt, param) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_bind_param ERROR [%s]", mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_bind_param ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
         return false;
@@ -280,8 +280,8 @@ bool PlayerService::LoadInventory(Player* player)
 
     if (mysql_stmt_execute(stmt) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_execute ERROR [%s]", mysql_stmt_error(stmt));
-        K_slog_trace(K_SLOG_ERROR, "SQL [%s]", query);
+        K_LOG_ERROR( "mysql_stmt_execute ERROR [%s]", mysql_stmt_error(stmt));
+        K_LOG_ERROR( "SQL [%s]", query);
 
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
@@ -304,7 +304,7 @@ bool PlayerService::LoadInventory(Player* player)
   
     if (mysql_stmt_bind_result(stmt, resultBind) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_bind_result ERROR [%s]", mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_bind_result ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
         return false;
@@ -312,7 +312,7 @@ bool PlayerService::LoadInventory(Player* player)
 
     if (mysql_stmt_store_result(stmt) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_store_result ERROR [%s]", mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_store_result ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
         return false;
@@ -343,7 +343,7 @@ bool PlayerService::LoadInventory(Player* player)
         auto inventory =inventoryManager->GetInventory(inventoryType);
         if(inventory == nullptr)
         {
-            K_slog_trace(K_SLOG_ERROR, "inventory is nullptr");
+            K_LOG_ERROR( "inventory is nullptr");
             mysql_stmt_free_result(stmt);
             mysql_stmt_close(stmt);
             m_mySql->ReleaseConnection(conn);
@@ -364,14 +364,14 @@ bool PlayerService::LoadLearnedSkill(Player* player)
     MYSQL* conn = m_mySql->GetConnection(); 
     if(!conn) 
     {
-        K_slog_trace(K_SLOG_ERROR, "conn is nullptr  ERROR [%s]", mysql_error(conn));
+        K_LOG_ERROR( "conn is nullptr  ERROR [%s]", mysql_error(conn));
         return false;
     }
 
     MYSQL_STMT* stmt = mysql_stmt_init(conn);
     if(!stmt)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_init ERROR [%s]", mysql_error(conn));
+        K_LOG_ERROR( "mysql_stmt_init ERROR [%s]", mysql_error(conn));
         m_mySql->ReleaseConnection(conn);
         return false;
     }
@@ -380,7 +380,7 @@ bool PlayerService::LoadLearnedSkill(Player* player)
    
     if(mysql_stmt_prepare(stmt, query, strlen(query)) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_prepare ERROR [%s]", mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_prepare ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
         return false;
@@ -394,7 +394,7 @@ bool PlayerService::LoadLearnedSkill(Player* player)
 
     if(mysql_stmt_bind_param(stmt, param) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_bind_param ERROR [%s]", mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_bind_param ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
         return false;
@@ -402,8 +402,8 @@ bool PlayerService::LoadLearnedSkill(Player* player)
 
     if(mysql_stmt_execute(stmt) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_execute ERROR [%s]", mysql_stmt_error(stmt));
-        K_slog_trace(K_SLOG_ERROR, "SQL [%s]", query);
+        K_LOG_ERROR( "mysql_stmt_execute ERROR [%s]", mysql_stmt_error(stmt));
+        K_LOG_ERROR( "SQL [%s]", query);
 
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
@@ -421,7 +421,7 @@ bool PlayerService::LoadLearnedSkill(Player* player)
 
     if(mysql_stmt_bind_result(stmt, resultBind) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_bind_result ERROR [%s]", mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_bind_result ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
         return false;
@@ -430,7 +430,7 @@ bool PlayerService::LoadLearnedSkill(Player* player)
 
     if(mysql_stmt_store_result(stmt) !=0)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_store_result ERROR [%s]", mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_store_result ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
         return false;
@@ -484,8 +484,8 @@ bool PlayerService::LoadSlotSetting(Player* player)
     result = mysql_query(conn, query.c_str());
     if(result != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "LoadSlotSetting ERROR [%s]", mysql_error(conn));
-        K_slog_trace(K_SLOG_ERROR, "SQL [%s]", query.c_str());
+        K_LOG_ERROR( "LoadSlotSetting ERROR [%s]", mysql_error(conn));
+        K_LOG_ERROR( "SQL [%s]", query.c_str());
         m_mySql->ReleaseConnection(conn);
         return false;
     }
@@ -493,7 +493,7 @@ bool PlayerService::LoadSlotSetting(Player* player)
     res = mysql_store_result(conn);
     if(!res)
     {
-        K_slog_trace(K_SLOG_ERROR, "LoadSlotSetting ERROR [%s]", mysql_error(conn));
+        K_LOG_ERROR( "LoadSlotSetting ERROR [%s]", mysql_error(conn));
         m_mySql->ReleaseConnection(conn);
         return false;
     }
@@ -502,7 +502,7 @@ bool PlayerService::LoadSlotSetting(Player* player)
 
     if(!quickSlotManager)
     {
-        K_slog_trace(K_SLOG_ERROR, "quickSlotManager is nullptr [%s]", mysql_error(conn));
+        K_LOG_ERROR( "quickSlotManager is nullptr [%s]", mysql_error(conn));
         m_mySql->ReleaseConnection(conn);
         return false;
     }
@@ -528,14 +528,14 @@ bool PlayerService::LoadPlayerInfo(int characterId, PlayerInitData &playerInit)
     MYSQL* conn = m_mySql->GetConnection();
     if (!conn)
     {
-        K_slog_trace(K_SLOG_ERROR, "conn is nullptr");
+        K_LOG_ERROR( "conn is nullptr");
         return false;
     }
 
     MYSQL_STMT* stmt = mysql_stmt_init(conn);
     if (!stmt)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_init ERROR [%s]", mysql_error(conn));
+        K_LOG_ERROR( "mysql_stmt_init ERROR [%s]", mysql_error(conn));
         m_mySql->ReleaseConnection(conn);
         return false;
     }
@@ -546,7 +546,7 @@ bool PlayerService::LoadPlayerInfo(int characterId, PlayerInitData &playerInit)
 
     if (mysql_stmt_prepare(stmt, query, strlen(query)) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_prepare ERROR [%s]", mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_prepare ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
         return false;
@@ -567,8 +567,8 @@ bool PlayerService::LoadPlayerInfo(int characterId, PlayerInitData &playerInit)
 
     if (mysql_stmt_execute(stmt) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_execute ERROR [%s]", mysql_stmt_error(stmt));
-        K_slog_trace(K_SLOG_ERROR, "SQL [%s]", query);
+        K_LOG_ERROR( "mysql_stmt_execute ERROR [%s]", mysql_stmt_error(stmt));
+        K_LOG_ERROR( "SQL [%s]", query);
 
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
@@ -610,7 +610,7 @@ bool PlayerService::LoadPlayerInfo(int characterId, PlayerInitData &playerInit)
 
     if (mysql_stmt_bind_result(stmt, resultBind) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_bind_result ERROR [%s]", mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_bind_result ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
         return false;
@@ -618,7 +618,7 @@ bool PlayerService::LoadPlayerInfo(int characterId, PlayerInitData &playerInit)
 
     if (mysql_stmt_store_result(stmt) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_store_result ERROR [%s]", mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_store_result ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
         return false;
@@ -635,7 +635,7 @@ bool PlayerService::LoadPlayerInfo(int characterId, PlayerInitData &playerInit)
 
     if (fetchResult != 0 && fetchResult != MYSQL_DATA_TRUNCATED)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_fetch ERROR [%s]", mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_fetch ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_free_result(stmt);
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
@@ -678,7 +678,7 @@ bool PlayerService::LoadPlayerStat(int characterId, AllStat &allStat)
     MYSQL_STMT* stmt = mysql_stmt_init(conn);
     if (!stmt)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_init ERROR [%s]", mysql_error(conn));
+        K_LOG_ERROR( "mysql_stmt_init ERROR [%s]", mysql_error(conn));
         m_mySql->ReleaseConnection(conn);
         return false;
     }
@@ -689,7 +689,7 @@ bool PlayerService::LoadPlayerStat(int characterId, AllStat &allStat)
 
     if (mysql_stmt_prepare(stmt, query, strlen(query)) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_prepare ERROR [%s]", mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_prepare ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
         return false;
@@ -702,7 +702,7 @@ bool PlayerService::LoadPlayerStat(int characterId, AllStat &allStat)
 
     if (mysql_stmt_bind_param(stmt, param) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_bind_param ERROR [%s]", mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_bind_param ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
         return false;
@@ -710,8 +710,8 @@ bool PlayerService::LoadPlayerStat(int characterId, AllStat &allStat)
 
     if (mysql_stmt_execute(stmt) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_execute ERROR [%s]", mysql_stmt_error(stmt));
-        K_slog_trace(K_SLOG_ERROR, "SQL [%s]", query);
+        K_LOG_ERROR( "mysql_stmt_execute ERROR [%s]", mysql_stmt_error(stmt));
+        K_LOG_ERROR( "SQL [%s]", query);
 
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
@@ -755,7 +755,7 @@ bool PlayerService::LoadPlayerStat(int characterId, AllStat &allStat)
 
     if (mysql_stmt_bind_result(stmt, resultBind) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_bind_result ERROR [%s]", mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_bind_result ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
         return false;
@@ -763,7 +763,7 @@ bool PlayerService::LoadPlayerStat(int characterId, AllStat &allStat)
 
     if (mysql_stmt_store_result(stmt) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_store_result ERROR [%s]", mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_store_result ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
         return false;
@@ -780,7 +780,7 @@ bool PlayerService::LoadPlayerStat(int characterId, AllStat &allStat)
 
     if (fetchResult != 0 && fetchResult != MYSQL_DATA_TRUNCATED)
     {
-        K_slog_trace(K_SLOG_ERROR, "mysql_stmt_fetch ERROR [%s]", mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_fetch ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_free_result(stmt);
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
@@ -791,7 +791,7 @@ bool PlayerService::LoadPlayerStat(int characterId, AllStat &allStat)
 
     if(levelManager == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "levelManager is nullptr");
+        K_LOG_ERROR( "levelManager is nullptr");
         mysql_stmt_free_result(stmt);
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);   

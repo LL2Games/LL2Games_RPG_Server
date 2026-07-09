@@ -41,7 +41,7 @@ int Monster::Init(const MonsterTemplate &monsterTemplate, const MonsterSpawnData
 	m_spawnPos.xPos = monsterspawnData.spawnPos.xPos;
 	m_spawnPos.yPos = monsterspawnData.spawnPos.yPos;
 
-	K_slog_trace(K_SLOG_DEBUG, "[MonsterInit] instanceId=%d monsterId=%d respawnDelayRaw=%d",monsterspawnData.instanceId,
+	K_LOG_DEBUG( "[MonsterInit] instanceId=%d monsterId=%d respawnDelayRaw=%d",monsterspawnData.instanceId,
     monsterspawnData.monsterId,
     monsterspawnData.respawnDelay);
 	m_respawnDelay = std::chrono::seconds(monsterspawnData.respawnDelay);
@@ -71,8 +71,8 @@ int Monster::Init(const MonsterTemplate &monsterTemplate, const MonsterSpawnData
 	}
 
 #if 1 /*gunoo22 260223 원거리 공격 TestLog*/
-	K_slog_trace(K_SLOG_TRACE, "[%s:%s][%d] Monster [%s] initialized. Ranged Attack: %s", __FILE__, __FUNCTION__, __LINE__, m_name.c_str(), m_isRangedAttack ? "Yes" : "No");
-	K_slog_trace(K_SLOG_TRACE, "[%s:%s][%d] Projectile Data - ID: %d, Damage: %f, Speed: %f, Range: %f, Cooldown: %ld", __FILE__, __FUNCTION__, __LINE__, m_projectileId, m_projectileDamage, m_projectileSpeed, m_ragedAttackRange, m_attackCooldown);
+	K_LOG_TRACE( "Monster [%s] initialized. Ranged Attack: %s", m_name.c_str(), m_isRangedAttack ? "Yes" : "No");
+	K_LOG_TRACE( "Projectile Data - ID: %d, Damage: %f, Speed: %f, Range: %f, Cooldown: %ld", m_projectileId, m_projectileDamage, m_projectileSpeed, m_ragedAttackRange, m_attackCooldown);
 #endif
 
 	m_collider.type = monsterTemplate.collisionType;	
@@ -97,29 +97,29 @@ int Monster::Init(const MonsterTemplate &monsterTemplate, const MonsterSpawnData
 int Monster::Update(float dt)
 {
 
-	//K_slog_trace(K_SLOG_TRACE, "[%s:%s][%d] state=[%d]", __FILE__, __FUNCTION__, __LINE__, m_state);
-	//K_slog_trace(K_SLOG_TRACE, "[%s:%s][%d] Monster Pointer[%p]", __FILE__, __FUNCTION__, __LINE__, this);
+	//K_LOG_TRACE( "state=[%d]", m_state);
+	//K_LOG_TRACE( "Monster Pointer[%p]", this);
 
 	switch (m_state)
 	{
 		case E_Idle:
 		case E_Patrol:
-		//K_slog_trace(K_SLOG_TRACE, "[%s:%s][%d] state=[Patrol]", __FILE__, __FUNCTION__, __LINE__);
+		//K_LOG_TRACE( "state=[Patrol]");
 		UpdatePatrol(dt);
 		break;
 
 	case E_Chase:
-		K_slog_trace(K_SLOG_TRACE, "[%s:%s][%d] state=[Chase]", __FILE__, __FUNCTION__, __LINE__);
+		K_LOG_TRACE( "state=[Chase]");
 		UpdateChase(dt);
 		break;
 
 	case E_RangeAttack:
-		K_slog_trace(K_SLOG_TRACE, "[%s:%s][%d] state=[RangeAttack]", __FILE__, __FUNCTION__, __LINE__);
+		K_LOG_TRACE( "state=[RangeAttack]");
 		UpdateChase(dt);
 		break;
 		
 	case E_Dead:
-		K_slog_trace(K_SLOG_TRACE, "[%s:%s][%d] state=[Dead]", __FILE__, __FUNCTION__, __LINE__);
+		K_LOG_TRACE( "state=[Dead]");
 		break;
   case E_Die:
 	case E_Move:
@@ -165,7 +165,7 @@ bool Monster::TryRangedAttack(const Vec2& dir)
 	//쿨다운 체크
 	if (IsAttackOnCooldown())
 	{
-		K_slog_trace(K_SLOG_TRACE, "[%s:%s][%d] 공격 쿨다운 중입니다.", __FILE__, __FUNCTION__, __LINE__);
+		K_LOG_TRACE( "공격 쿨다운 중입니다.");
 		return false;
 	}
 
@@ -183,7 +183,7 @@ bool Monster::TryRangedAttack(const Vec2& dir)
 
 	//마지막 공격 시간 업데이트
 	m_lastAttackTime = NowMs();
-	K_slog_trace(K_SLOG_TRACE, "[%s:%s][%d] 원거리 공격 시도. 방향: %f", __FILE__, __FUNCTION__, __LINE__, dir);
+	K_LOG_TRACE( "원거리 공격 시도. 방향: %f", dir);
 
 	m_state = E_RangeAttack; //공격 상태로 전환
 
@@ -197,7 +197,7 @@ int Monster::UpdateChase(float dt)
 
 	if (!player) //막타플레이어 없을경우 예외처리
 	{
-		K_slog_trace(K_SLOG_TRACE, "[%s:%s][%d] No attacker to chase.", __FILE__, __FUNCTION__, __LINE__);
+		K_LOG_TRACE( "No attacker to chase.");
 		return 0;
 	}
 
@@ -206,7 +206,7 @@ int Monster::UpdateChase(float dt)
 	//플레이어가 몬스터와 같은 맵에 없는경우 예외처리
 	if (player->GetCurrentMap() && (player->GetCurrentMap()->GetMapId() != m_mapId))
 	{
-		K_slog_trace(K_SLOG_TRACE, "[%s:%s][%d] Attacker is on a different map.", __FILE__, __FUNCTION__, __LINE__);
+		K_LOG_TRACE( "Attacker is on a different map.");
 		return UpdatePatrol(dt);
 	}
 
@@ -228,7 +228,7 @@ int Monster::UpdateChase(float dt)
 	//공격 범위 내에 플레이어가 있다면 공격
 	if (m_isRangedAttack && fabs(dx) <= m_ragedAttackRange)
 	{
-		K_slog_trace(K_SLOG_TRACE, "[%s:%s][%d] Player is within ranged attack range. Attempting attack.", __FILE__, __FUNCTION__, __LINE__);
+		K_LOG_TRACE( "Player is within ranged attack range. Attempting attack.");
 		if (TryRangedAttack(m_dir))
 		{
 			//공격 성공시에만 마지막 공격시간 업데이트
@@ -244,7 +244,7 @@ int Monster::UpdateChase(float dt)
 	//이동
 	m_Pos.xPos += m_dir.xPos * m_moveSpeed * dt;
 	m_Pos.yPos += m_dir.yPos * m_moveSpeed * dt;
-	K_slog_trace(K_SLOG_TRACE, "[%s:%s][%d] Chasing player. New position: (%f, %f)", __FILE__, __FUNCTION__, __LINE__, m_Pos.xPos, m_Pos.yPos);
+	K_LOG_TRACE( "Chasing player. New position: (%f, %f)", m_Pos.xPos, m_Pos.yPos);
 	
 	return 0;
 }
@@ -253,7 +253,7 @@ int Monster::Dead()
 {
 	if (m_isAlive && !m_deadRequest)
 	{
-		K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] Is Dead", __FILE__, __FUNCTION__, __LINE__);
+		K_LOG_TRACE( "Is Dead");
 		m_deadRequest = true;
 		m_deadTime = std::chrono::steady_clock::now();
 		m_isAlive = false;
@@ -270,7 +270,7 @@ bool Monster::CheckRespawnTime(std::chrono::steady_clock::time_point now)
 
 	if (!m_deadRequest)
 	{
-		K_slog_trace(K_SLOG_DEBUG,
+		K_LOG_DEBUG(
 			"[RespawnCheck] id=%d deadRequest=false",
 			m_instanceId);
 		return false;
@@ -279,7 +279,7 @@ bool Monster::CheckRespawnTime(std::chrono::steady_clock::time_point now)
 	auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_deadTime).count();
 	auto delay = std::chrono::duration_cast<std::chrono::milliseconds>(m_respawnDelay).count();
 
-	K_slog_trace(K_SLOG_DEBUG,
+	K_LOG_DEBUG(
 		"[RespawnCheck] id=%d elapsed=%lld delay=%lld hp=%d alive=%d deadRequest=%d",
 		m_instanceId,
 		elapsed,
@@ -293,7 +293,7 @@ bool Monster::CheckRespawnTime(std::chrono::steady_clock::time_point now)
 
 int Monster::Reset()
 {
-	K_slog_trace(K_SLOG_DEBUG, "[%s: %s : %d] monsterReset [%d]", __FILE__, __FUNCTION__, __LINE__,m_instanceId);
+	K_LOG_DEBUG( "monsterReset [%d]", m_instanceId);
 	m_Pos.xPos = m_spawnPos.xPos;
 	m_Pos.yPos = m_spawnPos.yPos;
 	m_hp = m_maxhp;
@@ -308,18 +308,18 @@ int Monster::Reset()
 
 bool Monster::OnDamaged(Player *Attacker, int damage)
 {
-	K_slog_trace(K_SLOG_TRACE, "[%s : %s][%d] AttackerId[%d] damage[%d]", __FILE__, __FUNCTION__, __LINE__, Attacker->GetId(), damage);
-	K_slog_trace(K_SLOG_TRACE, "[%s:%s][%d] Monster Pointer[%p]", __FILE__, __FUNCTION__, __LINE__, this);
+	K_LOG_TRACE( "AttackerId[%d] damage[%d]", Attacker->GetId(), damage);
+	K_LOG_TRACE( "Monster Pointer[%p]", this);
 
 	// 죽은 뒤 / 죽는 중이라면 무시
 	if (!m_isAlive || m_deadRequest)
 	{
-		K_slog_trace(K_SLOG_TRACE, "[%s : %s][%d] 이미 죽은 몬스터입니다.", __FILE__, __FUNCTION__, __LINE__);
+		K_LOG_TRACE( "이미 죽은 몬스터입니다.");
 		return false;
 	}
 	if (damage <= 0)
 	{
-		K_slog_trace(K_SLOG_TRACE, "[%s : %s][%d] damage[%d] <= 0", __FILE__, __FUNCTION__, __LINE__, damage);
+		K_LOG_TRACE( "damage[%d] <= 0", damage);
 		return false;
 	}
 
@@ -327,19 +327,19 @@ bool Monster::OnDamaged(Player *Attacker, int damage)
 	m_lastAttacker = Attacker;
 	//한대 맞으면 해당 chase 모드로 전환
 	m_state = E_Chase;
-	K_slog_trace(K_SLOG_TRACE, "[%s : %s][%d] 몬스터가 플레이어 %s에게 공격당했습니다. 남은 HP: %d", __FILE__, __FUNCTION__, __LINE__, Attacker->GetName().c_str(), m_hp - damage);
-	K_slog_trace(K_SLOG_TRACE, "[%s : %s][%d] 몬스터 상태[%d]", __FILE__, __FUNCTION__, __LINE__, m_state);
+	K_LOG_TRACE( "몬스터가 플레이어 %s에게 공격당했습니다. 남은 HP: %d", Attacker->GetName().c_str(), m_hp - damage);
+	K_LOG_TRACE( "몬스터 상태[%d]", m_state);
 
 	m_hp -= damage;
-	K_slog_trace(K_SLOG_TRACE, "[%s: %s : %d] m_hp [%d]", __FILE__, __FUNCTION__, __LINE__, m_hp);
+	K_LOG_TRACE( "m_hp [%d]", m_hp);
 	if (m_hp <= 0)
 	{
 		m_hp = 0;
 		Dead();
-		K_slog_trace(K_SLOG_TRACE, "[%s : %s][%d] 몬스터 죽음", __FILE__, __FUNCTION__, __LINE__);
+		K_LOG_TRACE( "몬스터 죽음");
 		return true;
 	}
 
-	K_slog_trace(K_SLOG_TRACE, "[%s : %s][%d] End", __FILE__, __FUNCTION__, __LINE__);
+	K_LOG_TRACE( "End");
 	return false;
 }

@@ -31,7 +31,7 @@ void PlayerHandler::AttackPacket(PacketContext * ctx)
 
     if(ctx == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] ctx is nullptr\n", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ctx is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]ctx is nullptr";
         goto err;
@@ -40,7 +40,7 @@ void PlayerHandler::AttackPacket(PacketContext * ctx)
     session = ctx->channel_session;
     if(session == nullptr)
     {
-     K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] session is nullptr\n", __FILE__, __FUNCTION__, __LINE__);
+     K_LOG_ERROR( "session is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]session is nullptr";
         goto err;
@@ -49,7 +49,7 @@ void PlayerHandler::AttackPacket(PacketContext * ctx)
     player = session->GetPlayer();
     if(player == nullptr)
     {
-     K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] player is nullptr\n", __FILE__, __FUNCTION__, __LINE__);
+     K_LOG_ERROR( "player is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]player is nullptr";
         goto err;
@@ -58,7 +58,7 @@ void PlayerHandler::AttackPacket(PacketContext * ctx)
     combat_service = ctx->combat_service;
     if(combat_service == nullptr)
     {
-     K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] combat_service is nullptr\n", __FILE__, __FUNCTION__, __LINE__);
+     K_LOG_ERROR( "combat_service is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]combat_service is nullptr";
         goto err;
@@ -74,7 +74,7 @@ void PlayerHandler::AttackPacket(PacketContext * ctx)
     ))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] ParseLengthPrefixedString fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ParseLengthPrefixedString fail");
         goto err;
     }
 
@@ -88,21 +88,21 @@ void PlayerHandler::AttackPacket(PacketContext * ctx)
     ))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] ParseLengthPrefixedString fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ParseLengthPrefixedString fail");
         goto err;
     }
 
     if(!utility::StringToInt(skill_id_str, skill_id)) 
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] StringToInt fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "StringToInt fail");
         goto err;
     }
 
     if(!utility::StringToInt(attack_dir_str, attack_dir)) 
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] StringToInt fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "StringToInt fail");
         goto err;
     }
     result = combat_service->HandleAttack(player, skill_id, attack_dir);
@@ -110,7 +110,7 @@ void PlayerHandler::AttackPacket(PacketContext * ctx)
     if(result != 1)
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] HandleAttack fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "HandleAttack fail");
         goto err;
     }
     
@@ -119,7 +119,7 @@ err:
     if (rc != EXIT_SUCCESS) { 
         session->SendNok(PKT_PLAYER_ATTACK, errMsg);
     } else {
-        K_slog_trace(K_SLOG_TRACE, "[%s : %s][%d] Player Attack End", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_TRACE( "Player Attack End");
         PlayerPacketSender::SendPlayerAttack(player,skill_id,attack_dir,player->GetCurrentMap()->GetPlayerList());
     }
 
@@ -140,11 +140,11 @@ void PlayerHandler::BasicAttackPacket(PacketContext * ctx)
 
     int attack_dir = 0;
     
-     K_slog_trace(K_SLOG_DEBUG, "[%s : %s : %d] BasicAttackPacket Start\n", __FILE__, __FUNCTION__, __LINE__);
+     K_LOG_DEBUG( "BasicAttackPacket Start\n");
 
     if(ctx == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] ctx is nullptr\n", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ctx is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]ctx is nullptr";
         goto err;
@@ -153,7 +153,7 @@ void PlayerHandler::BasicAttackPacket(PacketContext * ctx)
     session = ctx->channel_session;
     if(session == nullptr)
     {
-     K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] session is nullptr\n", __FILE__, __FUNCTION__, __LINE__);
+     K_LOG_ERROR( "session is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]session is nullptr";
         goto err;
@@ -162,7 +162,7 @@ void PlayerHandler::BasicAttackPacket(PacketContext * ctx)
     player = session->GetPlayer();
     if(player == nullptr)
     {
-     K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] player is nullptr\n", __FILE__, __FUNCTION__, __LINE__);
+     K_LOG_ERROR( "player is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]player is nullptr";
         goto err;
@@ -171,7 +171,7 @@ void PlayerHandler::BasicAttackPacket(PacketContext * ctx)
     combat_service = ctx->combat_service;
     if(combat_service == nullptr)
     {
-     K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] combat_service is nullptr\n", __FILE__, __FUNCTION__, __LINE__);
+     K_LOG_ERROR( "combat_service is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]combat_service is nullptr";
         goto err;
@@ -187,31 +187,31 @@ void PlayerHandler::BasicAttackPacket(PacketContext * ctx)
     ))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] ParseLengthPrefixedString fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ParseLengthPrefixedString fail");
         goto err;
     }
 
     if(!utility::StringToInt(attack_dir_str, attack_dir))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] attack_dir String to Int Error\n", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "attack_dir String to Int Error\n");
         goto err;
     }
 
-    K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] HandleBasicAttack \n", __FILE__, __FUNCTION__, __LINE__);
+    K_LOG_TRACE( "HandleBasicAttack \n");
 
     result = combat_service->HandleBasicAttack(player, attack_dir);
     if(result != 1)
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] HandleBasicAttack fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "HandleBasicAttack fail");
         goto err;
     }
 err:
     if (rc != EXIT_SUCCESS) { 
         session->SendNok(PKT_PLAYER_BASIC_ATTACK, errMsg);
     } else {
-        K_slog_trace(K_SLOG_TRACE, "[%s : %s][%d] Player Attack End", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_TRACE( "Player Attack End");
         PlayerPacketSender::SendPlayerAttack(player,static_cast<int>(player->GetWeaponType()),attack_dir,player->GetCurrentMap()->GetPlayerList());
     }
 }

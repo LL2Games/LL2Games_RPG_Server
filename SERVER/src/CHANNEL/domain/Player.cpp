@@ -63,16 +63,16 @@ void Player::SetInitData(const PlayerInitData playerInitData, const CharacterSta
 #endif  
 
 #if 0 /*gunoo22 260219 테스트로그*/
-    K_slog_trace(K_SLOG_DEBUG, "[%s:%s][%d]gunoo22_TEST Player SetInitData", __FILE__, __FUNCTION__, __LINE__);
-    K_slog_trace(K_SLOG_DEBUG, "[%s:%s][%d]gunoo22_TEST char_id[%d]", __FILE__, __FUNCTION__, __LINE__, playerInitData.char_id);
-    K_slog_trace(K_SLOG_DEBUG, "[%s:%s][%d]gunoo22_TEST account_id[%s]", __FILE__, __FUNCTION__, __LINE__, playerInitData.account_id.c_str());
-    K_slog_trace(K_SLOG_DEBUG, "[%s:%s][%d]gunoo22_TEST name[%s]", __FILE__, __FUNCTION__, __LINE__, playerInitData.name.c_str());
-    K_slog_trace(K_SLOG_DEBUG, "[%s:%s][%d]gunoo22_TEST level[%d]", __FILE__, __FUNCTION__, __LINE__, playerInitData.level);
-    K_slog_trace(K_SLOG_DEBUG, "[%s:%s][%d]gunoo22_TEST job[%d]", __FILE__, __FUNCTION__, __LINE__, playerInitData.job);
-    K_slog_trace(K_SLOG_DEBUG, "[%s:%s][%d]gunoo22_TEST root_job[%d]", __FILE__, __FUNCTION__, __LINE__, playerInitData.root_job);
-    K_slog_trace(K_SLOG_DEBUG, "[%s:%s][%d]gunoo22_TEST map_id[%d]", __FILE__, __FUNCTION__, __LINE__, playerInitData.map_id);
-    K_slog_trace(K_SLOG_DEBUG, "[%s:%s][%d]gunoo22_TEST xPos[%f]", __FILE__, __FUNCTION__, __LINE__, playerInitData.xPos);
-    K_slog_trace(K_SLOG_DEBUG, "[%s:%s][%d]gunoo22_TEST yPos[%f]", __FILE__, __FUNCTION__, __LINE__, playerInitData.yPos);
+    K_LOG_DEBUG( "gunoo22_TEST Player SetInitData");
+    K_LOG_DEBUG( "gunoo22_TEST char_id[%d]", playerInitData.char_id);
+    K_LOG_DEBUG( "gunoo22_TEST account_id[%s]", playerInitData.account_id.c_str());
+    K_LOG_DEBUG( "gunoo22_TEST name[%s]", playerInitData.name.c_str());
+    K_LOG_DEBUG( "gunoo22_TEST level[%d]", playerInitData.level);
+    K_LOG_DEBUG( "gunoo22_TEST job[%d]", playerInitData.job);
+    K_LOG_DEBUG( "gunoo22_TEST root_job[%d]", playerInitData.root_job);
+    K_LOG_DEBUG( "gunoo22_TEST map_id[%d]", playerInitData.map_id);
+    K_LOG_DEBUG( "gunoo22_TEST xPos[%f]", playerInitData.xPos);
+    K_LOG_DEBUG( "gunoo22_TEST yPos[%f]", playerInitData.yPos);
 #endif
 }
 
@@ -81,34 +81,34 @@ bool Player::CanAttack(SkillDef* skillDef)
 {
     if (skillDef == nullptr)
     {
-        K_slog_trace(K_SLOG_TRACE, "[%s : %s][%d] skillDef is null\n", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_TRACE( "skillDef is null\n");
         return false;
     }
 
     // 먼저 플레이어가 공격 가능한 상태인지 확인
     if (m_CurrentState == PlayerState::STUNNED)
     {
-        K_slog_trace(K_SLOG_TRACE, "[%s : %s][%d] 현재 스턴 상태 입니다. 플레이어가 공격 가능한 상태가 아닙니다.\n", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_TRACE( "현재 스턴 상태 입니다. 플레이어가 공격 가능한 상태가 아닙니다.\n");
         return false;
     }
 
     const bool isBasicAttack = (skillDef->category == SkillCategory::BASIC_ATTACK);
 
-    K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] skillDef->categoy [%d].\n", __FILE__, __FUNCTION__, __LINE__, skillDef->category);
+    K_LOG_TRACE( "skillDef->categoy [%d].\n", skillDef->category);
 
     // 기본 공격이 아닌 경우에만 직업/습득 여부 검사
     if (!isBasicAttack)
     {
         if (m_root_job != skillDef->Requirements.root_job)
         {
-            K_slog_trace(K_SLOG_TRACE, "[%s : %s][%d] 플레이어가 사용 가능한 스킬이 아닙니다.\n", __FILE__, __FUNCTION__, __LINE__);
+            K_LOG_TRACE( "플레이어가 사용 가능한 스킬이 아닙니다.\n");
             return false;
         }
 
         auto skillit = m_learnedSkills.find(skillDef->skill_id);
         if (skillit == m_learnedSkills.end())
         {
-            K_slog_trace(K_SLOG_TRACE, "[%s : %s][%d] 플레이어가 배우지 않은 스킬입니다.\n", __FILE__, __FUNCTION__, __LINE__);
+            K_LOG_TRACE( "플레이어가 배우지 않은 스킬입니다.\n");
             return false;
         }
     }
@@ -116,7 +116,7 @@ bool Player::CanAttack(SkillDef* skillDef)
     // 마나 검사
     if (m_stat.GetCurMp() < skillDef->mp_cost)
     {
-        K_slog_trace(K_SLOG_TRACE, "[%s : %s][%d] 마나가 부족합니다.\n", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_TRACE( "마나가 부족합니다.\n");
         return false;
     }
 
@@ -126,7 +126,7 @@ bool Player::CanAttack(SkillDef* skillDef)
     auto coolit = skillCooldownEndMs.find(skillDef->skill_id);
     if (coolit != skillCooldownEndMs.end() && now <= coolit->second)
     {
-        K_slog_trace(K_SLOG_TRACE, "[%s : %s][%d] 아직 쿨타임입니다.\n", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_TRACE( "아직 쿨타임입니다.\n");
         return false;
     }
 
@@ -145,7 +145,7 @@ void Player::UseSkill(SkillDef* skillDef)
 
     m_stat.SetCurMp(cur_mp);
 
-    K_slog_trace(K_SLOG_TRACE, "[%s:%d] CurMp =%d\n", __FUNCTION__, __LINE__, cur_mp);
+    K_LOG_TRACE( "CurMp =%d\n", cur_mp);
 }
 
 
@@ -156,9 +156,9 @@ bool Player::CanUseItem(int inventoryType, int slotPos, int item_id, int useCoun
     //개수 체크
 
     // 아이템 타입 확인
-    K_slog_trace(K_SLOG_DEBUG, "[%s : %s][%d] 아이템 사용 개수 [%d]", __FILE__, __FUNCTION__, __LINE__, useCount);
+    K_LOG_DEBUG( "아이템 사용 개수 [%d]", useCount);
     if (useCount <= 0) {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] invalid useCount=%d\n", __FILE__, __FUNCTION__, __LINE__, useCount);
+        K_LOG_ERROR( "invalid useCount=%d\n", useCount);
         return false;
     }
 
@@ -166,11 +166,11 @@ bool Player::CanUseItem(int inventoryType, int slotPos, int item_id, int useCoun
     const ItemInitData* def = ItemManager::GetInstance()->Find(item_id);
 
     if (!def) {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] unknown item_id=%d\n", __FILE__, __FUNCTION__, __LINE__, item_id);
+        K_LOG_ERROR( "unknown item_id=%d\n", item_id);
         return false;
     }
     if (def->type != "consumable") {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] not consumable item_id=%d type=%s\n",  __FILE__, __FUNCTION__, __LINE__, item_id, def->type.c_str());
+        K_LOG_ERROR( "not consumable item_id=%d type=%s\n", item_id, def->type.c_str());
         return false;
     }
 
@@ -178,7 +178,7 @@ bool Player::CanUseItem(int inventoryType, int slotPos, int item_id, int useCoun
 
     if(!inventory->HasItemBySlot(slotPos, item_id, useCount))
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] 아이템을 사용할 수 없습니다. item_id=%d type=%s\n", __FILE__, __FUNCTION__, __LINE__, item_id, def->type.c_str());
+        K_LOG_ERROR( "아이템을 사용할 수 없습니다. item_id=%d type=%s\n", item_id, def->type.c_str());
         return false;
     }
 
@@ -190,7 +190,7 @@ bool Player::UseItem(int inventoryType, int slotPos, int itemId, int useCount)
    // 방어(실수 방지)
     if (useCount <= 0) return false;
 
-    K_slog_trace(K_SLOG_DEBUG, "[%s : %s : %d]  useCount = %d\n", __FILE__, __FUNCTION__, __LINE__, useCount);
+    K_LOG_DEBUG( "useCount = %d\n", useCount);
 
     const ItemInitData* def = ItemManager::GetInstance()->Find(itemId);
     if (!def) return false;
@@ -199,7 +199,7 @@ bool Player::UseItem(int inventoryType, int slotPos, int itemId, int useCount)
 
     if(!inventory->RemoveItemBySlot(slotPos, itemId, useCount))
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s:%d] 아이템을 사용할 수 없습니다. item_id=%d\n", __FUNCTION__, __LINE__, itemId);
+        K_LOG_ERROR( "아이템을 사용할 수 없습니다. item_id=%d\n", itemId);
         return false;
     }
 
@@ -228,7 +228,7 @@ int Player::GetItemCount(int inventoryType, int slotPos, int itemId) const
     auto inventory = m_inventoryManager.GetInventory(inventoryType);
     if(!inventory->HasItemBySlot(slotPos, itemId))
     {
-        K_slog_trace(K_SLOG_TRACE, "[%s : %s][%d] 플레이어가 소유하지 않은 아이템입니다.\n", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_TRACE( "플레이어가 소유하지 않은 아이템입니다.\n");
         return 0;
     }
     return inventory->GetItemCount(slotPos, itemId);
@@ -240,7 +240,7 @@ int Player::GetSkillLevel(int skill_id) const
 
     if(it == m_learnedSkills.end())
     {
-        K_slog_trace(K_SLOG_TRACE, "[%s : %s][%d] 배우지 않은 스킬입니다.\n", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_TRACE( "배우지 않은 스킬입니다.\n");
         return 0;
     }
 
@@ -264,8 +264,8 @@ std::vector<LearnedSkill> Player::GetPlayerSkillList() const
 
 void Player::AddHP(int HP)
 {
-    K_slog_trace(K_SLOG_TRACE, "[%s : %s][%d] 현재 체력 [%d].\n", __FILE__, __FUNCTION__, __LINE__,m_stat.GetCurHp());
-    K_slog_trace(K_SLOG_TRACE, "[%s : %s][%d] 추가 체력 [%d].\n", __FILE__, __FUNCTION__, __LINE__,HP);
+    K_LOG_TRACE( "현재 체력 [%d].\n", m_stat.GetCurHp());
+    K_LOG_TRACE( "추가 체력 [%d].\n", HP);
     m_stat.GetCurHp() += HP;
     if (m_stat.GetCurHp() > m_stat.GetMaxHp()) m_stat.GetCurHp() = m_stat.GetMaxHp();
     // if (m_stat.GetCurHp() < 0) m_stat.GetCurHp() = 0; //체력깎일때 조건사용 ex)OnDamage에서 HP 감소할 때
@@ -291,7 +291,7 @@ void Player::OnDamaged(int dmg,int64_t nowMs)
     cur_hp = m_stat.GetCurHp();
     cur_hp -= dmg;
 
-    K_slog_trace(K_SLOG_TRACE, "[%s : %s][%d] %s 플레이어가 공격당했습니다. 받은 데미지 [%d], 남은 체력 [%d].\n", __FILE__, __FUNCTION__, __LINE__, m_name.c_str(), dmg, cur_hp);
+    K_LOG_TRACE( "%s 플레이어가 공격당했습니다. 받은 데미지 [%d], 남은 체력 [%d].\n", m_name.c_str(), dmg, cur_hp);
 
     if(cur_hp <= 0){
         cur_hp = 0;

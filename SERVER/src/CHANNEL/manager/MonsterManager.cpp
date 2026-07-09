@@ -58,13 +58,13 @@ bool MonsterManager::PreLoadAll()
         bool is_Load = LoadJsonFile(monster_id, monsterTemplate);
         if (!is_Load)
         {
-            // K_slog_trace(K_SLOG_TRACE, "[%s:%s][%d]gunoo22_TEST", __FILE__, __FUNCTION__, __LINE__);
+            // K_LOG_TRACE( "gunoo22_TEST");
             return false;
         }
 
         m_mops.emplace(monster_id, std::move(monsterTemplate));
     }
-    K_slog_trace(K_SLOG_TRACE, "[%s][%d] MonsterData PreLoadAll Success", __FUNCTION__, __LINE__);
+    K_LOG_TRACE( "MonsterData PreLoadAll Success");
     return true;
 }
 
@@ -111,7 +111,7 @@ std::optional<MonsterTemplate> MonsterManager::GetMonsterData(int monster_id)
     {
         return it->second;
     }
-    K_slog_trace(K_SLOG_TRACE, "[%s][%d] MonsterData 없음", __FUNCTION__, __LINE__);
+    K_LOG_TRACE( "MonsterData 없음");
     return std::nullopt;
 }
 
@@ -123,7 +123,7 @@ bool MonsterManager::LoadJsonFile(int monster_id, MonsterTemplate& monsterTempla
     std::ifstream file(path);
 
     if(!file.is_open()) {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] FAILED OPEN [%s] FILE", __FUNCTION__, __LINE__, path.c_str());
+        K_LOG_ERROR( "FAILED OPEN [%s] FILE", path.c_str());
         return false;
     }
 
@@ -176,7 +176,7 @@ bool MonsterManager::LoadJsonFile(int monster_id, MonsterTemplate& monsterTempla
 
     //투사체 정보 입력
     monsterTemplate.isRanged = j.at("isRanged").get<bool>();
-    // K_slog_trace(K_SLOG_TRACE, "[%s:%s][%d]gunoo22_TEST", __FILE__, __FUNCTION__, __LINE__);
+    // K_LOG_TRACE( "gunoo22_TEST");
     if (monsterTemplate.isRanged) {
         const auto& mPro = j.at("projectile").at(0);
         monsterTemplate.projectileData.id = mPro.at("id").get<int>();
@@ -184,11 +184,11 @@ bool MonsterManager::LoadJsonFile(int monster_id, MonsterTemplate& monsterTempla
         monsterTemplate.projectileData.speed = mPro.at("speed").get<float>();
         monsterTemplate.projectileData.range = mPro.at("range").get<float>();
         monsterTemplate.projectileData.coolDown = mPro.at("coolDown").get<int64_t>();
-        // K_slog_trace(K_SLOG_TRACE, "[%s:%s][%d]gunoo22_TEST coolDown[%ld]", __FILE__, __FUNCTION__, __LINE__, monsterTemplate.projectileData.coolDown);
+        // K_LOG_TRACE( "gunoo22_TEST coolDown[%ld]", monsterTemplate.projectileData.coolDown);
 
         const auto& mProCol = mPro.at("collider").at(0);
         monsterTemplate.projectileData.collider.type = Collision::SetCollisionType(mProCol.at("type").get<std::string>());
-        // K_slog_trace(K_SLOG_TRACE, "[%s:%s][%d]gunoo22_TEST", __FILE__, __FUNCTION__, __LINE__);
+        // K_LOG_TRACE( "gunoo22_TEST");
         if (monsterTemplate.projectileData.collider.type == ColliderType::Rect2D) {
             monsterTemplate.projectileData.collider.rect.offset.xPos = mProCol.at("offset").at("x").get<float>();
             monsterTemplate.projectileData.collider.rect.offset.yPos = mProCol.at("offset").at("y").get<float>();
@@ -199,7 +199,7 @@ bool MonsterManager::LoadJsonFile(int monster_id, MonsterTemplate& monsterTempla
             monsterTemplate.projectileData.collider.circle.offset.yPos = mProCol.at("offset").at("y").get<float>();
             monsterTemplate.projectileData.collider.circle.radius = mProCol.at("radius").get<float>();
         }
-        // K_slog_trace(K_SLOG_TRACE, "[%s:%s][%d]gunoo22_TEST", __FILE__, __FUNCTION__, __LINE__);
+        // K_LOG_TRACE( "gunoo22_TEST");
     }
     
 	return true;

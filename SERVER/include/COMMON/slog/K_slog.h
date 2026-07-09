@@ -1,7 +1,15 @@
 #pragma once
 #include "slog.h"
 
-//#define SLOG_DEBUG(x, y) K_slog_trace(K_SLOG_DEBUG, x, __FUNCTION__, __LINE__, y)
+//매크로 설정
+#define K_LOG_TRACE(fmt, ...) \
+    K_slog_trace(K_SLOG_TRACE, "[%s:%s(%d)] " fmt, __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+
+#define K_LOG_DEBUG(fmt, ...) \
+    K_slog_trace(K_SLOG_DEBUG, "[%s:%s(%d)] " fmt, __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+
+#define K_LOG_ERROR(fmt, ...) \
+    K_slog_trace(K_SLOG_ERROR, "[%s:%s(%d)] " fmt, __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 
 enum e_slog
 {

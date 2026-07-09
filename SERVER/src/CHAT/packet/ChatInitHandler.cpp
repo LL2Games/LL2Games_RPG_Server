@@ -20,7 +20,7 @@ void ChatInitHandler::Execute(PacketContext *ctx)
     client = ctx->client;
     if (client == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] client is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "client is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]client is nullptr";
         goto err;
@@ -38,7 +38,7 @@ void ChatInitHandler::Execute(PacketContext *ctx)
     }
 
     nick = db->GetNick(id);
-    K_slog_trace(K_SLOG_TRACE, "[%s][%d][client fd=%d] id=%s, nick=%s", __FILE__, __LINE__, client->GetFD(), id.c_str(), nick.c_str());
+    K_LOG_TRACE( "[client fd=%d] id=%s, nick=%s", client->GetFD(), id.c_str(), nick.c_str());
 err:
     if (rc != EXIT_SUCCESS)
     {

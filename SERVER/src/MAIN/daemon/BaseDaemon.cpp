@@ -85,7 +85,7 @@ pid_t BaseDaemon::Run()
         close(fd[0]); //read close;
 
         waitpid(pid, nullptr, 0);
-        K_slog_trace(K_SLOG_DEBUG, "Daemon[%s] started pid=%d", m_name.c_str(), pid2);
+        K_LOG_DEBUG( "Daemon[%s] started pid=%d", m_name.c_str(), pid2);
         m_pid = pid2;
         return pid2;
     }
@@ -137,7 +137,7 @@ pid_t BaseDaemon::Run(const int flag)
         open("/dev/null", O_RDWR);
 
         printf("daemon Start[%s] pid=%d\n", m_name.c_str(), (int)m_pid);
-        K_slog_trace(K_SLOG_DEBUG, "[%s][%d]execl %s -[%s]", __FILE__, __LINE__, GetExecPath(), sflag.c_str());
+        K_LOG_DEBUG( "execl %s -[%s]", GetExecPath(), sflag.c_str());
 
         //./chatD ./chatD ./1
         execl(GetExecPath(), GetExecPath(), sflag.c_str(), "--config", m_configPath.c_str(), static_cast<char*>(nullptr));
@@ -157,7 +157,7 @@ pid_t BaseDaemon::Run(const int flag)
         close(fd[0]); //read close;
 
         waitpid(pid, nullptr, 0);
-        K_slog_trace(K_SLOG_DEBUG, "Daemon[%s] started pid=%d", m_name.c_str(), pid2);
+        K_LOG_DEBUG( "Daemon[%s] started pid=%d", m_name.c_str(), pid2);
         m_pid = pid2;
         return pid2;
     }

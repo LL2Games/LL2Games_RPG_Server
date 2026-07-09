@@ -56,20 +56,20 @@ int main(int ac, char **av)
         if (g_config.common.logLevel == 0)
         {
             K_slog_init(CHAT_LOG_PATH, daemonName.c_str(), 1);
-            K_slog_trace(K_SLOG_TRACE, "==============LOG_LEVEL: %d NO LOG==============", g_config.common.logLevel);
+            K_LOG_TRACE( "==============LOG_LEVEL: %d NO LOG==============", g_config.common.logLevel);
             K_slog_close();
         }
         K_slog_init(CHAT_LOG_PATH, daemonName.c_str(), g_config.common.logLevel);
-        K_slog_trace(K_SLOG_TRACE, "==============START==============");
-        K_slog_trace(K_SLOG_TRACE, "==============LOG_LEVEL: %d==============", g_config.common.logLevel);
+        K_LOG_TRACE( "==============START==============");
+        K_LOG_TRACE( "==============LOG_LEVEL: %d==============", g_config.common.logLevel);
 
         if (MySqlConnectionPool::Init(g_config.mysql, g_config.mysql.poolCount) != EXIT_SUCCESS)
         {
-            K_slog_trace(K_SLOG_ERROR, "Failed to init MySqlConnectionPool");
+            K_LOG_ERROR( "Failed to init MySqlConnectionPool");
             K_slog_close();
             return -1;
         }
-        K_slog_trace(K_SLOG_TRACE, "==============MySqlConnectionPool Count: %d==============", MySqlConnectionPool::GetInstance()->GetPoolSize());
+        K_LOG_TRACE( "==============MySqlConnectionPool Count: %d==============", MySqlConnectionPool::GetInstance()->GetPoolSize());
        
         Server server;
 
@@ -82,13 +82,13 @@ int main(int ac, char **av)
 
         server.Run();
 
-        K_slog_trace(K_SLOG_TRACE, "..................the End..............");
+        K_LOG_TRACE( "..................the End..............");
         K_slog_close();
     }
     catch (const std::exception &ex)
     {
         printf("[%s] Exception: %s\n", daemonName.c_str(), ex.what());
-        K_slog_trace(K_SLOG_ERROR, "Exception: %s", ex.what());
+        K_LOG_ERROR( "Exception: %s", ex.what());
         K_slog_close();
         return -1;
     }
@@ -99,7 +99,7 @@ int main(int ac, char **av)
 int main(int ac, char **av)
 {
     K_slog_init(CHAT_LOG_PATH, "CHAT_SERVER");
-    K_slog_trace(K_SLOG_TRACE, "[%s]==============START==============", CHAT_DAEMON_NAME);
+    K_LOG_TRACE( "[%s]==============START==============", CHAT_DAEMON_NAME);
 
     MySQLManager::Instance().Connect("127.0.0.1", "root", "1234", "game", 3306);
 
@@ -117,7 +117,7 @@ int main(int ac, char **av)
     }
 
     server.Run();
-    K_slog_trace(K_SLOG_TRACE, "[%s]..................the End..............", CHAT_DAEMON_NAME);
+    K_LOG_TRACE( "[%s]..................the End..............", CHAT_DAEMON_NAME);
     K_slog_close();
     return 0;
 }

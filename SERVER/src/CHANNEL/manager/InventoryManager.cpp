@@ -8,11 +8,11 @@ bool InventoryManager::CreateInventory(InventoryMetaInfo& inventoryMetaInfo)
     auto it = m_inventories.find(inventoryMetaInfo.inventoryType);
     if(it != m_inventories.end())
     {
-        K_slog_trace(K_SLOG_ERROR, "AllReadyExist");
+        K_LOG_ERROR( "AllReadyExist");
         return false;
     }
 
-    K_slog_trace(K_SLOG_TRACE, "Success");
+    K_LOG_TRACE( "Success");
     m_inventories.emplace(inventoryMetaInfo.inventoryType, Inventory(inventoryMetaInfo));
 
     return true;
@@ -33,7 +33,7 @@ bool InventoryManager::MoveItemSlots(const MoveItem& moveData,std::vector<Invent
     if (inventory == m_inventories.end())
     {
         errMsg = "inventory is not exist";
-        K_slog_trace(K_SLOG_ERROR,"[%s : %s : %d] Inventory is not exist. inventoryType[%d]",__FILE__, __FUNCTION__, __LINE__,moveData.inventorytype);
+        K_LOG_ERROR( "Inventory is not exist. inventoryType[%d]", moveData.inventorytype);
         return false;
     }
 
@@ -45,7 +45,7 @@ bool InventoryManager::AddItem(int itemId, int count, std::vector<AddItemResult>
     auto itemManager = ItemManager::GetInstance();
     if(itemManager == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR,"[%s : %s : %d] itemManager is nullptr",__FILE__, __FUNCTION__,__LINE__);
+        K_LOG_ERROR( "itemManager is nullptr");
         return false;
     }
 
@@ -53,7 +53,7 @@ bool InventoryManager::AddItem(int itemId, int count, std::vector<AddItemResult>
 
     if(ItemData == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR,"[%s : %s : %d] ItemData is nullptr. itemId[%d]",__FILE__, __FUNCTION__, __LINE__,itemId);
+        K_LOG_ERROR( "ItemData is nullptr. itemId[%d]", itemId);
         return false;
     }
     
@@ -72,17 +72,13 @@ bool InventoryManager::AddItem(int itemId, int count, std::vector<AddItemResult>
         auto iter = m_inventories.find(inventoryType);
         if (iter == m_inventories.end())
         {
-            K_slog_trace(K_SLOG_ERROR,
-                "[%s : %s : %d] inventory not found. inventoryType[%d]",
-                __FILE__, __FUNCTION__, __LINE__, inventoryType);
+            K_LOG_ERROR( "inventory not found. inventoryType[%d]", inventoryType);
             return false;
         }
 
         if (!iter->second.AddItem(addItemData, addItemResults))
         {
-            K_slog_trace(K_SLOG_ERROR,
-                "[%s : %s : %d] failed to add item. itemId[%d], count[%d], inventoryType[%d]",
-                __FILE__, __FUNCTION__, __LINE__, itemId, count, inventoryType);
+            K_LOG_ERROR( "failed to add item. itemId[%d], count[%d], inventoryType[%d]", itemId, count, inventoryType);
             return false;
         }
     }

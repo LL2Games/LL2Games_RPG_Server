@@ -76,7 +76,7 @@ void ChannelAuthTask::Execute()
 
         if (!PlayerService::LoadLearnedSkill(player.get()))
         {
-            K_slog_trace(K_SLOG_ERROR, "[ChannelAuthTask] LoadLearnedSkill failed. characterId:%d", characterId);
+            K_LOG_ERROR( "[ChannelAuthTask] LoadLearnedSkill failed. characterId:%d", characterId);
         }
 
         result.success = true;
@@ -86,7 +86,7 @@ void ChannelAuthTask::Execute()
     catch (const std::exception& e)
     {
         result.error = e.what();
-        K_slog_trace(K_SLOG_ERROR, "[ChannelAuthTask] exception fd:%d error:%s", m_fd, result.error.c_str());
+        K_LOG_ERROR( "[ChannelAuthTask] exception fd:%d error:%s", m_fd, result.error.c_str());
         m_server->PushAuthResult(std::move(result));
     }
 }

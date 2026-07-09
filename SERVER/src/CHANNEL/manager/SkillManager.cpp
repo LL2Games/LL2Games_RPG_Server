@@ -59,7 +59,7 @@ bool SkillManager::PreLoadAll()
 
         m_skills.emplace(skill_id, std::move(skillDef));
     }
-    K_slog_trace(K_SLOG_TRACE, "[%s][%d] Skill PreLoadAll Success", __FUNCTION__, __LINE__);
+    K_LOG_TRACE( "Skill PreLoadAll Success");
     return true;
 }
 
@@ -71,7 +71,7 @@ std::optional<SkillDef> SkillManager::GetSkill(int skill_id)
 
     if(it != m_skills.end())  
     {
-        K_slog_trace(K_SLOG_TRACE, "[%s][%d] alreay skill is Loaded", __FUNCTION__, __LINE__);
+        K_LOG_TRACE( "alreay skill is Loaded");
         return it->second;
     }
 
@@ -86,7 +86,7 @@ bool SkillManager::LoadJsonFile(const std::string& path, SkillDef& skillDef)
 
     if (!file.is_open())
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] FAILED OPEN [%s] FILE", __FUNCTION__, __LINE__, path.c_str());
+        K_LOG_ERROR( "FAILED OPEN [%s] FILE", path.c_str());
         return false;
     }
     
@@ -98,7 +98,7 @@ bool SkillManager::LoadJsonFile(const std::string& path, SkillDef& skillDef)
     }
     catch (const nlohmann::json::parse_error &e)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] JSON Error", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "JSON Error");
         // JSON 문법 깨짐/파싱 실패
         return false;
     }

@@ -59,23 +59,23 @@ int main(int ac, char **av)
         if (g_config.common.logLevel == 0)
         {
             K_slog_init(CHANNEL_LOG_PATH, daemonName.c_str(), 1);
-            K_slog_trace(K_SLOG_TRACE, "==============LOG_LEVEL: %d NO LOG==============", g_config.common.logLevel);
+            K_LOG_TRACE( "==============LOG_LEVEL: %d NO LOG==============", g_config.common.logLevel);
             K_slog_close();
         }
         K_slog_init(CHANNEL_LOG_PATH, daemonName.c_str(), g_config.common.logLevel);
-        K_slog_trace(K_SLOG_TRACE, "[%s]==============START==============", daemonName.c_str());
-        K_slog_trace(K_SLOG_TRACE, "[%s]==============LOG_LEVEL: %d==============", daemonName.c_str(), g_config.common.logLevel);
+        K_LOG_TRACE( "[%s]==============START==============", daemonName.c_str());
+        K_LOG_TRACE( "[%s]==============LOG_LEVEL: %d==============", daemonName.c_str(), g_config.common.logLevel);
         if (MySqlConnectionPool::Init(g_config.mysql, g_config.mysql.poolCount) != EXIT_SUCCESS)
         {
-            K_slog_trace(K_SLOG_ERROR, "Failed to init MySqlConnectionPool");
+            K_LOG_ERROR( "Failed to init MySqlConnectionPool");
             K_slog_close();
             return -1;
         }
 
-        K_slog_trace(K_SLOG_TRACE, "[%s]==============MySqlConnectionPool Count: %d==============", daemonName.c_str(), MySqlConnectionPool::GetInstance()->GetPoolSize());
+        K_LOG_TRACE( "[%s]==============MySqlConnectionPool Count: %d==============", daemonName.c_str(), MySqlConnectionPool::GetInstance()->GetPoolSize());
         //if (RedisClient::Init(g_config.redis) != EXIT_SUCCESS)
         //{
-        //    K_slog_trace(K_SLOG_ERROR, "Failed to init RedisClient");
+        //    K_LOG_ERROR( "Failed to init RedisClient");
         //    K_slog_close();
         //    return -1;
         //}
@@ -90,13 +90,13 @@ int main(int ac, char **av)
 
         channelServer.Run();
 
-        K_slog_trace(K_SLOG_TRACE, "[%s]..................the End..............", daemonName.c_str());
+        K_LOG_TRACE( "[%s]..................the End..............", daemonName.c_str());
         K_slog_close();
     }
     catch (const std::exception& ex)
     {
         printf("[%s] Exception: %s\n", daemonName.c_str(), ex.what());
-        K_slog_trace(K_SLOG_ERROR, "Exception: %s", ex.what());
+        K_LOG_ERROR( "Exception: %s", ex.what());
         K_slog_close();
         return -1;
     }
@@ -108,7 +108,7 @@ int main(int ac, char **av)
 {
     // log
     K_slog_init(CHANNEL_LOG_PATH, CHANNEL_DAEMON_NAME);
-    K_slog_trace(K_SLOG_TRACE, "[%s]==============START==============", CHANNEL_DAEMON_NAME);
+    K_LOG_TRACE( "[%s]==============START==============", CHANNEL_DAEMON_NAME);
 
     bool Start = false;
 
@@ -128,7 +128,7 @@ int main(int ac, char **av)
 
     channelServer.Run();
 
-    K_slog_trace(K_SLOG_TRACE, "[%s]..................the End..............", CHANNEL_DAEMON_NAME);
+    K_LOG_TRACE( "[%s]..................the End..............", CHANNEL_DAEMON_NAME);
     K_slog_close();
     return 0;
 }

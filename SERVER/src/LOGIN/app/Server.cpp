@@ -9,7 +9,7 @@ bool Server::Init(int port, const RedisConfig& redisConfig)
 {
     if (!m_redisPool.Init(redisConfig, redisConfig.poolCount))
     {
-        K_slog_trace(K_SLOG_ERROR, "RedisConnectionPool init failed");
+        K_LOG_ERROR( "RedisConnectionPool init failed");
         return false;
     }
     m_listen_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -30,7 +30,7 @@ bool Server::Init(int port, const RedisConfig& redisConfig)
     if (listen(m_listen_fd, 10) < 0)
         return false;
 
-    K_slog_trace(K_SLOG_TRACE, "[%s] Listening on port %d\n", "LOGIN", port);
+    K_LOG_TRACE( "[%s] Listening on port %d\n", "LOGIN", port);
 
     return true;
 }
@@ -55,7 +55,7 @@ void Server::Run()
         int ret = select(fd_max + 1, &reads, nullptr, nullptr, nullptr);
         if (ret < 0)
         {
-            K_slog_trace(K_SLOG_TRACE, "select error\n");
+            K_LOG_TRACE( "select error\n");
             break;
         }
 
@@ -84,7 +84,7 @@ void Server::AcceptNewClient()
 
     m_clients.push_back(new Client(client_fd));
 
-    K_slog_trace(K_SLOG_TRACE, "[%s] Client %d connected\n", "LOGIN", client_fd);
+    K_LOG_TRACE( "[%s] Client %d connected\n", "LOGIN", client_fd);
 }
 
 void Server::ProcessClient(Client *cli)
@@ -100,7 +100,7 @@ void Server::ProcessClient(Client *cli)
         if (tempLen <= 0)
         {
             // disconnect
-            K_slog_trace(K_SLOG_TRACE, "Client %d disconnected\n", cli->GetFD());
+            K_LOG_TRACE( "Client %d disconnected\n", cli->GetFD());
             close(cli->GetFD());
 
             // 제거
@@ -122,11 +122,11 @@ void Server::ProcessClient(Client *cli)
     cli->m_recvBuffer.insert(cli->m_recvBuffer.end(), buf.begin(), buf.end());
 
     // 패킷 파싱
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d] recv from fd=%d, len=%d", __FUNCTION__, __LINE__, fd, buf.size());
+    K_LOG_DEBUG( "recv from fd=%d, len=%d", fd, buf.size());
     auto pkt = PacketParser::Parse(cli->m_recvBuffer);
     if (!pkt.has_value())
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] Packet Parse failed", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "Packet Parse failed");
         return ;
     }
     
@@ -143,9 +143,9 @@ void Server::ProcessClient(Client *cli)
     }
     else
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] handler Not created [type=%d]", __FUNCTION__, __LINE__, pkt->type);
+        K_LOG_ERROR( "handler Not created [type=%d]", pkt->type);
         return ;
     }
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d] ProcessClient fd=%d done", __FUNCTION__, __LINE__, fd);
+    K_LOG_DEBUG( "ProcessClient fd=%d done", fd);
 
 }

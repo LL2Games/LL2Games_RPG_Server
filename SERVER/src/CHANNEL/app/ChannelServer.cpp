@@ -47,15 +47,7 @@ void ChannelServer::DisableWriteEvent(int fd)
 
     if (epoll_ctl(m_epfd, EPOLL_CTL_MOD, fd, &ev) < 0)
     {
-        K_slog_trace(
-            K_SLOG_ERROR,
-            "[%s : %s : %d] EPOLL_CTL_MOD disable write failed fd:%d errno:%d",
-            __FILE__,
-            __FUNCTION__,
-            __LINE__,
-            fd,
-            errno
-        );
+        K_LOG_ERROR( "EPOLL_CTL_MOD disable write failed fd:%d errno:%d", fd, errno);
     }
 }
 
@@ -98,22 +90,22 @@ bool ChannelServer::Init(const int port, const RedisConfig& redisConfig)
 
     if(!InitListenSocket(port))
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s] InitListenSocket %d\n", "ChannelServer", port); 
+        K_LOG_ERROR( "[%s] InitListenSocket %d\n", "ChannelServer", port); 
         return false;
     }
 
     if(!InitEpoll())
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s] InitEpoll Error %d\n", "ChannelServer", port); 
+        K_LOG_ERROR( "[%s] InitEpoll Error %d\n", "ChannelServer", port); 
         return false;
     }
 
-   K_slog_trace(K_SLOG_TRACE, "MAX_USER_COUNT: %d\n", m_max_user_count);
-   K_slog_trace(K_SLOG_TRACE, "Thread Pool Start ==PoolSize: %zu\n", m_pool.GetPoolSize());
-   K_slog_trace(K_SLOG_TRACE, "Auth Thread Pool Start ==PoolSize: %zu\n", m_authPool.GetPoolSize());
+   K_LOG_TRACE( "MAX_USER_COUNT: %d\n", m_max_user_count);
+   K_LOG_TRACE( "Thread Pool Start ==PoolSize: %zu\n", m_pool.GetPoolSize());
+   K_LOG_TRACE( "Auth Thread Pool Start ==PoolSize: %zu\n", m_authPool.GetPoolSize());
    //스레드풀 시작
    m_pool.Start();
-   K_slog_trace(K_SLOG_TRACE, "ChatD MessageQueue Start\n");
+   K_LOG_TRACE( "ChatD MessageQueue Start\n");
    //chatD 메시지큐 리시버 스레드 시작
     m_authPool.Start();
     //m_cmd_receiver.Start(); 지금 미사용 나중에 다시 풀어야함
@@ -122,7 +114,7 @@ bool ChannelServer::Init(const int port, const RedisConfig& redisConfig)
    m_map_manager.Start();
     if (!m_redisPool.Init(redisConfig, redisConfig.poolCount))
     {
-        K_slog_trace(K_SLOG_ERROR, "[ChannelServer] RedisConnectionPool Init failed");
+        K_LOG_ERROR( "[ChannelServer] RedisConnectionPool Init failed");
         return false;
     }
    //채널 상태 업데이트 스레드 시작
@@ -138,14 +130,14 @@ bool ChannelServer::InitListenSocket(int port)
 
     if(m_listen_fd < 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s] m_listen_fd Set Error %d\n", "ChannelServer", port); 
+        K_LOG_ERROR( "[%s] m_listen_fd Set Error %d\n", "ChannelServer", port); 
         return false;
     }
 
     int opt = 1;
     if(setsockopt(m_listen_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s] m_listen_fd Setsockopt Error %d\n", "ChannelServer", port);
+        K_LOG_ERROR( "[%s] m_listen_fd Setsockopt Error %d\n", "ChannelServer", port);
         close(m_listen_fd);
         m_listen_fd =-1;
         return false;
@@ -154,7 +146,7 @@ bool ChannelServer::InitListenSocket(int port)
     int nodelay = 1;
     if(setsockopt(m_listen_fd, IPPROTO_TCP, TCP_NODELAY, (const char*)&nodelay, sizeof(nodelay)) < 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s] m_listen_fd Setsockopt Error %d\n", "ChannelServer", port);
+        K_LOG_ERROR( "[%s] m_listen_fd Setsockopt Error %d\n", "ChannelServer", port);
         close(m_listen_fd);
         m_listen_fd =-1;
         return false;
@@ -167,9 +159,7 @@ bool ChannelServer::InitListenSocket(int port)
 
     if(bind(m_listen_fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr))< 0)
     {   
-        K_slog_trace( K_SLOG_ERROR,
-        "[%s][%s][%d] bind Error port:%d errno:%d msg:%s\n",
-    "ChannelServer", __FILE__, __LINE__, port, errno, strerror(errno));
+        K_LOG_ERROR( "bind Error port:%d errno:%d msg:%s\n", port, errno, strerror(errno));
         close(m_listen_fd);
         m_listen_fd = -1;
         return false;
@@ -181,7 +171,7 @@ bool ChannelServer::InitListenSocket(int port)
 
     if(listen(m_listen_fd, backlog) < 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%s][%d] m_listen_fd listen Error %d\n", "ChannelServer", __FILE__, __LINE__, port);
+        K_LOG_ERROR( "m_listen_fd listen Error %d\n", port);
         close(m_listen_fd);
         m_listen_fd = -1;
         return false;
@@ -189,13 +179,13 @@ bool ChannelServer::InitListenSocket(int port)
 
     if(SetNonblocking(m_listen_fd) < 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s] SerNonblocking Error %d\n", "ChannelServer", port);
+        K_LOG_ERROR( "[%s] SerNonblocking Error %d\n", "ChannelServer", port);
         close(m_listen_fd);
         m_listen_fd = -1;
         return false;
     }
 
-    K_slog_trace(K_SLOG_TRACE, "[%s] Listening on Port %d\n", "ChannelServer", port);
+    K_LOG_TRACE( "[%s] Listening on Port %d\n", "ChannelServer", port);
     return true;
 
 
@@ -211,7 +201,7 @@ bool ChannelServer::InitEpoll()
     m_epfd = epoll_create1(EPOLL_CLOEXEC);
     if(m_epfd < 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s] m_epfd epoll_create Error %d\n", "ChannelServer", m_epfd);
+        K_LOG_ERROR( "[%s] m_epfd epoll_create Error %d\n", "ChannelServer", m_epfd);
         return false;
     }
 
@@ -222,7 +212,7 @@ bool ChannelServer::InitEpoll()
     // m_epfd의 관심 목록에 m_listem_fd를 추가하는 함수 / 즉 이 epoll 인스턴스가 이제부터 리슨 소켓을 감시해라 그리고 읽기 이벤트가 오면 알려줘라 라는 뜻이다.
     if(epoll_ctl(m_epfd, EPOLL_CTL_ADD, m_listen_fd, &ev) < 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s] m_epfd epoll 속성 설정 실패 %d\n", "ChannelServer", m_epfd);
+        K_LOG_ERROR( "[%s] m_epfd epoll 속성 설정 실패 %d\n", "ChannelServer", m_epfd);
         close(m_epfd);
         m_epfd = -1;
         return false;
@@ -236,7 +226,7 @@ void ChannelServer::Run()
 {
     if(m_listen_fd < 0 || m_epfd < 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s] m_listen_fd or m_epfd is Not initialized %d\n", "ChannelServer", m_epfd);
+        K_LOG_ERROR( "[%s] m_listen_fd or m_epfd is Not initialized %d\n", "ChannelServer", m_epfd);
         return;
     }
 
@@ -329,8 +319,7 @@ void ChannelServer::OnAccept()
         unsigned int currentUserCount = m_current_user_count.load();
         if (currentUserCount >= m_max_user_count)
         {
-            K_slog_trace(K_SLOG_ERROR, "[%s][%d] Max user count reached. current:%u max:%u fd:%d",
-                         __FUNCTION__, __LINE__, currentUserCount, m_max_user_count, cfd);
+            K_LOG_ERROR( "Max user count reached. current:%u max:%u fd:%d", currentUserCount, m_max_user_count, cfd);
             close(cfd);
             continue;
         }
@@ -345,7 +334,7 @@ void ChannelServer::OnAccept()
         int nodelay = 1;
         if (setsockopt(cfd, IPPROTO_TCP, TCP_NODELAY, (const char*)&nodelay, sizeof(nodelay)) < 0)
         {
-            K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] cfd Setsockopt Error \n", __FILE__, __FUNCTION__, __LINE__);
+            K_LOG_ERROR( "cfd Setsockopt Error \n");
             close(m_listen_fd);
             m_listen_fd =-1;
             close(cfd);
@@ -381,7 +370,7 @@ void ChannelServer::OnAccept()
             // 로그로 접속한 IP 정보 출력
         }
         currentUserCount = m_current_user_count.fetch_add(1) + 1;
-        K_slog_trace(K_SLOG_TRACE, "[%s][%d] New Connection FD [%d] Current User Count [%u]\n", __FUNCTION__, __LINE__, cfd, currentUserCount);
+        K_LOG_TRACE( "New Connection FD [%d] Current User Count [%u]\n", cfd, currentUserCount);
     }
 }
 
@@ -417,7 +406,7 @@ void ChannelServer::OnReceive(int fd)
         }
     } while (tempLen == BUFFER_SIZE);
 
-    //K_slog_trace(K_SLOG_DEBUG, "fd %d\n", fd);
+    //K_LOG_DEBUG( "fd %d\n", fd);
     ChannelSession* session = nullptr;
 
     {
@@ -529,8 +518,7 @@ void ChannelServer::EnableWriteEvent(int fd)
 
     if (epoll_ctl(m_epfd, EPOLL_CTL_MOD, fd, &ev) < 0)
     {
-        K_slog_trace(
-            K_SLOG_ERROR,"[%s : %s : %d] EPOLL_CTL_MOD enable write failed fd:%d errno:%d",__FILE__, __FUNCTION__, __LINE__, fd, errno);
+        K_LOG_ERROR( "EPOLL_CTL_MOD enable write failed fd:%d errno:%d", fd, errno);
     }
 }
 
@@ -561,7 +549,7 @@ void ChannelServer::UpdateChannelStateToRedis(const int ttl)
 
     if (redis == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] RedisClient is nullptr", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "RedisClient is nullptr");
         return;
     }
 
@@ -593,12 +581,12 @@ void ChannelServer::UpdateChannelStateToRedis(const int ttl)
     rc = redis->HSetAll("channel:" + std::to_string(m_channel_id) + ":status", redisMap, ttl); // 지정된 시간 동안 유지
     if (rc != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] Failed to update channel status to Redis", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "Failed to update channel status to Redis");
         return;
     }
 
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d] Updated channel status to Redis: state=%s, percentage=%d%%", __FUNCTION__, __LINE__, state.c_str(), percentage);
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d] Current User Count: %d, Max User Count: %d", __FUNCTION__, __LINE__, curUser, maxUser);
+    K_LOG_DEBUG( "Updated channel status to Redis: state=%s, percentage=%d%%", state.c_str(), percentage);
+    K_LOG_DEBUG( "Current User Count: %d, Max User Count: %d", curUser, maxUser);
 }
 
 void ChannelServer::ProcessAuthResults()
@@ -621,7 +609,7 @@ void ChannelServer::ProcessAuthResults()
             auto it = m_sessions.find(result.fd);
             if (it == m_sessions.end())
             {
-                K_slog_trace(K_SLOG_TRACE, "[ProcessAuthResults] fd closed:%d", result.fd);
+                K_LOG_TRACE( "[ProcessAuthResults] fd closed:%d", result.fd);
                 continue;
             }
 

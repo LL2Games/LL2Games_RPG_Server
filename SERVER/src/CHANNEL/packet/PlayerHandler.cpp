@@ -29,23 +29,23 @@ void PlayerHandler::Execute(PacketContext * ctx)
                AttackPacket(ctx);
                break;
           case PKT_PLAYER_BASIC_ATTACK:
-               K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] PKT_PLAYER_BASIC_ATTACK START\n", __FILE__, __FUNCTION__, __LINE__);
+               K_LOG_ERROR( "PKT_PLAYER_BASIC_ATTACK START\n");
                BasicAttackPacket(ctx);
                break;
           case PKT_PLAYER_ONDAMAGED:
-               K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] PKT_PLAYER_ONDAMAGED START\n", __FILE__, __FUNCTION__, __LINE__);
+               K_LOG_ERROR( "PKT_PLAYER_ONDAMAGED START\n");
                OnDamagedPacket(ctx);
                break;
           case PKT_PLAYER_USE_ITEM:
-               K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] PKT_PLAYER_USE_ITEM START\n", __FILE__, __FUNCTION__, __LINE__);
+               K_LOG_ERROR( "PKT_PLAYER_USE_ITEM START\n");
                UseItemPacket(ctx);
                break;
           case PKT_STAT_VIEW:
-               K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] PKT_STAT_VIEW START\n", __FILE__, __FUNCTION__, __LINE__);
+               K_LOG_ERROR( "PKT_STAT_VIEW START\n");
                HandleStatView(ctx);
                 break;
           case PKT_STAT_UP:
-               K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] PKT_STAT_UP START\n", __FILE__, __FUNCTION__, __LINE__);
+               K_LOG_ERROR( "PKT_STAT_UP START\n");
                HandleStatUp(ctx);
                 break;
           case PKT_TRADE_REQUEST:
@@ -67,7 +67,7 @@ void PlayerHandler::Execute(PacketContext * ctx)
                PickUpItemPacket(ctx);
                break;
           default :
-               K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] default START\n", __FILE__, __FUNCTION__, __LINE__);
+               K_LOG_ERROR( "default START\n");
                break;
      }
     

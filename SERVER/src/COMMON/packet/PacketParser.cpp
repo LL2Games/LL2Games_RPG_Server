@@ -10,9 +10,9 @@ std::optional<ParsedPacket> PacketParser::Parse(std::vector<char>& buf)
     ParsedPacket parsedPacket;
     if (buf.size() < sizeof(PacketHeader))
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] buf.size() < sizeof(PacketHeader)", __FUNCTION__, __LINE__);
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] sizeof(PacketHeader)[%d]", __FUNCTION__, __LINE__, sizeof(PacketHeader));
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] buf.size[%d]", __FUNCTION__, __LINE__, buf.size());
+        K_LOG_ERROR( "buf.size() < sizeof(PacketHeader)");
+        K_LOG_ERROR( "sizeof(PacketHeader)[%d]", sizeof(PacketHeader));
+        K_LOG_ERROR( "buf.size[%d]", buf.size());
         return std::nullopt;
     }
 
@@ -21,7 +21,7 @@ std::optional<ParsedPacket> PacketParser::Parse(std::vector<char>& buf)
 
     if (buf.size() < pktLen)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s] buf.size small pktLen", __FUNCTION__);
+        K_LOG_ERROR( "buf.size small pktLen");
         return std::nullopt;
     }
     uint16_t type = hdr->type;

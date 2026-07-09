@@ -15,7 +15,7 @@ int MapService::HandlePortalUse(int playerID, int mapID)
     player = m_playerManager.GetPlayer(playerID);
     if(player == nullptr) 
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] Player is nullptr", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "Player is nullptr");
         return EXIT_FAILURE;
     }
     // 맵 정보 로드 및 생성

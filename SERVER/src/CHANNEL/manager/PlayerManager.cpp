@@ -24,8 +24,8 @@ bool PlayerManager::AddPlayer(std::unique_ptr<Player> player)
     {
         return false; 
     }
-    K_slog_trace(K_SLOG_TRACE, " [%s][%d] Player character_id [%d]", __FUNCTION__ , __LINE__, player->GetId());
-    K_slog_trace(K_SLOG_TRACE, " [%s][%d] Player character_id [%s]", __FUNCTION__ , __LINE__, player->GetName().c_str());
+    K_LOG_TRACE( "Player character_id [%d]", player->GetId());
+    K_LOG_TRACE( "Player character_id [%s]", player->GetName().c_str());
 
     m_players[playerId] = move(player);
     return true;
@@ -53,14 +53,14 @@ Player* PlayerManager::GetPlayer(const std::string& playerName)
     MYSQL *conn = m_mySql->GetConnection();
     if(!conn)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d ] conn is nullptr", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "conn is nullptr");
         return nullptr;
     }
     // 더 좋은 Connecter/C++이 있지만 DB연동 원리를 이해하기 위해서 C API의 Prepared Statement를 사용함
     MYSQL_STMT* stmt = mysql_stmt_init(conn);
     if(!stmt)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d ] mysql_stmt_init ERROR [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_error(conn));
+        K_LOG_ERROR( "mysql_stmt_init ERROR [%s]", mysql_error(conn));
         m_mySql->ReleaseConnection(conn);
         return nullptr;
     }
@@ -69,7 +69,7 @@ Player* PlayerManager::GetPlayer(const std::string& playerName)
 
     if(mysql_stmt_prepare(stmt, query, strlen(query)) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d ] mysql_stmt_prepare ERROR [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_prepare ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
         return nullptr;
@@ -89,7 +89,7 @@ Player* PlayerManager::GetPlayer(const std::string& playerName)
 
     if(mysql_stmt_bind_param(stmt, param) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d ] mysql_stmt_bind_param ERROR [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_bind_param ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
         return nullptr;
@@ -97,8 +97,8 @@ Player* PlayerManager::GetPlayer(const std::string& playerName)
 
     if(mysql_stmt_execute(stmt) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d ] mysql_stmt_execute ERROR [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
-        K_slog_trace(K_SLOG_ERROR, "SQL [%s]", query);
+        K_LOG_ERROR( "mysql_stmt_execute ERROR [%s]", mysql_stmt_error(stmt));
+        K_LOG_ERROR( "SQL [%s]", query);
 
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
@@ -112,7 +112,7 @@ Player* PlayerManager::GetPlayer(const std::string& playerName)
 
     if(mysql_stmt_bind_result(stmt,resultBind) !=0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d ] mysql_stmt_bind_result ERROR [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_bind_result ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
         return nullptr;
@@ -120,7 +120,7 @@ Player* PlayerManager::GetPlayer(const std::string& playerName)
 
     if(mysql_stmt_store_result(stmt) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_store_result ERROR [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_store_result ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
         return nullptr;
@@ -138,7 +138,7 @@ Player* PlayerManager::GetPlayer(const std::string& playerName)
     //MYSQL_DATA_TRUNCATED : 가져온 데이터가 짤리거나 범위를 초과했을 때 나오는 에러
     if(fetchResult !=0 && fetchResult != MYSQL_DATA_TRUNCATED)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] mysql_stmt_fetch ERROR [%s]", __FILE__, __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_fetch ERROR [%s]", mysql_stmt_error(stmt));
         mysql_stmt_free_result(stmt);
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);

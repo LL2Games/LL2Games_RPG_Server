@@ -41,14 +41,14 @@ std::string MySQLManager::GetNick(const std::string &id)
 
     if (conn == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d]conn is nullptr (GetConnection ERROR)", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "conn is nullptr (GetConnection ERROR)");
         return "";
     }
 
     MYSQL_STMT* stmt = mysql_stmt_init(conn);
     if(!stmt)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d]mysql_stmt_init ERROR [%s]", __FUNCTION__, __LINE__, mysql_error(conn));
+        K_LOG_ERROR( "mysql_stmt_init ERROR [%s]", mysql_error(conn));
         m_pool->ReleaseConnection(conn);
         return "";
     }
@@ -58,7 +58,7 @@ std::string MySQLManager::GetNick(const std::string &id)
 
     if(mysql_stmt_prepare(stmt, query, strlen(query)) !=0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d]mysql_stmt_prepare ERROR [%s]", __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_prepare ERROR [%s]", mysql_stmt_error(stmt));
         goto err;
     }
 
@@ -66,14 +66,14 @@ std::string MySQLManager::GetNick(const std::string &id)
 
     if(mysql_stmt_bind_param(stmt, param) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d]mysql_stmt_bind_param ERROR [%s]", __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_bind_param ERROR [%s]", mysql_stmt_error(stmt));
         goto err;
     }
 
     if(mysql_stmt_execute(stmt) !=0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d]mysql_stmt_execute ERROR [%s]", __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d]SQL [%s]", __FUNCTION__, __LINE__, query);
+        K_LOG_ERROR( "mysql_stmt_execute ERROR [%s]", mysql_stmt_error(stmt));
+        K_LOG_ERROR( "SQL [%s]", query);
         goto err;
     }
 
@@ -85,13 +85,13 @@ std::string MySQLManager::GetNick(const std::string &id)
 
     if(mysql_stmt_bind_result(stmt, resultBind) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d]mysql_stmt_bind_result ERROR [%s]", __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_bind_result ERROR [%s]", mysql_stmt_error(stmt));
         goto err;
     }
 
     if(mysql_stmt_store_result(stmt) != 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d]mysql_stmt_store_result ERROR [%s]", __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_store_result ERROR [%s]", mysql_stmt_error(stmt));
         goto err;
 
     }
@@ -100,13 +100,13 @@ std::string MySQLManager::GetNick(const std::string &id)
 
     if (fetchResult == MYSQL_NO_DATA)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d]No data found for account_id: %s", __FUNCTION__, __LINE__, id.c_str());
+        K_LOG_ERROR( "No data found for account_id: %s", id.c_str());
         goto err;
     }
 
     if (fetchResult != 0 && fetchResult != MYSQL_DATA_TRUNCATED)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d]mysql_stmt_fetch ERROR [%s]", __FUNCTION__, __LINE__, mysql_stmt_error(stmt));
+        K_LOG_ERROR( "mysql_stmt_fetch ERROR [%s]", mysql_stmt_error(stmt));
         goto err;
     }
 

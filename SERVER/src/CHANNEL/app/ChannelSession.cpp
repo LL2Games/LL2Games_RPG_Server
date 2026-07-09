@@ -31,17 +31,17 @@ ChannelSession::~ChannelSession()
         {
             //플레이어 접속 종료시 해당맵에서 퇴장
             map->OnLeave(m_player->GetId());
-            K_slog_trace(K_SLOG_DEBUG, "[%s:%s][%d] map->OnLeave(Id:%d)", __FILE__, __FUNCTION__, __LINE__, m_player->GetId());
+            K_LOG_DEBUG( "map->OnLeave(Id:%d)", m_player->GetId());
         }
 
         if (m_playerManager != nullptr)
         {
-            K_slog_trace(K_SLOG_TRACE, "[ChannelSession Destroy] RemovePlayer id:%d", m_player->GetId());
+            K_LOG_TRACE( "[ChannelSession Destroy] RemovePlayer id:%d", m_player->GetId());
             m_playerManager->RemovePlayer(m_player->GetId());
         }
         else
         {
-            K_slog_trace(K_SLOG_ERROR, "[ChannelSession Destroy] playerManager is null. player id:%d", m_player->GetId());
+            K_LOG_ERROR( "[ChannelSession Destroy] playerManager is null. player id:%d", m_player->GetId());
         }
     }
 }
@@ -61,7 +61,7 @@ bool ChannelSession::OnBytes(const uint8_t* data, size_t len)
 
         if (result.status == ParseStatus::InvalidPacket)
         {
-            K_slog_trace(K_SLOG_ERROR, "[%s][%d] Invalid packet", __FUNCTION__, __LINE__);
+            K_LOG_ERROR( "Invalid packet");
             return false;
         }
 
@@ -120,7 +120,7 @@ int ChannelSession::SendOk(int type, std::vector<std::string> payload)
 
     for(payloadIter = payload.begin(); payloadIter < payload.end(); ++payloadIter)
     {
-         K_slog_trace(K_SLOG_TRACE, "[%s][%d] body[%s]", __FUNCTION__, __LINE__, payloadIter->c_str());
+         K_LOG_TRACE( "body[%s]", payloadIter->c_str());
     }
     payload.insert(payload.begin(), "ok");
     std::string body = PacketParser::MakeBody(payload);
@@ -160,7 +160,7 @@ int ChannelSession::EnqueueSend(std::string packet)
 
     if (needEnableWrite && m_server != nullptr)
     {
-        K_slog_trace(K_SLOG_TRACE, "[EnqueueSend] EnableWriteEvent fd:%d", m_fd);
+        K_LOG_TRACE( "[EnqueueSend] EnableWriteEvent fd:%d", m_fd);
         m_server->EnableWriteEvent(m_fd);
     }
 

@@ -16,21 +16,21 @@ void QuickSlotManager::Init()
 std::vector<QuickSlotData> QuickSlotManager::SetSlot(const QuickSlotData& data)
 {
     std::vector<QuickSlotData> changedSlots;
-    K_slog_trace(K_SLOG_DEBUG,"[%s : %s][%d] LHJ TEST0\n",__FILE__, __FUNCTION__, __LINE__);
+    K_LOG_DEBUG( "LHJ TEST0\n");
     if (data.slot_index < 0)
     {
-        K_slog_trace(K_SLOG_DEBUG,"[%s : %s][%d] LHJ TEST1\n",__FILE__, __FUNCTION__, __LINE__);
+        K_LOG_DEBUG( "LHJ TEST1\n");
         return changedSlots;
     }
-    K_slog_trace(K_SLOG_DEBUG,"[%s : %s][%d] LHJ TEST5\n",__FILE__, __FUNCTION__, __LINE__);    
+    K_LOG_DEBUG( "LHJ TEST5\n");    
     auto slot = m_quickSlots.find(data.slot_index);
     if (slot == m_quickSlots.end())
     {
-        K_slog_trace(K_SLOG_DEBUG,"[%s : %s][%d] LHJ TEST2\n",__FILE__, __FUNCTION__, __LINE__);
+        K_LOG_DEBUG( "LHJ TEST2\n");
         return changedSlots;
     }
         
-    K_slog_trace(K_SLOG_DEBUG,"[%s : %s][%d] LHJ TEST4\n",__FILE__, __FUNCTION__, __LINE__);
+    K_LOG_DEBUG( "LHJ TEST4\n");
     for (auto& [slotIndex, slotData] : m_quickSlots)
     {
         if (slotIndex == data.slot_index)
@@ -44,13 +44,13 @@ std::vector<QuickSlotData> QuickSlotManager::SetSlot(const QuickSlotData& data)
             changedSlots.push_back(slotData);
         }
     }
-    K_slog_trace(K_SLOG_DEBUG,"[%s : %s][%d] LHJ TEST3\n",__FILE__, __FUNCTION__, __LINE__);
+    K_LOG_DEBUG( "LHJ TEST3\n");
     slot->second = data;
     slot->second.slot_index = data.slot_index;
 
     changedSlots.push_back(slot->second);
 
-    K_slog_trace(K_SLOG_DEBUG,"[%s : %s][%d] SetSlot end\n",__FILE__, __FUNCTION__, __LINE__);
+    K_LOG_DEBUG( "SetSlot end\n");
 
     return changedSlots;
 }

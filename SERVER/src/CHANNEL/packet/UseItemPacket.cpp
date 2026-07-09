@@ -36,7 +36,7 @@ void PlayerHandler:: UseItemPacket(PacketContext * ctx)
      
     if(ctx == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] ctx is nullptr\n", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ctx is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]ctx is nullptr";
         goto err;
@@ -45,7 +45,7 @@ void PlayerHandler:: UseItemPacket(PacketContext * ctx)
     session = ctx->channel_session;
     if(session == nullptr)
     {
-     K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] session is nullptr\n", __FILE__, __FUNCTION__, __LINE__);
+     K_LOG_ERROR( "session is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]session is nullptr";
         goto err;
@@ -54,7 +54,7 @@ void PlayerHandler:: UseItemPacket(PacketContext * ctx)
     item_service = ctx->item_service;
     if(item_service == nullptr)
     {
-     K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] item_service is nullptr\n", __FILE__, __FUNCTION__, __LINE__);
+     K_LOG_ERROR( "item_service is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "] item_service is nullptr";
         goto err;
@@ -69,7 +69,7 @@ void PlayerHandler:: UseItemPacket(PacketContext * ctx)
     ))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] ParseLengthPrefixedString fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ParseLengthPrefixedString fail");
         goto err;
     }
 
@@ -82,7 +82,7 @@ void PlayerHandler:: UseItemPacket(PacketContext * ctx)
     ))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] ParseLengthPrefixedString fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ParseLengthPrefixedString fail");
         goto err;
     }
 
@@ -97,7 +97,7 @@ void PlayerHandler:: UseItemPacket(PacketContext * ctx)
     ))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] ParseLengthPrefixedString fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ParseLengthPrefixedString fail");
         goto err;
     }
 
@@ -111,7 +111,7 @@ void PlayerHandler:: UseItemPacket(PacketContext * ctx)
     ))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] ParseLengthPrefixedString fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ParseLengthPrefixedString fail");
         goto err;
     }
 
@@ -123,18 +123,18 @@ void PlayerHandler:: UseItemPacket(PacketContext * ctx)
     if(!TransferData(str_itemData, itemData))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] Transfer fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "Transfer fail");
         goto err;
     }
 
     // ITEM 사용 가능 여부 확인 후 사용
     //Player* player, int itemId, int useCount
 
-    K_slog_trace(K_SLOG_DEBUG, "[%s : %s : %d] itemData UseCount [%d]", __FILE__, __FUNCTION__, __LINE__, itemData.useCount);
+    K_LOG_DEBUG( "itemData UseCount [%d]", itemData.useCount);
     rc = item_service->HandleUseItem(session->GetPlayer(), itemData, result);
     if(rc == EXIT_FAILURE)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s : %d] HandleUseItem Failed", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "HandleUseItem Failed");
         goto err;
     }
     useItem_Info.push_back(std::to_string(result.result));
@@ -152,7 +152,7 @@ err:
     if (rc != EXIT_SUCCESS) {
         session->SendNok(PKT_PLAYER_USE_ITEM, errMsg);
     } else {
-        K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] UseItemPacket END", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_TRACE( "UseItemPacket END");
         session->Send(PKT_PLAYER_USE_ITEM, useItem_Info);
     }
 
@@ -169,10 +169,10 @@ void PlayerHandler::PickUpItemPacket(PacketContext *ctx)
     std::string errMsg;
     std::vector<AddItemResult> addItemResults;
     int rc = EXIT_SUCCESS;
-    K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] PickUpItemPacket Start \n", __FILE__, __FUNCTION__, __LINE__);
+    K_LOG_ERROR( "PickUpItemPacket Start \n");
     if(ctx == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] ctx is nullptr\n", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ctx is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]ctx is nullptr";
         goto err;
@@ -181,7 +181,7 @@ void PlayerHandler::PickUpItemPacket(PacketContext *ctx)
     session = ctx->channel_session;
     if(session == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] session is nullptr\n", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "session is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]session is nullptr";
         goto err;
@@ -190,7 +190,7 @@ void PlayerHandler::PickUpItemPacket(PacketContext *ctx)
     player = session->GetPlayer();
     if(player == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] player is nullptr\n", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "player is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "] player is nullptr";
         goto err;
@@ -199,7 +199,7 @@ void PlayerHandler::PickUpItemPacket(PacketContext *ctx)
     mapInstance = player->GetCurrentMap();
     if(mapInstance == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] mapInstance is nullptr\n", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "mapInstance is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "] mapInstance is nullptr";
         goto err;
@@ -208,14 +208,14 @@ void PlayerHandler::PickUpItemPacket(PacketContext *ctx)
     if(!PacketParser::ParseNextIntField(ctx->payload, ctx->payload_len, offset, dropItemId, errMsg))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] ParseNextIntField fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ParseNextIntField fail");
         goto err;
     }
 
     if(!mapInstance->PickupDropItem(player, dropItemId ,addItemResults))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] PickupDropItem fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "PickupDropItem fail");
         goto err;
     }
     
@@ -225,7 +225,7 @@ void PlayerHandler::PickUpItemPacket(PacketContext *ctx)
         session->SendNok(PKT_PLAYER_PICKUP_ITEM, errMsg);
     } else {
         ItemPacketSender::SendAddItem(player, addItemResults);
-        K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] PickUpItemPacket END", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_TRACE( "PickUpItemPacket END");
     }
 }
 
@@ -235,32 +235,32 @@ bool TransferData(Str_UseItem& str_itemData, UseItem& itemData)
 {
     if(!utility::StringToInt(str_itemData.str_inventoryType , itemData.inventoryType))
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] str_inventoryType String to Int fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "str_inventoryType String to Int fail");
         return false;
     }
 
     if(!utility::StringToInt(str_itemData.str_useCount , itemData.useCount))
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] str_inventoryType String to Int fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "str_inventoryType String to Int fail");
         return false;
     }
 
     if(!utility::StringToInt(str_itemData.str_itemId , itemData.itemId))
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] str_inventoryType String to Int fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "str_inventoryType String to Int fail");
         return false;
     }
 
     if(!utility::StringToInt(str_itemData.str_slotPos , itemData.slotPos))
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s : %s][%d] str_inventoryType String to Int fail", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "str_inventoryType String to Int fail");
         return false;
     }
 
-    K_slog_trace(K_SLOG_DEBUG, "[%s : %s][%d] itemData.inventoryType [%d]", __FILE__, __FUNCTION__, __LINE__, itemData.inventoryType);
-    K_slog_trace(K_SLOG_DEBUG, "[%s : %s][%d] itemData.useCount [%d]", __FILE__, __FUNCTION__, __LINE__, itemData.useCount);
-    K_slog_trace(K_SLOG_DEBUG, "[%s : %s][%d] itemData.itemId [%d]", __FILE__, __FUNCTION__, __LINE__, itemData.itemId);
-    K_slog_trace(K_SLOG_DEBUG, "[%s : %s][%d] itemData.slotPos [%d]", __FILE__, __FUNCTION__, __LINE__, itemData.slotPos);
+    K_LOG_DEBUG( "itemData.inventoryType [%d]", itemData.inventoryType);
+    K_LOG_DEBUG( "itemData.useCount [%d]", itemData.useCount);
+    K_LOG_DEBUG( "itemData.itemId [%d]", itemData.itemId);
+    K_LOG_DEBUG( "itemData.slotPos [%d]", itemData.slotPos);
 
     return true;
 

@@ -27,7 +27,7 @@ int CombatService::HandleAttack(Player* Attacker, int skill_id, int attack_dir)
     //캐릭터가 공격 가능 상태인지 확인
     if(!Attacker->CanAttack(&*skillDef))
     {
-        K_slog_trace(K_SLOG_TRACE, "[%s : %s][%d] 플레이어가 공격 가능한 상태가 아닙니다.\n", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_TRACE( "플레이어가 공격 가능한 상태가 아닙니다.\n");
         return 0;
     }
 
@@ -37,7 +37,7 @@ int CombatService::HandleAttack(Player* Attacker, int skill_id, int attack_dir)
     // MapInstance에서 해당 맵에 스폰된 몬스터들의 정보를 추출
     std::vector<Monster>& monster_list = map->GetMonsterList();
      
-    K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] monster_list size = %zu\n", __FILE__, __FUNCTION__, __LINE__, monster_list.size());
+    K_LOG_TRACE( "monster_list size = %zu\n", monster_list.size());
 
 
 
@@ -47,7 +47,7 @@ int CombatService::HandleAttack(Player* Attacker, int skill_id, int attack_dir)
     {
         HitMonsters.push_back(&m);
     }
-    K_slog_trace(K_SLOG_TRACE, "[%s : %s][%d] 테스트 HitMonsters size[%d]", __FILE__, __FUNCTION__, __LINE__, HitMonsters.size());
+    K_LOG_TRACE( "테스트 HitMonsters size[%d]", HitMonsters.size());
 
     (void)attack_dir; // 현재 테스트에서는 공격 방향 무시
 #else
@@ -56,7 +56,7 @@ int CombatService::HandleAttack(Player* Attacker, int skill_id, int attack_dir)
     std::vector<Monster*> HitMonsters = ComputeHitMonsters(Attacker, monster_list, *skillDef, attack_dir);
 #endif
 
-    K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] HitMonsters size = %zu\n", __FILE__, __FUNCTION__, __LINE__, HitMonsters.size());
+    K_LOG_TRACE( "HitMonsters size = %zu\n", HitMonsters.size());
 
 
     std::vector<std::pair<Monster*, int>> hitResults;
@@ -83,17 +83,17 @@ int CombatService::HandleBasicAttack(Player* Attacker, int attack_dir)
     MapInstance* map = Attacker->GetCurrentMap();
 
     std::optional<SkillDef> skillDef = m_skillManager->GetSkill(static_cast<int>(Attacker->GetWeaponType()));
-    K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] [%d] 기본공격 시도 중.\n", __FILE__, __FUNCTION__, __LINE__, static_cast<int>(Attacker->GetWeaponType()));
+    K_LOG_TRACE( "[%d] 기본공격 시도 중.\n", static_cast<int>(Attacker->GetWeaponType()));
     if(!skillDef) 
     {
         
-        K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] 기본공격 데이터가 없습니다.\n", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_TRACE( "기본공격 데이터가 없습니다.\n");
         return 0;
     }
     //캐릭터가 공격 가능 상태인지 확인
     if(!Attacker->CanAttack(&*skillDef))
     {
-        K_slog_trace(K_SLOG_TRACE, "[%s : %s][%d] 플레이어가 공격 가능한 상태가 아닙니다.\n", __FILE__, __FUNCTION__, __LINE__);
+        K_LOG_TRACE( "플레이어가 공격 가능한 상태가 아닙니다.\n");
         return 0;
     }
 
@@ -160,7 +160,7 @@ std::vector<Monster*> CombatService::ComputeHitMonsters(Player* attacker, std::v
         }
         else if (skillDef.hit.shape == HitShape::ARC)
         {
-            K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] ARC 공격 타입.\n", __FILE__, __FUNCTION__, __LINE__);
+            K_LOG_TRACE( "ARC 공격 타입.\n");
             isHit = Collision::IntersectArc2D(
                 attackerPos,
                 attack_dir,
@@ -172,7 +172,7 @@ std::vector<Monster*> CombatService::ComputeHitMonsters(Player* attacker, std::v
         }
         else
         {
-            K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] 이상 공격 타입.\n", __FILE__, __FUNCTION__, __LINE__);
+            K_LOG_TRACE( "이상 공격 타입.\n");
         }
         if (!isHit)
             continue;
@@ -228,7 +228,7 @@ int CombatService::CalculateSkillBaseDamage(const Player* attacker, const SkillD
 
     float dmg = statBase * levelRate * skillDef.damage.multiplier;
     dmg += static_cast<float>(skillDef.damage.flat_add);
-    K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] Damaged [%f]", __FILE__, __FUNCTION__, __LINE__, dmg);
+    K_LOG_TRACE( "Damaged [%f]", dmg);
     if (dmg < 1.0f) dmg = 1.0f;
     return static_cast<int>(dmg);
 }

@@ -17,7 +17,7 @@ void PlayerHandler::HandleStatView(PacketContext* ctx)
 
     if (ctx == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] ctx is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ctx is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]ctx is nullptr";
         goto err;
@@ -25,7 +25,7 @@ void PlayerHandler::HandleStatView(PacketContext* ctx)
     session = ctx->channel_session;
     if (session == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] session is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "session is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]session is nullptr";
         goto err;
@@ -34,7 +34,7 @@ void PlayerHandler::HandleStatView(PacketContext* ctx)
     player = session->GetPlayer();
     if (player == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] player is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "player is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]player is nullptr";
         goto err;
@@ -50,7 +50,7 @@ err:
     {
         CharacterStat &stat = player->GetStat();
         StatInfoPacket statPkt = StatPacketFactory::MakeStatInfo(stat);
-        K_slog_trace(K_SLOG_DEBUG, "[%s][%d] str=%d\n", __FUNCTION__, __LINE__, statPkt.str);
+        K_LOG_DEBUG( "str=%d\n", statPkt.str);
 
         std::vector<std::string> stat_info;
         stat_info.push_back(std::to_string(statPkt.str));
@@ -96,7 +96,7 @@ void PlayerHandler::HandleStatUp(PacketContext* ctx)
 
     if (ctx == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] ctx is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ctx is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]ctx is nullptr";
         goto err;
@@ -104,7 +104,7 @@ void PlayerHandler::HandleStatUp(PacketContext* ctx)
     session = ctx->channel_session;
     if (session == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] session is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "session is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]session is nullptr";
         goto err;
@@ -113,7 +113,7 @@ void PlayerHandler::HandleStatUp(PacketContext* ctx)
     player = session->GetPlayer();
     if (player == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] player is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "player is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]player is nullptr";
         goto err;
@@ -122,7 +122,7 @@ void PlayerHandler::HandleStatUp(PacketContext* ctx)
     stat_service = ctx->stat_service;
     if (stat_service == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] stat_service is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "stat_service is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]stat_service is nullptr";
         goto err;
@@ -131,7 +131,7 @@ void PlayerHandler::HandleStatUp(PacketContext* ctx)
     // char_id = player->GetId();
     // if (char_id == 0)
     // {
-    //     K_slog_trace(K_SLOG_ERROR, "[%s][%d] char_id is invalid\n", __FUNCTION__, __LINE__);
+    //     K_LOG_ERROR( "char_id is invalid\n");
     //     rc = EXIT_FAILURE;
     //     errMsg = "[" + std::to_string(rc) + "]char_id is invalid";
     //     goto err;
@@ -145,7 +145,7 @@ void PlayerHandler::HandleStatUp(PacketContext* ctx)
             errMsg))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] ParseLengthPrefixedString fail", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ParseLengthPrefixedString fail");
         goto err;
     }
 

@@ -20,7 +20,7 @@ void PlayerHandler::HandleTradeRequest(PacketContext* ctx)
 
     if (ctx == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] ctx is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ctx is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]ctx is nullptr";
         goto err;
@@ -28,7 +28,7 @@ void PlayerHandler::HandleTradeRequest(PacketContext* ctx)
     session = ctx->channel_session;
     if (session == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] session is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "session is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]session is nullptr";
         goto err;
@@ -37,7 +37,7 @@ void PlayerHandler::HandleTradeRequest(PacketContext* ctx)
     player = session->GetPlayer();
     if (player == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] player is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "player is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]player is nullptr";
         goto err;
@@ -46,7 +46,7 @@ void PlayerHandler::HandleTradeRequest(PacketContext* ctx)
     player_manager = ctx->player_manager;
     if (player_manager == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] player_manager is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "player_manager is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]player_manager is nullptr";
         goto err;
@@ -55,7 +55,7 @@ void PlayerHandler::HandleTradeRequest(PacketContext* ctx)
     trade_service = ctx->trade_service;
     if (trade_service == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] trade_service is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "trade_service is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]trade_service is nullptr";
         goto err;
@@ -70,7 +70,7 @@ void PlayerHandler::HandleTradeRequest(PacketContext* ctx)
             errMsg))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] ParseLengthPrefixedString fail", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ParseLengthPrefixedString fail");
         goto err;
     }
 
@@ -79,7 +79,7 @@ void PlayerHandler::HandleTradeRequest(PacketContext* ctx)
     if (target_player == nullptr)
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] target_player is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "target_player is nullptr\n");
         errMsg = "[" + std::to_string(rc) + "]target_player is nullptr";
         goto err;
     }
@@ -110,10 +110,10 @@ void PlayerHandler::HandleTradeAccept(PacketContext* ctx)
     PlayerManager* player_manager = nullptr;
     TradeService* trade_service = nullptr;
     std::string errMsg;
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d]gunoo22_TEST", __FUNCTION__, __LINE__);
+    K_LOG_DEBUG( "gunoo22_TEST");
     if (ctx == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] ctx is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ctx is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]ctx is nullptr";
         goto err;
@@ -121,7 +121,7 @@ void PlayerHandler::HandleTradeAccept(PacketContext* ctx)
     session = ctx->channel_session;
     if (session == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] session is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "session is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]session is nullptr";
         goto err;
@@ -130,7 +130,7 @@ void PlayerHandler::HandleTradeAccept(PacketContext* ctx)
     player = session->GetPlayer();
     if (player == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] player is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "player is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]player is nullptr";
         goto err;
@@ -139,7 +139,7 @@ void PlayerHandler::HandleTradeAccept(PacketContext* ctx)
     player_manager = ctx->player_manager;
     if (player_manager == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] player_manager is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "player_manager is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]player_manager is nullptr";
         goto err;
@@ -148,12 +148,12 @@ void PlayerHandler::HandleTradeAccept(PacketContext* ctx)
     trade_service = ctx->trade_service;
     if (trade_service == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] trade_service is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "trade_service is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]trade_service is nullptr";
         goto err;
     }
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d]gunoo22_TEST", __FUNCTION__, __LINE__);
+    K_LOG_DEBUG( "gunoo22_TEST");
 
     //교환신청 상대방 Player Name 추출
     if (!PacketParser::ParseLengthPrefixedString(
@@ -164,24 +164,24 @@ void PlayerHandler::HandleTradeAccept(PacketContext* ctx)
             errMsg))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] ParseLengthPrefixedString fail", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ParseLengthPrefixedString fail");
         goto err;
     }
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d]gunoo22_TEST request_player_id[%s]", __FUNCTION__, __LINE__, request_player_id.c_str());
+    K_LOG_DEBUG( "gunoo22_TEST request_player_id[%s]", request_player_id.c_str());
 
     //교환신청 요청 Player 객체 추출
     request_player = player_manager->GetPlayer(atoi(request_player_id.c_str()));
     if (request_player == nullptr)
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] request_player is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "request_player is nullptr\n");
         errMsg = "[" + std::to_string(rc) + "]request_player is nullptr";
         goto err;
     }
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d]gunoo22_TEST", __FUNCTION__, __LINE__);
+    K_LOG_DEBUG( "gunoo22_TEST");
 
     rc = trade_service->Start(request_player, player, errMsg);
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d]gunoo22_TEST", __FUNCTION__, __LINE__);
+    K_LOG_DEBUG( "gunoo22_TEST");
 
 err:
 
@@ -191,7 +191,7 @@ if (rc != EXIT_SUCCESS)
     }
     else
     {
-        K_slog_trace(K_SLOG_DEBUG, "[%s][%d]gunoo22_TEST SUCCESS", __FUNCTION__, __LINE__);
+        K_LOG_DEBUG( "gunoo22_TEST SUCCESS");
 
         //성공시에는 교환 실행 패킷이 trade_service->Start에서 갈 예정
         //session->SendOk(PKT_TRADE_ACCEPT);
@@ -216,7 +216,7 @@ void PlayerHandler::HandleTradeReady(PacketContext* ctx)
 
     if (ctx == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] ctx is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ctx is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]ctx is nullptr";
         goto err;
@@ -224,7 +224,7 @@ void PlayerHandler::HandleTradeReady(PacketContext* ctx)
     session = ctx->channel_session;
     if (session == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] session is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "session is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]session is nullptr";
         goto err;
@@ -233,7 +233,7 @@ void PlayerHandler::HandleTradeReady(PacketContext* ctx)
     player = session->GetPlayer();
     if (player == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] player is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "player is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]player is nullptr";
         goto err;
@@ -242,7 +242,7 @@ void PlayerHandler::HandleTradeReady(PacketContext* ctx)
     player_manager = ctx->player_manager;
     if (player_manager == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] player_manager is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "player_manager is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]player_manager is nullptr";
         goto err;
@@ -251,7 +251,7 @@ void PlayerHandler::HandleTradeReady(PacketContext* ctx)
     player_service = ctx->player_service;
     if (player_service == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] player_service is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "player_service is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]player_service is nullptr";
         goto err;
@@ -260,7 +260,7 @@ void PlayerHandler::HandleTradeReady(PacketContext* ctx)
     trade_service = ctx->trade_service;
     if (trade_service == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] trade_service is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "trade_service is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]trade_service is nullptr";
         goto err;
@@ -275,7 +275,7 @@ void PlayerHandler::HandleTradeReady(PacketContext* ctx)
             errMsg))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] ParseLengthPrefixedString fail", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ParseLengthPrefixedString fail");
         goto err;
     }
 
@@ -284,7 +284,7 @@ void PlayerHandler::HandleTradeReady(PacketContext* ctx)
     if (target_player == nullptr)
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] target_player is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "target_player is nullptr\n");
         errMsg = "[" + std::to_string(rc) + "]target_player is nullptr";
         goto err;
     }
@@ -297,7 +297,7 @@ void PlayerHandler::HandleTradeReady(PacketContext* ctx)
         std::string item_id;
         std::string item_amount;
 
-        K_slog_trace(K_SLOG_DEBUG, "[%s][%d]gunoo22_TEST", __FUNCTION__, __LINE__);
+        K_LOG_DEBUG( "gunoo22_TEST");
 
         //item_id
         if (!PacketParser::ParseLengthPrefixedString(
@@ -308,11 +308,11 @@ void PlayerHandler::HandleTradeReady(PacketContext* ctx)
             errMsg))
         {
             //더이상 없으면 중단
-                    K_slog_trace(K_SLOG_DEBUG, "[%s][%d]gunoo22_TEST", __FUNCTION__, __LINE__);
+                    K_LOG_DEBUG( "gunoo22_TEST");
             break;
         }
 
-                K_slog_trace(K_SLOG_DEBUG, "[%s][%d]gunoo22_TEST", __FUNCTION__, __LINE__);
+                K_LOG_DEBUG( "gunoo22_TEST");
 
         //item_amount
         if (!PacketParser::ParseLengthPrefixedString(
@@ -323,12 +323,12 @@ void PlayerHandler::HandleTradeReady(PacketContext* ctx)
             errMsg))
         {
             //error
-                    K_slog_trace(K_SLOG_DEBUG, "[%s][%d]gunoo22_TEST", __FUNCTION__, __LINE__);
+                    K_LOG_DEBUG( "gunoo22_TEST");
 
             break;
         }
 
-        K_slog_trace(K_SLOG_DEBUG, "[%s][%d]gunoo22_TEST", __FUNCTION__, __LINE__);
+        K_LOG_DEBUG( "gunoo22_TEST");
 
         TradeItem trade_item;
         trade_item.id = item_id;
@@ -339,10 +339,10 @@ void PlayerHandler::HandleTradeReady(PacketContext* ctx)
     }
 #endif //gunoo22 260528 AddItem에서 아이템 업로드로 변경
 
-        K_slog_trace(K_SLOG_DEBUG, "[%s][%d]gunoo22_TEST", __FUNCTION__, __LINE__);
+        K_LOG_DEBUG( "gunoo22_TEST");
 
     rc = trade_service->Ready(player, trade_items, errMsg);
-        K_slog_trace(K_SLOG_DEBUG, "[%s][%d]gunoo22_TEST", __FUNCTION__, __LINE__);
+        K_LOG_DEBUG( "gunoo22_TEST");
 
 err:
     if (rc == EXIT_SUCCESS)
@@ -350,7 +350,7 @@ err:
         //DB업데이트에 따라 각 Player의 Inventory 업데이트
         player_service->LoadInventory(player);
         player_service->LoadInventory(target_player);
-        K_slog_trace(K_SLOG_DEBUG, "[%s][%d]player inventories loaded", __FUNCTION__, __LINE__);
+        K_LOG_DEBUG( "player inventories loaded");
         //TODO
         //UpdateInventory로 변경
 
@@ -416,7 +416,7 @@ void PlayerHandler::HandleTradeCancel(PacketContext* ctx)
 
     if (ctx == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] ctx is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ctx is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]ctx is nullptr";
         goto err;
@@ -424,7 +424,7 @@ void PlayerHandler::HandleTradeCancel(PacketContext* ctx)
     session = ctx->channel_session;
     if (session == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] session is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "session is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]session is nullptr";
         goto err;
@@ -433,7 +433,7 @@ void PlayerHandler::HandleTradeCancel(PacketContext* ctx)
     player = session->GetPlayer();
     if (player == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] player is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "player is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]player is nullptr";
         goto err;
@@ -442,7 +442,7 @@ void PlayerHandler::HandleTradeCancel(PacketContext* ctx)
     player_manager = ctx->player_manager;
     if (player_manager == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] player_manager is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "player_manager is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]player_manager is nullptr";
         goto err;
@@ -451,7 +451,7 @@ void PlayerHandler::HandleTradeCancel(PacketContext* ctx)
     trade_service = ctx->trade_service;
     if (trade_service == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] trade_service is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "trade_service is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]trade_service is nullptr";
         goto err;
@@ -466,7 +466,7 @@ void PlayerHandler::HandleTradeCancel(PacketContext* ctx)
             errMsg))
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] ParseLengthPrefixedString fail", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ParseLengthPrefixedString fail");
         goto err;
     }
 
@@ -475,7 +475,7 @@ void PlayerHandler::HandleTradeCancel(PacketContext* ctx)
     if (target_player == nullptr)
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] target_player is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "target_player is nullptr\n");
         errMsg = "[" + std::to_string(rc) + "]target_player is nullptr";
         goto err;
     }
@@ -512,7 +512,7 @@ void PlayerHandler::HandleTradeAddItem(PacketContext* ctx)
 
     if (ctx == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] ctx is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "ctx is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]ctx is nullptr";
         goto err;
@@ -520,7 +520,7 @@ void PlayerHandler::HandleTradeAddItem(PacketContext* ctx)
     session = ctx->channel_session;
     if (session == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] session is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "session is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]session is nullptr";
         goto err;
@@ -529,7 +529,7 @@ void PlayerHandler::HandleTradeAddItem(PacketContext* ctx)
     player = session->GetPlayer();
     if (player == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] player is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "player is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]player is nullptr";
         goto err;
@@ -538,7 +538,7 @@ void PlayerHandler::HandleTradeAddItem(PacketContext* ctx)
     player_manager = ctx->player_manager;
     if (player_manager == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] player_manager is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "player_manager is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]player_manager is nullptr";
         goto err;
@@ -547,7 +547,7 @@ void PlayerHandler::HandleTradeAddItem(PacketContext* ctx)
     trade_service = ctx->trade_service;
     if (trade_service == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] trade_service is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "trade_service is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]trade_service is nullptr";
         goto err;
@@ -558,7 +558,7 @@ void PlayerHandler::HandleTradeAddItem(PacketContext* ctx)
     if (target_player == nullptr)
     {
         rc = EXIT_FAILURE;
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] target_player is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "target_player is nullptr\n");
         errMsg = "[" + std::to_string(rc) + "]target_player is nullptr";
         goto err;
     }
@@ -576,7 +576,7 @@ void PlayerHandler::HandleTradeAddItem(PacketContext* ctx)
             errMsg))
         {
             rc = EXIT_FAILURE;
-            K_slog_trace(K_SLOG_ERROR, "[%s][%d] ParseLengthPrefixedString fail", __FUNCTION__, __LINE__);
+            K_LOG_ERROR( "ParseLengthPrefixedString fail");
             goto err;
         }
 
@@ -589,7 +589,7 @@ void PlayerHandler::HandleTradeAddItem(PacketContext* ctx)
             errMsg))
         {
             rc = EXIT_FAILURE;
-            K_slog_trace(K_SLOG_ERROR, "[%s][%d] ParseLengthPrefixedString fail", __FUNCTION__, __LINE__);
+            K_LOG_ERROR( "ParseLengthPrefixedString fail");
             goto err;
         }
 
@@ -602,7 +602,7 @@ void PlayerHandler::HandleTradeAddItem(PacketContext* ctx)
             errMsg))
         {
             rc = EXIT_FAILURE;
-            K_slog_trace(K_SLOG_ERROR, "[%s][%d] ParseLengthPrefixedString fail", __FUNCTION__, __LINE__);
+            K_LOG_ERROR( "ParseLengthPrefixedString fail");
             goto err;
         }
 
@@ -615,7 +615,7 @@ void PlayerHandler::HandleTradeAddItem(PacketContext* ctx)
             errMsg))
         {
             rc = EXIT_FAILURE;
-            K_slog_trace(K_SLOG_ERROR, "[%s][%d] ParseLengthPrefixedString fail", __FUNCTION__, __LINE__);
+            K_LOG_ERROR( "ParseLengthPrefixedString fail");
             goto err;
         }
 
@@ -628,11 +628,11 @@ void PlayerHandler::HandleTradeAddItem(PacketContext* ctx)
         trade_item.amount = std::stoi(item_amount);
         trade_item.slot_index = std::stoi(item_inven_slot_index);
 
-        K_slog_trace(K_SLOG_DEBUG, "[%s][%d] player[%s] uploads item", __FUNCTION__, __LINE__, player->GetName().c_str());
-        K_slog_trace(K_SLOG_DEBUG, "[%s][%d] trade_item.id: %s", __FUNCTION__, __LINE__, trade_item.id.c_str());
-        K_slog_trace(K_SLOG_DEBUG, "[%s][%d] trade_item.type: %s", __FUNCTION__, __LINE__, trade_item.type.c_str());
-        K_slog_trace(K_SLOG_DEBUG, "[%s][%d] trade_item.amount: %d", __FUNCTION__, __LINE__, trade_item.amount);
-        K_slog_trace(K_SLOG_DEBUG, "[%s][%d] trade_item.slot_index: %d", __FUNCTION__, __LINE__, trade_item.slot_index);
+        K_LOG_DEBUG( "player[%s] uploads item", player->GetName().c_str());
+        K_LOG_DEBUG( "trade_item.id: %s", trade_item.id.c_str());
+        K_LOG_DEBUG( "trade_item.type: %s", trade_item.type.c_str());
+        K_LOG_DEBUG( "trade_item.amount: %d", trade_item.amount);
+        K_LOG_DEBUG( "trade_item.slot_index: %d", trade_item.slot_index);
 
         rc = trade_service->UploadItem(player, trade_item, errMsg);
     }

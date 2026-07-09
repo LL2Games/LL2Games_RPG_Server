@@ -65,8 +65,7 @@ void PacketProcessTask::Execute()
     }
     catch (const std::exception& e)
     {
-        K_slog_trace(
-            K_SLOG_ERROR,
+        K_LOG_ERROR(
             "[PacketProcessTask] exception fd:%d type:%d error:%s",
             m_fd,
             m_type,
@@ -75,8 +74,7 @@ void PacketProcessTask::Execute()
     }
     catch (...)
     {
-        K_slog_trace(
-            K_SLOG_ERROR,
+        K_LOG_ERROR(
             "[PacketProcessTask] unknown exception fd:%d type:%d",
             m_fd,
             m_type

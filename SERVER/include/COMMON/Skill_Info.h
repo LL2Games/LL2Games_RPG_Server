@@ -121,12 +121,12 @@ namespace Skill
     {
         if(hitType == "MELEE_ARC") 
         {
-            K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] ARC 공격 모양 설정.\n", __FILE__, __FUNCTION__, __LINE__);
+            K_LOG_TRACE( "ARC 공격 모양 설정.\n");
             return HitShape::ARC;
         }
         else
         {
-            K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] NONE 공격 모양 설정.\n", __FILE__, __FUNCTION__, __LINE__);
+            K_LOG_TRACE( "NONE 공격 모양 설정.\n");
             return HitShape::NONE;
         }
         return HitShape::NONE;

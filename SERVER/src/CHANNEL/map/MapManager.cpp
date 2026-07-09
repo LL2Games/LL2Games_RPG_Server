@@ -27,7 +27,7 @@ void MapManager::Start()
 {
     m_running = true;
     m_thread = std::thread(&MapManager::Update, this);
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d] MapManager Update Start", __FILE__, __LINE__);
+    K_LOG_DEBUG( "MapManager Update Start");
 }
 
 void MapManager::Stop()
@@ -64,7 +64,7 @@ MapInstance *MapManager::GetOrCreate(int mapId)
         auto it = m_maps.find(mapId);
         if (it != m_maps.end())
         {
-            K_slog_trace(K_SLOG_TRACE, "[%s][%d] 이미 생성되어 있는 맵입니다. 맵의 정보를 반환합니다.", __FUNCTION__, __LINE__);
+            K_LOG_TRACE( "이미 생성되어 있는 맵입니다. 맵의 정보를 반환합니다.");
             return it->second;
         }
             
@@ -75,12 +75,12 @@ MapInstance *MapManager::GetOrCreate(int mapId)
     auto itInit = m_maps_initData.find(mapId);
     if (itInit != m_maps_initData.end())
     {
-        K_slog_trace(K_SLOG_TRACE, "[%s][%d]gunoo22_TEST", __FUNCTION__, __LINE__);
+        K_LOG_TRACE( "gunoo22_TEST");
         mapData = itInit->second;
     }
     else
     {
-        K_slog_trace(K_SLOG_TRACE, "[%s][%d]gunoo22_TEST", __FUNCTION__, __LINE__);
+        K_LOG_TRACE( "gunoo22_TEST");
         if (!LoadJsonFile(mapId, mapData))
             return nullptr;
     }
@@ -147,7 +147,7 @@ bool MapManager::PreLoadAll()
 
         m_maps_initData.emplace(map_id, std::move(mapData));
     }
-    K_slog_trace(K_SLOG_TRACE, "[%s][%d] Map PreLoadAll Success", __FUNCTION__, __LINE__);
+    K_LOG_TRACE( "Map PreLoadAll Success");
     return true;
 }
 
@@ -159,7 +159,7 @@ bool MapManager::LoadJsonFile(int mapId, MapInitData &mapData)
 
     if (!file.is_open())
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] FAILED OPEN [%s] FILE", __FUNCTION__, __LINE__, path.c_str());
+        K_LOG_ERROR( "FAILED OPEN [%s] FILE", path.c_str());
         return false;
     }
     
@@ -217,7 +217,7 @@ void MapManager::RemoveMap()
         auto it = m_maps.find(mapId);
         if (it != m_maps.end())
         {
-            K_slog_trace(K_SLOG_TRACE, "[%s][%d] Map Delete [%d]", __FUNCTION__, __LINE__, mapId);
+            K_LOG_TRACE( "Map Delete [%d]", mapId);
             delete it->second;
             it->second = nullptr;
             m_maps.erase(it);

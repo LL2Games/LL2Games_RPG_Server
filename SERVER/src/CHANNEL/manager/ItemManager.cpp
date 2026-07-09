@@ -39,7 +39,7 @@ bool ItemManager::PreLoadAll()
         }
         m_item_initData.emplace(item_id, itemData);
     }
-    K_slog_trace(K_SLOG_TRACE, "[%s][%d] Item PreLoadAll Success", __FUNCTION__, __LINE__);
+    K_LOG_TRACE( "Item PreLoadAll Success");
     return true;
 }
 
@@ -47,7 +47,7 @@ bool ItemManager::LoadJsonFile(const std::string& path, ItemInitData& itemData)
 {
     std::ifstream file(path);
     if (!file.is_open()) {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] FAILED OPEN [%s] FILE",__FUNCTION__, __LINE__, path.c_str());
+        K_LOG_ERROR( "FAILED OPEN [%s] FILE", path.c_str());
         return false;
     }
 
@@ -86,7 +86,7 @@ const ItemInitData* ItemManager::Find(int item_ID)
 
     if(it == m_item_initData.end())
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] ItemID CANT FIND [%d]",__FUNCTION__, __LINE__, item_ID);
+        K_LOG_ERROR( "ItemID CANT FIND [%d]", item_ID);
         return nullptr;
     }
 

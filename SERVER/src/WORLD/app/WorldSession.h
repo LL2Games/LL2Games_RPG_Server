@@ -17,11 +17,11 @@ public:
     //Packet.h 형식으로 바꿀예정
     int GetFD () const { return m_fd; }
     std::string GetID () const { 
-        K_slog_trace(K_SLOG_DEBUG, "[%s][%d]account_id[%s]", __FUNCTION__, __LINE__, m_account_id.c_str());
+        K_LOG_DEBUG( "account_id[%s]", m_account_id.c_str());
         return m_account_id; }
     int SetAccountid(const std::string &id) {
         m_account_id = id;
-        K_slog_trace(K_SLOG_DEBUG, "[%s][%d]account_id[%s]", __FUNCTION__, __LINE__, m_account_id.c_str());
+        K_LOG_DEBUG( "account_id[%s]", m_account_id.c_str());
         return 0;
     }
     

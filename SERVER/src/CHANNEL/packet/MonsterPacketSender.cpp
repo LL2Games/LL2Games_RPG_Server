@@ -77,9 +77,9 @@ void MonsterPacketSender::SendMonsterOnDamaged(Player* Attacker, int SkillID, st
     	payload.push_back(r.dead ? "1" : "0");
 
             
-        K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] damage [%d]", __FILE__, __FUNCTION__, __LINE__, r.damage);
-        K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] cur_hp [%d]", __FILE__, __FUNCTION__, __LINE__, r.cur_hp);
-        K_slog_trace(K_SLOG_TRACE, "[%s : %s : %d] max_hp [%d]", __FILE__, __FUNCTION__, __LINE__, r.max_hp);
+        K_LOG_TRACE( "damage [%d]", r.damage);
+        K_LOG_TRACE( "cur_hp [%d]", r.cur_hp);
+        K_LOG_TRACE( "max_hp [%d]", r.max_hp);
 	}
 
     

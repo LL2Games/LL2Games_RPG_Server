@@ -22,13 +22,13 @@ bool Server::Init(const int port, const RedisConfig& redisConfig)
 {
     if (!m_redisPool.Init(redisConfig, redisConfig.poolCount))
     {
-        K_slog_trace(K_SLOG_ERROR, "RedisConnectionPool init failed");
+        K_LOG_ERROR( "RedisConnectionPool init failed");
         return false;
     }
     m_listenFd = socket(AF_INET, SOCK_STREAM, 0);
     if (m_listenFd < 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s] socket", CHAT_DAEMON_NAME);
+        K_LOG_ERROR( "[%s] socket", CHAT_DAEMON_NAME);
         return false;
     }
 
@@ -42,16 +42,16 @@ bool Server::Init(const int port, const RedisConfig& redisConfig)
 
     if (bind(m_listenFd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s] bind [port=%d]", CHAT_DAEMON_NAME, port);
+        K_LOG_ERROR( "[%s] bind [port=%d]", CHAT_DAEMON_NAME, port);
         return false;
     }
     if (listen(m_listenFd, 10) < 0)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s] listen", CHAT_DAEMON_NAME);
+        K_LOG_ERROR( "[%s] listen", CHAT_DAEMON_NAME);
         return false;
     }
 
-    K_slog_trace(K_SLOG_TRACE, "[%s] Listening on %d", CHAT_DAEMON_NAME, port);
+    K_LOG_TRACE( "[%s] Listening on %d", CHAT_DAEMON_NAME, port);
 
     return true;
 }
@@ -77,7 +77,7 @@ void Server::Run()
         int ret = select(fd_max + 1, &reads, nullptr, nullptr, nullptr);
         if (ret < 0)
         {
-            K_slog_trace(K_SLOG_ERROR, "select() error");
+            K_LOG_ERROR( "select() error");
             break;
         }
 
@@ -104,7 +104,7 @@ void Server::AcceptNewClient()
     Client *cli = new Client(client_fd);
 
     m_clients.push_back(cli);
-    K_slog_trace(K_SLOG_TRACE, "[%s] Client[fd=%d][id=%s][nick=%s] connected\n", "LOGIN", client_fd, cli->GetId().c_str(), cli->GetNick().c_str());
+    K_LOG_TRACE( "[%s] Client[fd=%d][id=%s][nick=%s] connected\n", "LOGIN", client_fd, cli->GetId().c_str(), cli->GetNick().c_str());
 }
 
 void Server::ProcessClient(Client *cli)
@@ -120,7 +120,7 @@ void Server::ProcessClient(Client *cli)
         if (tempLen <= 0)
         {
             // disconnect
-            K_slog_trace(K_SLOG_TRACE, "[%s] Client %d disconnected", CHAT_DAEMON_NAME, cli->GetFD());
+            K_LOG_TRACE( "[%s] Client %d disconnected", CHAT_DAEMON_NAME, cli->GetFD());
             close(cli->GetFD());
             for (auto it = m_clients.begin(); it != m_clients.end(); it++)
             {
@@ -138,11 +138,11 @@ void Server::ProcessClient(Client *cli)
 
     cli->m_recvBuffer.insert(cli->m_recvBuffer.end(), buf.begin(), buf.end());
 
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d] recv from fd=%d, len=%d", __FUNCTION__, __LINE__, cli->GetFD(), buf.size());
+    K_LOG_DEBUG( "recv from fd=%d, len=%d", cli->GetFD(), buf.size());
     auto pkt = PacketParser::Parse(cli->m_recvBuffer);
     if (!pkt.has_value())
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] Packet Parse failed", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "Packet Parse failed");
         return;
     }
     
@@ -165,7 +165,7 @@ void Server::ProcessClient(Client *cli)
     {
         handler->Execute(&ctx);
     }
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d] ProcessClient fd=%d done", __FUNCTION__, __LINE__, cli->GetFD());
+    K_LOG_DEBUG( "ProcessClient fd=%d done", cli->GetFD());
 }
 
 void Server::BroadCast(const std::string &nick, const std::string &msg, const int exceptFd)
@@ -175,25 +175,25 @@ void Server::BroadCast(const std::string &nick, const std::string &msg, const in
     datas.push_back(msg);
     std::string body = PacketParser::MakeBody(datas);
     std::string packet = PacketParser::MakePacket(PKT_CHAT, body);
-    K_slog_trace(K_SLOG_TRACE, "[%s][%d] BroadCast msg[nick:%s][%s]", __FUNCTION__, __LINE__, nick.c_str(), msg.c_str());
+    K_LOG_TRACE( "BroadCast msg[nick:%s][%s]", nick.c_str(), msg.c_str());
 
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d] packet[size=%d]", __FUNCTION__, __LINE__, packet.size());
+    K_LOG_DEBUG( "packet[size=%d]", packet.size());
     for (int i = 0; i < (int)packet.size(); i++)
     {
-        K_slog_trace(K_SLOG_DEBUG, "[%s][%d] packet[%d]: %x", __FUNCTION__, __LINE__, i, (uint8_t)packet[i]);
+        K_LOG_DEBUG( "packet[%d]: %x", i, (uint8_t)packet[i]);
     }
 
-    K_slog_trace(K_SLOG_DEBUG, "[%s][%d] BroadCast to clients count=%d", __FUNCTION__, __LINE__, m_clients.size());
+    K_LOG_DEBUG( "BroadCast to clients count=%d", m_clients.size());
     for (auto cli : m_clients)
     {
         if (cli->GetFD() == exceptFd)
         {
-            K_slog_trace(K_SLOG_DEBUG, "[%s][%d] skip exceptFd=%d", __FUNCTION__, __LINE__, exceptFd);
+            K_LOG_DEBUG( "skip exceptFd=%d", exceptFd);
             continue;
         }
 
-        K_slog_trace(K_SLOG_DEBUG, "[%s][%d] gunoo22_TEST send to fd=%d", __FUNCTION__, __LINE__, cli->GetFD());
+        K_LOG_DEBUG( "gunoo22_TEST send to fd=%d", cli->GetFD());
         send(cli->GetFD(), packet.c_str(), packet.size(), 0);
-        K_slog_trace(K_SLOG_DEBUG, "[%s][%d] gunoo22_TEST sent to fd=%d//", __FUNCTION__, __LINE__, cli->GetFD());
+        K_LOG_DEBUG( "gunoo22_TEST sent to fd=%d//", cli->GetFD());
     }
 }
