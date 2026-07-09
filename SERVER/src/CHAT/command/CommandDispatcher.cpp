@@ -21,7 +21,7 @@ bool CommandDispatcher::Dispatch(const std::string& msg)
         if (cmd->Match(msg))
         {
             cmd->Execute(msg);
-            K_slog_trace(K_SLOG_DEBUG, "[%s][%d] MQ send[%s]", __FILE__, __LINE__, msg.c_str()); 
+            K_LOG_DEBUG( "MQ send[%s]", msg.c_str()); 
             return true;
         }
     }

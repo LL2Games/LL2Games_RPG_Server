@@ -21,7 +21,7 @@ void ChatMsgHandler::Execute(PacketContext *ctx)
     client = ctx->client;
     if (client == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] client is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "client is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]client is nullptr";
         goto err;
@@ -30,7 +30,7 @@ void ChatMsgHandler::Execute(PacketContext *ctx)
     dispatcher = ctx->dispatcher;
     if (dispatcher == nullptr)
     {
-        K_slog_trace(K_SLOG_ERROR, "[%s][%d] dispatcher is nullptr\n", __FUNCTION__, __LINE__);
+        K_LOG_ERROR( "dispatcher is nullptr\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]dispatcher is nullptr";
         goto err;
@@ -47,7 +47,7 @@ void ChatMsgHandler::Execute(PacketContext *ctx)
         goto err;
     }
 
-    K_slog_trace(K_SLOG_TRACE, "[ChatMsg: %d] %s", client->GetFD(), msg.c_str());
+    K_LOG_TRACE( "[ChatMsg: %d] %s", client->GetFD(), msg.c_str());
 
 #if 1 /* gunoo22 260127 channelD로 메시지 보내는 경우 */
     if (dispatcher->Dispatch(msg)) //커맨드인경우
