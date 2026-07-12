@@ -41,7 +41,7 @@ void PlayerPacketSender::SendPlayerStat(Player* player)
         return;
     }
 
-    auto playerStat = player->GetStat();
+    auto playerStat = player->GetStatSnapShot();
     auto playerBastStat = playerStat.GetBase();
     std::vector<std::string> payload;
 

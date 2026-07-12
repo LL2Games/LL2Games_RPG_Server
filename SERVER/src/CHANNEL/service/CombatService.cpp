@@ -214,7 +214,7 @@ std::vector<Monster*> CombatService::ComputeHitMonsters(Player* attacker, std::v
 
 int CombatService::CalculateSkillBaseDamage(const Player* attacker, const SkillDef& skillDef) 
 {
-    BaseStat attackerStat = attacker->GetStat().GetBase();
+    BaseStat attackerStat = attacker->GetBaseStatSnapshot();
 
     auto ms = GetMainSubStat(attacker->GetRootJob());
     int mainStat = GetStatValue(attackerStat, ms.main);
