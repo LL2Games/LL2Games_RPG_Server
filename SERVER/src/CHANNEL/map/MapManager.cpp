@@ -75,12 +75,10 @@ MapInstance *MapManager::GetOrCreate(int mapId)
     auto itInit = m_maps_initData.find(mapId);
     if (itInit != m_maps_initData.end())
     {
-        K_LOG_TRACE( "gunoo22_TEST");
         mapData = itInit->second;
     }
     else
     {
-        K_LOG_TRACE( "gunoo22_TEST");
         if (!LoadJsonFile(mapId, mapData))
             return nullptr;
     }
