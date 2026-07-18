@@ -105,8 +105,19 @@ void ChannelSession::Dispatch(const ParsedPacket &pkt)
 //[L][V] [L][V] [L][V]
 
 //클라입력 $  [L][V]
+#define __DEBUG_PACKET
 int ChannelSession::Send(int type, const std::vector<std::string>& payload)
 {
+#ifdef __DEBUG_PACKET
+
+K_LOG_DEBUG("SEND=====TYPE[%d]======", type);
+for (const auto &p : payload)
+{
+    K_LOG_DEBUG("%s", p.c_str());
+}
+K_LOG_DEBUG("SEND=====TYPE[%d]======\n\n", type);
+    
+#endif
     std::string body = PacketParser::MakeBody(payload);
     std::string packet = PacketParser::MakePacket(type, body);
     

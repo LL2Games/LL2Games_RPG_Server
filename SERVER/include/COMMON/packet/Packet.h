@@ -73,6 +73,7 @@ enum PACKET_TYPE : uint16_t {
     PKT_MONSTER_ONDAMAGED   = 0x0041,
     PKT_MONSTER_SNAPSHOT    = 0x0042,
     PKT_MONSTER_RESPAWN     = 0x0043,
+    PKT_PROJECTILE_MOVE     = 0x0044,
 
     // 0x0060 ~ 0x007F : 드롭
     PKT_DROPITEMS           = 0x0060,

@@ -63,6 +63,8 @@ private:
     void SendMapInfo();
     void SendMonsterSnapshot(Player* Enter_player);  
     void SendMonsterMove(Player* player);
+    void SendProjectileMove(Player* player);
+    //void BroadcastProjectileMove(std::vector<Player*> players);
 
     // 몬스터와 플레이어의 접촉 시 
     void ProcessContactDamage(int64_t nowMs);
@@ -119,6 +121,7 @@ private:
     std::mutex m_playerMutex;
     std::mutex m_dropItemMutex;
     std::mutex m_monsterMutex;
+    std::mutex m_projectileMutex;
 private:
     MonsterManager* m_monsterManager;
     CombatService* m_combatService;

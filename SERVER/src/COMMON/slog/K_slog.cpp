@@ -67,7 +67,8 @@ int K_slog_trace(enum e_slog lev, const char* pszFmt, ...)
 	pNewBuf = (char*)calloc(nLen + 40, sizeof(char));
 	if (pNewBuf == NULL)
 		return -1;
-	snprintf(pNewBuf, nLen + 40, "[%s][pid=%d]%s", g_logName.c_str(), static_cast<int>(getpid()), pBuf);
+	//snprintf(pNewBuf, nLen + 40, "[%s][pid=%d]%s", g_logName.c_str(), static_cast<int>(getpid()), pBuf);
+	snprintf(pNewBuf, nLen + 40, "%s", pBuf);
 
 	switch (lev)
 	{

@@ -585,8 +585,8 @@ void ChannelServer::UpdateChannelStateToRedis(const int ttl)
         return;
     }
 
-    K_LOG_DEBUG( "Updated channel status to Redis: state=%s, percentage=%d%%", state.c_str(), percentage);
-    K_LOG_DEBUG( "Current User Count: %d, Max User Count: %d", curUser, maxUser);
+    //K_LOG_DEBUG( "Updated channel status to Redis: state=%s, percentage=%d%%", state.c_str(), percentage);
+    //K_LOG_DEBUG( "Current User Count: %d, Max User Count: %d", curUser, maxUser);
 }
 
 void ChannelServer::ProcessAuthResults()
