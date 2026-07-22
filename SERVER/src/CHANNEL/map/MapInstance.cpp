@@ -50,7 +50,7 @@ int MapInstance::Init(const MapInitData& data)
 	// 여기서 Map Json 파일에서 읽어온 몬스터 정보 저장
     this->m_monsterSpawnList = data.MonstersData;
 
-#if 1 //guno22_TEST
+#if 0 //guno22_TEST
 	{
 		//"100000000”
 		std::vector<MonsterSpawnData>& list = this->m_monsterSpawnList;
@@ -234,6 +234,8 @@ void MapInstance::OnEnter(int PlayerID, Player* player)
 	K_LOG_DEBUG( "PlayerID(%d)", PlayerID);
 	K_LOG_DEBUG( "m_playerCount(%d)", playerCount);
 	// 들어온 플레이어 한테 몬스터 정보 전달
+	PlayerPacketSender::SendExistingPlayersToNewPlayer(player, m_playerList);
+	PlayerPacketSender::SendPlayerEnter(player, m_playerList);
 	SendMonsterSnapshot(player);
 }
 

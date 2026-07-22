@@ -7,10 +7,6 @@ Inventory::Inventory(InventoryMetaInfo& inventoryMetaInfo)
     m_maxSlot = inventoryMetaInfo.max_slots;
     m_current_slot_size = inventoryMetaInfo.currnet_slots_size;
 
-    K_LOG_DEBUG( "m_inventoryType = %d", m_inventoryType);
-    K_LOG_DEBUG( "m_maxSlot = %d", m_maxSlot);
-    K_LOG_DEBUG( "m_current_slot_size = %d", m_current_slot_size);
-
     m_slots.reserve(m_maxSlot);
     for(int i = 0; i < m_maxSlot; i++)
     {

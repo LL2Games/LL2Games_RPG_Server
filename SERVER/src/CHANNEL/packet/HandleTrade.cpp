@@ -5,6 +5,7 @@
 #include "PlayerManager.h"
 #include "TradeService.h"
 #include "PlayerService.h"
+#include "InventoryPacketSender.h"
 
 void PlayerHandler::HandleTradeRequest(PacketContext* ctx)
 {
@@ -387,6 +388,8 @@ err:
         //나는 (상대아이템, 내아이템) 순으로 전송
         session->SendOk(PKT_TRADE_CONFIRM, payload);
 
+        InventoryPacketSender::SendInventoryItems(player);
+        InventoryPacketSender::SendInventoryItems(target_player);
         trade_service->DeleteTradeSession(trade_service->GetTradeSession(player));
         
     }

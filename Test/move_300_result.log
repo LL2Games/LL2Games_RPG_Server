@@ -1,0 +1,26 @@
+target=127.0.0.1:9001
+start_character_id=900000, clients=300, map_id=100000000, duration=30.0, moves_per_sec=5.0, timeout=30.0
+success=300
+failed=0
+auth_success=300
+enter_success=300
+elapsed_sec=35.850
+auth_ms_min=131.279
+auth_ms_avg=2368.939
+auth_ms_p50=2244.493
+auth_ms_p95=4594.950
+auth_ms_p99=4735.444
+auth_ms_max=4862.921
+enter_ms_min=0.326
+enter_ms_avg=261.255
+enter_ms_p50=55.936
+enter_ms_p95=849.864
+enter_ms_p99=882.742
+enter_ms_max=955.459
+move_sent_total=44999
+move_sent_per_sec=1255.204
+move_broadcast_recv_total=11400289
+move_broadcast_recv_per_sec=318000.234
+packets_recv_total=11412921
+bytes_recv_total=657890510
+bytes_recv_per_sec=18351230.957

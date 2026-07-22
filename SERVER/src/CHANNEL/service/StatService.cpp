@@ -13,17 +13,24 @@ StatService::~StatService()
 
 int StatService::UpStat(Player &player, const std::string &statType, std::string &errMsg)
 {
-    int result = 0;
-    CharacterStat& stat = player.GetStat();
-
-    //db 업
-    result = m_repo.Update(std::to_string(player.GetId()), statType, errMsg);
+    int result = m_repo.Update(std::to_string(player.GetId()), statType, errMsg);
     if (result != 0)
-        goto err;
+        return result;
 
-    //객체 업
-    stat.Up(statType);
+    player.UpStat(statType);
+    return 0;
+}
 
-err:
+int StatService::SaveRuntimeStat(Player& player, std::string& errMsg)
+{
+    if (!player.IsStatDirty())
+        return 0;
+
+    CharacterStat stat = player.GetStatSnapShot();
+
+    int result = m_repo.SaveRuntimeStat(player.GetId(), stat, errMsg);
+    if (result == 0)
+        player.ClearStatDirty();
+
     return result;
 }

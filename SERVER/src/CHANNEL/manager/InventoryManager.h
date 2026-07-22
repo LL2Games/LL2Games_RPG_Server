@@ -25,5 +25,5 @@ public:
 	void Clear();
 private:
     std::unordered_map<int, Inventory> m_inventories;
-	std::mutex m_inventoryMutex;
+	mutable std::mutex m_inventoryMutex;
 };

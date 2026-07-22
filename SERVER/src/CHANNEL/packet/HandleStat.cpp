@@ -48,7 +48,7 @@ err:
     }
     else
     {
-        CharacterStat &stat = player->GetStat();
+        CharacterStat stat = player->GetStatSnapShot();
         StatInfoPacket statPkt = StatPacketFactory::MakeStatInfo(stat);
         K_LOG_DEBUG( "str=%d\n", statPkt.str);
 
@@ -64,22 +64,6 @@ err:
         stat_info.push_back(std::to_string(statPkt.remainAp));
 
         session->SendOk(PKT_STAT_VIEW, stat_info);
-
-
-        // auto opt = channel_manager->SelectChannel(channel_id);
-        // if (!opt)
-        // {
-        //     errMsg = std::string("channel(" + channel_id + ") is invalid");
-        //     session->SendNok(PKT_SELECT_CHANNEL, errMsg);
-        // }
-        // else
-        // {
-        //     ChannelInfo info = *opt;
-        //     std::vector<std::string> channel_info;
-        //     channel_info.push_back(info.ip);
-        //     channel_info.push_back(std::to_string(info.port));
-        //     session->SendOk(PKT_SELECT_CHANNEL, channel_info);
-        // }
     }
 }
 

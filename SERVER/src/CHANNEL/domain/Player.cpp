@@ -114,10 +114,13 @@ bool Player::CanAttack(SkillDef* skillDef)
     }
 
     // 마나 검사
-    if (m_stat.GetCurMp() < skillDef->mp_cost)
     {
-        K_LOG_TRACE( "마나가 부족합니다.\n");
-        return false;
+        std::lock_guard<std::mutex> lock(m_statMutex);
+        if (m_stat.GetCurMp() < skillDef->mp_cost)
+        {
+            K_LOG_TRACE( "마나가 부족합니다.\n");
+            return false;
+        }
     }
 
     // 쿨타임 검사
@@ -136,6 +139,7 @@ bool Player::CanAttack(SkillDef* skillDef)
 
 void Player::UseSkill(SkillDef* skillDef)
 {
+    std::lock_guard<std::mutex> lock(m_statMutex);
     int cur_mp = 0;
     int64_t now = NowMs();
     skillCooldownEndMs[skillDef->skill_id] = now + skillDef->cooldown_ms;
@@ -146,6 +150,12 @@ void Player::UseSkill(SkillDef* skillDef)
     m_stat.SetCurMp(cur_mp);
 
     K_LOG_TRACE( "CurMp =%d\n", cur_mp);
+}
+
+void Player::UpStat(const std::string& statType)
+{
+    std::lock_guard<std::mutex> lock(m_statMutex);
+    m_stat.Up(statType);
 }
 
 
@@ -264,18 +274,22 @@ std::vector<LearnedSkill> Player::GetPlayerSkillList() const
 
 void Player::AddHP(int HP)
 {
+    std::lock_guard<std::mutex> lock(m_statMutex);
     K_LOG_TRACE( "현재 체력 [%d].\n", m_stat.GetCurHp());
     K_LOG_TRACE( "추가 체력 [%d].\n", HP);
     m_stat.GetCurHp() += HP;
     if (m_stat.GetCurHp() > m_stat.GetMaxHp()) m_stat.GetCurHp() = m_stat.GetMaxHp();
     // if (m_stat.GetCurHp() < 0) m_stat.GetCurHp() = 0; //체력깎일때 조건사용 ex)OnDamage에서 HP 감소할 때
+    m_statDirty = true;
 }
 
 void Player::AddMP(int MP)
 {
+    std::lock_guard<std::mutex> lock(m_statMutex);
     m_stat.GetCurMp() += MP;
     if (m_stat.GetCurMp() > m_stat.GetMaxMp()) m_stat.GetCurMp() = m_stat.GetMaxMp();
     // if (m_stat.GetCurMp() < 0) m_stat.GetCurMp() = 0; //Mp깎일때 조건사용 ex)스킬 사용시 MP 감소할때
+    m_statDirty = true;
 }
 
 
@@ -287,7 +301,8 @@ bool Player::CanTakeAnyContactDamage(int64_t nowMs)
 
 void Player::OnDamaged(int dmg,int64_t nowMs)
 {
-    int cur_hp = 0;   
+    std::lock_guard<std::mutex> lock(m_statMutex);
+    int cur_hp = 0; 
     cur_hp = m_stat.GetCurHp();
     cur_hp -= dmg;
 
@@ -301,6 +316,7 @@ void Player::OnDamaged(int dmg,int64_t nowMs)
 
     // 다음 피격 가능 시간 설정
     m_nextContactDamageAllowedMs = nowMs + m_contactDamageCooldownMs;
+    m_statDirty = true;
 }
 
 void Player::Dead()
@@ -311,6 +327,8 @@ void Player::Dead()
 
 ExpResult Player::AddExp(int64_t exp)
 {
-   ExpResult result = m_stat.AddExp(exp);
-   return result;
+    std::lock_guard<std::mutex> lock(m_statMutex);
+    ExpResult result = m_stat.AddExp(exp);
+    m_statDirty = true;
+    return result;
 }
