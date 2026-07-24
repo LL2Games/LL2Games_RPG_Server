@@ -45,7 +45,7 @@
 - [시퀀스 다이어그램](#-시퀀스-다이어그램)
 - [클래스 다이어그램](#-클래스-다이어그램)
 - [코딩 규칙](#-코딩-규칙)
-
+- [문서](#-문서)
 ---
 
 ## 🎮 프로젝트 개요
@@ -153,7 +153,7 @@ LL2Games_RPG는 C++17로 작성된 Linux 기반 MMORPG 게임 서버입니다.
 - **Repository 패턴**: 데이터베이스 접근 (예: `PlayerStatRepository`)
 - **Service 패턴**: 비즈니스 로직 계층 (예: `StatService`, `MapService`)
 - **Manager 패턴**: 리소스 관리 (예: `PlayerManager`, `MapManager`)
-- **Object Pool**: MySQL 및 Redis 커넥션 풀링
+- **Connection Pool**: MySQL 및 Redis 커넥션 풀링
 
 ---
 
@@ -349,7 +349,8 @@ make re       # 전체 재빌드 (fclean + all)
 cd SERVER/bin
 
 # MAIN 서버 먼저 실행 (프로세스 관리자)
-./mainD
+./mainD --config <config-file-path>
+# 서버 실행에는 환경별 설정 파일이 필요합니다. 설정 파일에는 서버 포트, MySQL 및 Redis 연결 정보 등이 포함됩니다.
 
 # 개별 서버 실행
 ./loginD
@@ -534,6 +535,9 @@ void PlayerHandler::HandleStatView(Player& player)
 ## 📄 문서
 
 - [채널 서버 성능/수신 경계 테스트 기준 측정](SERVER/docs/Tests/channel_server_performance_baseline_2026-06-30.md)
+- [패킷 프로토콜 명세서](https://bottlenose-error-361.notion.site/LL2Games_PRG-3a7c0b1b991d803199c1cec7e7c7de70)
+- [데이터베이스 설계 및 데이터 흐름](https://bottlenose-error-361.notion.site/LL2Games_RPG-3a7c0b1b991d809f8e11cb7901c26e86)
+---
 
 ## 📄 라이선스
 
