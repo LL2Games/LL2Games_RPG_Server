@@ -534,7 +534,7 @@ void PlayerHandler::HandleStatView(Player& player)
 ## 📄 문서
 
 - [채널 서버 성능/수신 경계 테스트 기준 측정](SERVER/docs/Tests/channel_server_performance_baseline_2026-06-30.md)
-
+- [데이터베이스 설계 및 데이터 흐름](https://catkin-dentist-da2.notion.site/LL2Games_RPG-3a7b5f462ee380108512e8f60479a159)
 ## 📄 라이선스
 
 이 프로젝트는 MIT 라이선스 하에 배포됩니다. 자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요.
