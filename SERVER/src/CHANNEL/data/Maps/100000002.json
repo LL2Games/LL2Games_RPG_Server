@@ -1,38 +1,38 @@
 {
-  "mapId": 100000000,
-  "name": "Forest Ground 1",
+  "mapId": 100000002,
+  "name": "Forest Ground 3",
   "respawnDelay" : 10, 
   "monsters": [
-    { "monsterId": 100100, "xPos":   100.0, "yPos": 700.0, "group": 1 },
+   { "monsterId": 100100, "xPos":   100.0, "yPos": 700.0, "group": 1 },
     { "monsterId": 100101, "xPos":   1000.0, "yPos": 700.0, "group": 1 },
     { "monsterId": 100102, "xPos":   500.0, "yPos": 700.0, "group": 1 }
   ],
   "portals": [
     {
-      "id": "to_town_pending",
+      "id": "to_map_100000001",
       "position": 
       { 
         "x": 100.0, 
-        "y": 60.0
+        "y": 790.0
       },
       "interactionRange": 120.0,
       "destinationMapId": 100000001,
       "spawnPosition": {
-        "x": 100.0,
-        "y": 500.0
+        "x": 1400.0,
+        "y": 740.0
       }
     },
     {
-      "id": "to_map_100000001",
+      "id": "to_map_100000003",
       "position": {
         "x": 1400.0,
-        "y": 770.0
+        "y": 700.0
       },
       "interactionRange": 120.0,
-      "destinationMapId": 100000001,
+      "destinationMapId": 100000002,
       "spawnPosition": {
-        "x": 120.0,
-        "y": 730.0
+        "x": 1000.0,
+        "y": 520.0
       }
     }
   ]

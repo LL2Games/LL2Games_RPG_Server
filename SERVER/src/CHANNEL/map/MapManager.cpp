@@ -89,6 +89,13 @@ MapInstance *MapManager::GetOrCreate(int mapId)
 
     newMap->SetCombatService(m_server->GetCombatService());
 
+    K_LOG_TRACE("map create. mapId[%d], portalCount[%zu]", mapId, mapData.portals.size());
+
+    for (const PortalData& portal : mapData.portals)
+    {
+        K_LOG_TRACE("map portal. mapId[%d], portalId[%s]", mapId, portal.portalId.c_str());
+    }
+    
     if (newMap->Init(mapData) != 1)
     {
         delete newMap;
@@ -182,6 +189,7 @@ bool MapManager::LoadJsonFile(int mapId, MapInitData &mapData)
     mapData.mapID = j.at("mapId").get<u_int32_t>();
     // Json 파일에서 몬스터 데이터 읽어오기
     LoadMonster(j, mapData.MonstersData);
+    LoadPortal(j, mapData.portals, mapData.mapID);
     return true;
 }
 
@@ -201,6 +209,34 @@ void MapManager::LoadMonster(nlohmann::json &j, std::vector<MonsterSpawnData>& M
         data.ItemId = m.at("group").get<int>(); 
 
         MonstersData.push_back(std::move(data));
+    }
+}
+
+void MapManager::LoadPortal(nlohmann::json& j, std::vector<PortalData>& portals, u_int32_t mapId)
+{
+
+    if (!j.contains("portals"))
+        return;
+
+    const auto& portal = j.at("portals");
+
+    portals.clear();
+    portals.reserve(portal.size());
+
+    for (const auto& portalJson : portal)
+    {
+        PortalData data;
+        data.portalId = portalJson.at("id").get<std::string>();   // 키 맞춰라
+        data.sourceMapId = mapId;
+        data.destinationMapId = portalJson.at("destinationMapId").get<int>();     
+        const auto& position = portalJson.at("position");
+        data.position.xPos = position.at("x").get<float>();
+        data.position.yPos = position.at("y").get<float>();
+        const auto& spawnPosition = portalJson.at("spawnPosition");
+        data.spawnPosition.xPos = spawnPosition.at("x").get<float>();
+        data.spawnPosition.yPos = spawnPosition.at("y").get<float>();
+        data.interactionRange =portalJson.value("interactionRange",100.0f);
+        portals.push_back(std::move(data));
     }
 }
 

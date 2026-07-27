@@ -50,6 +50,11 @@ int MapInstance::Init(const MapInitData& data)
 	// 여기서 Map Json 파일에서 읽어온 몬스터 정보 저장
     this->m_monsterSpawnList = data.MonstersData;
 
+	for(const PortalData& portal : data.portals)
+	{
+		m_portals.emplace(portal.portalId, portal);
+	}
+
 #if 1 //guno22_TEST
 	{
 		//"100000000”
@@ -737,6 +742,16 @@ void MapInstance::CheckDropItem()
         playerSnapshot = m_playerList;
 	}
 	ItemPacketSender::SendRemoveDropItem(removeItems, playerSnapshot);
+}
+
+std::optional<PortalData> MapInstance::FindPortal(const std::string &portalId) const
+{
+	auto iter = m_portals.find(portalId);
+
+	if(iter == m_portals.end())
+		return std::nullopt;
+
+	return iter->second;
 }
 
 bool MapInstance::HasPlayer()

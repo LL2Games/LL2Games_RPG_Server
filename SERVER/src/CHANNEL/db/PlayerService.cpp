@@ -541,7 +541,7 @@ bool PlayerService::LoadPlayerInfo(int characterId, PlayerInitData &playerInit)
     }
 
     const char* query =
-        "SELECT char_id, account_id, name, level, job, root_job "
+        "SELECT char_id, account_id, name, level, job, root_job, `pos.x`, `pos.y`"
         "FROM `character` WHERE char_id = ?";
 
     if (mysql_stmt_prepare(stmt, query, strlen(query)) != 0)
@@ -582,7 +582,7 @@ bool PlayerService::LoadPlayerInfo(int characterId, PlayerInitData &playerInit)
     char accountIdBuffer[64]{};
     unsigned long accountIdLength = 0;
     bool accountIdIsNull = false;
-    MYSQL_BIND resultBind[6]{};
+    MYSQL_BIND resultBind[8]{};
 
     resultBind[0].buffer_type = MYSQL_TYPE_LONG;
     resultBind[0].buffer = &playerInit.char_id;
@@ -607,6 +607,13 @@ bool PlayerService::LoadPlayerInfo(int characterId, PlayerInitData &playerInit)
 
     resultBind[5].buffer_type = MYSQL_TYPE_LONG;
     resultBind[5].buffer = &playerInit.root_job;
+
+
+    resultBind[6].buffer_type = MYSQL_TYPE_FLOAT;
+    resultBind[6].buffer = &playerInit.xPos;
+
+    resultBind[7].buffer_type = MYSQL_TYPE_FLOAT;
+    resultBind[7].buffer = &playerInit.yPos;
 
     if (mysql_stmt_bind_result(stmt, resultBind) != 0)
     {

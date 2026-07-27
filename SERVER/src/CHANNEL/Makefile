@@ -112,6 +112,8 @@ SRCS := \
 	packet/HandleTrade.cpp \
 	packet/InventoryPacketHandler.cpp\
 	packet/PacketProcessTask.cpp \
+	packet/PortalHandler.cpp\
+	packet/PortalPacketSender.cpp\
 	\
 	service/MapService.cpp \
 	service/StatService.cpp \

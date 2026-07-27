@@ -160,7 +160,7 @@ int ChannelSession::EnqueueSend(std::string packet)
 
     if (needEnableWrite && m_server != nullptr)
     {
-        K_LOG_TRACE( "[EnqueueSend] EnableWriteEvent fd:%d", m_fd);
+       //K_LOG_TRACE( "[EnqueueSend] EnableWriteEvent fd:%d", m_fd);
         m_server->EnableWriteEvent(m_fd);
     }
 
