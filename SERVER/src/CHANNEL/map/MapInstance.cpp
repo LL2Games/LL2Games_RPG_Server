@@ -581,8 +581,12 @@ void MapInstance::ProcessContactDamage(int64_t nowMs)
 /*gunoo22 260223 원거리 공격 처리*/
 void MapInstance::ProcessRangedDamage(int64_t nowMs)
 {
+	std::vector<ContactDamageEvent> events;
+	std::unordered_map<int, Player*> playerSnapshot;
+
 	{
 		std::lock_guard<std::mutex> lock(m_playerMutex);
+		playerSnapshot = m_playerList;
    		for(auto p : m_playerList)
    		{
 				Player* player = p.second;
@@ -608,11 +612,24 @@ void MapInstance::ProcessRangedDamage(int64_t nowMs)
 					 // 정밀 충돌(AABB/원형)
 					if (!Collision::Intersects(player_pos, player->GetCollider(), projectile_pos, p->GetCollider())) continue;
 				
+					int dmg = p->GetDamage();
+
 					//플레이어 온데미지
-					player->OnDamaged(p->GetDamage(), nowMs);
+					player->OnDamaged(dmg, nowMs);
+
+					PlayerHitResult result;
+					result.damage = dmg;
+					SetPlayerHitResult(player, p->GetOwnerId(), result);
+
+					events.push_back({ player, result });
 				}
    		}
 	}
+
+	for (const auto& event : events)
+    {
+        PlayerPacketSender::SendPlayerOnDamaged(event.player, event.result, playerSnapshot);
+    }
 }
 
 void MapInstance::SetPlayerHitResult(Player* player, int monster_instanceId, PlayerHitResult& result)
