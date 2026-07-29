@@ -34,6 +34,26 @@
 | Channel move load test | 300 clients, crash/restart 없이 유지 |
 | Valgrind Memcheck | definitely lost / indirectly lost 0 bytes |
 
+### 자동 회귀 테스트
+
+```bash
+cd SERVER
+make test
+```
+검증항목 :
+- PacketParser uint16_t length-prefix 왕복
+- 잘린 length header 및 payload 거부
+- fd 재사용 후 stale 인증 결과 폐기
+- stale Player의 신규 세션 및 PlayerManager 등록 방지
+- 현재 세션 식별자 허용
+- closing 세션의 작업 진입 거부
+
+```text
+[PASS] PacketParser length-prefix tests
+[PASS] stale auth result rejected after fd reuse
+[PASS] current session accepted and closing session rejected
+```
+
 ## 📋 목차
 
 - [프로젝트 개요](#-프로젝트-개요)
