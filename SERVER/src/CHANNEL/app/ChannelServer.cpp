@@ -16,7 +16,6 @@ ChannelServer::ChannelServer(const int channelId, const int threadCount, const i
     m_monster_manager = MonsterManager::GetInstance();
     m_skill_manager = SkillManager::GetInstance();
     m_drop_manager = DropManager::GetInstance();
-    m_level_manager = LevelManager::GetInstance();
 }
 
 ChannelServer::~ChannelServer()
@@ -85,7 +84,19 @@ bool ChannelServer::Init(const int port, const RedisConfig& redisConfig)
     if(!m_monster_manager->Init()) return false;
     if(!m_skill_manager->Init()) return false;
     if(!m_drop_manager->Init()) return false;
-    if(!m_level_manager->Init()) return false;
+    m_level_manager = LevelManager::GetInstance();
+
+    if (m_level_manager == nullptr)
+    {
+        K_LOG_ERROR("LevelManager GetInstance failed");
+        return false;
+    }
+
+    if (!m_level_manager->Init())
+    {
+        K_LOG_ERROR("LevelManager Init failed");
+        return false;
+    }
 
 
     if(!InitListenSocket(port))

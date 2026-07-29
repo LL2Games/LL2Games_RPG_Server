@@ -3,9 +3,10 @@ PROJECT_ROOT := ..
 CXX := g++
 CXXFLAGS := -std=c++17 -O2 -Wall -Wextra -Werror
 
-TARGET := $(PROJECT_ROOT)/SERVER/bin/packet_parser_length_test
-SOURCE := PacketParserLengthTest.cpp
+PACKET_TEST_TARGET := $(PROJECT_ROOT)/SERVER/bin/packet_parser_length_test
+PACKET_TEST_SOURCE := PacketParserLengthTest.cpp
 COMMON_LIB := $(PROJECT_ROOT)/SERVER/lib/common/libcommon.a
+CHANNEL_DIR := $(PROJECT_ROOT)/SERVER/src/CHANNEL
 
 INCLUDES := \
 	-I$(PROJECT_ROOT)/SERVER/include \
@@ -14,17 +15,20 @@ INCLUDES := \
 
 .PHONY: all common run clean
 
-all: $(TARGET)
+all: $(PACKET_TEST_TARGET)
 
 common:
 	$(MAKE) -C $(PROJECT_ROOT)/SERVER/src/COMMON
 
-$(TARGET): $(SOURCE) common
+$(PACKET_TEST_TARGET): $(PACKET_TEST_SOURCE) common
 	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(INCLUDES) $(SOURCE) $(COMMON_LIB) -pthread -o $@
+	$(CXX) $(CXXFLAGS) $(INCLUDES) \
+		$(PACKET_TEST_SOURCE) $(COMMON_LIB) -pthread -o $@
 
-run: $(TARGET)
-	$(TARGET)
+run: $(PACKET_TEST_TARGET)
+	$(PACKET_TEST_TARGET)
+	$(MAKE) -C $(CHANNEL_DIR) test-auth-session
 
 clean:
-	rm -f $(TARGET)
+	rm -f $(PACKET_TEST_TARGET)
+	$(MAKE) -C $(CHANNEL_DIR) fclean
