@@ -2,6 +2,8 @@
 #include "PacketParser.h"
 #include "PacketFactory.h"
 #include <cstring>
+#include <limits>
+#include <stdexcept>
 #include "K_slog.h"
 
 std::optional<ParsedPacket> PacketParser::Parse(std::vector<char>& buf)
@@ -37,10 +39,14 @@ std::optional<ParsedPacket> PacketParser::Parse(std::vector<char>& buf)
 std::string PacketParser::MakeBody(const std::vector<std::string>& datas)
 {
     std::string body;
-    for (auto& data : datas)
+    for (const auto& data : datas)
     {
-        uint16_t dataLen = (uint16_t)data.size();
-        body.append((char *)&dataLen, sizeof(dataLen));
+        if(data.size() > std::numeric_limits<uint16_t>::max())
+        {
+            throw std::length_error("packet field is too larger");
+        }
+        uint16_t dataLen = static_cast<uint16_t>(data.size());
+        body.append(reinterpret_cast<const char*>(&dataLen), sizeof(dataLen));
         body.append(data);
     }
     return body;

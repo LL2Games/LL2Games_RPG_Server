@@ -89,13 +89,6 @@ MapInstance *MapManager::GetOrCreate(int mapId)
 
     newMap->SetCombatService(m_server->GetCombatService());
 
-    K_LOG_TRACE("map create. mapId[%d], portalCount[%zu]", mapId, mapData.portals.size());
-
-    for (const PortalData& portal : mapData.portals)
-    {
-        K_LOG_TRACE("map portal. mapId[%d], portalId[%s]", mapId, portal.portalId.c_str());
-    }
-    
     if (newMap->Init(mapData) != 1)
     {
         delete newMap;

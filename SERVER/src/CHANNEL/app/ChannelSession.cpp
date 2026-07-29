@@ -77,6 +77,8 @@ void ChannelSession::Dispatch(const ParsedPacket &pkt)
         auto task = std::make_unique<ChannelAuthTask>(
             m_server,
             m_fd,
+            m_sessionId,
+            m_generation,
             pkt.payload
         );
 

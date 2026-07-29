@@ -55,7 +55,7 @@ int MapInstance::Init(const MapInitData& data)
 		m_portals.emplace(portal.portalId, portal);
 	}
 
-#if 1 //guno22_TEST
+#if 0 //guno22_TEST
 	{
 		//"100000000”
 		std::vector<MonsterSpawnData>& list = this->m_monsterSpawnList;
@@ -217,7 +217,7 @@ int MapInstance::SpawnMonster()
 
 void MapInstance::OnEnter(int PlayerID, Player* player)
 {
-	 int playerCount = 0;
+	//int playerCount = 0;
 	{
 		std::lock_guard<std::mutex> lock(m_playerMutex);
 		auto it = m_playerList.find(PlayerID);
@@ -234,10 +234,10 @@ void MapInstance::OnEnter(int PlayerID, Player* player)
             m_destroyRequested = false;
             m_emptyTime = {};
         }
-		playerCount = m_playerCount;
+		//playerCount = m_playerCount;
 	}
-	K_LOG_DEBUG( "PlayerID(%d)", PlayerID);
-	K_LOG_DEBUG( "m_playerCount(%d)", playerCount);
+	//K_LOG_DEBUG( "PlayerID(%d)", PlayerID);
+	//K_LOG_DEBUG( "m_playerCount(%d)", playerCount);
 	// 들어온 플레이어 한테 몬스터 정보 전달
 	SendMonsterSnapshot(player);
 }

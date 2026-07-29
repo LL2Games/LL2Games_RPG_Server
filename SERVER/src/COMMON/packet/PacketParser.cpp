@@ -84,30 +84,24 @@ bool PacketParser::ParseLengthPrefixedString(
     std::string &outValue,
     std::string &errMsg)
 {
-    if (payload == nullptr || payload_len == 0)
+    if (payload == nullptr)
     {
         errMsg = "payload empty";
         return false;
     }
 
-    if (offset >= payload_len)
+    if (offset > payload_len || payload_len - offset < sizeof(uint16_t))
     {
-        errMsg = "offset overflow";
+        errMsg = "field length header overflow";
         return false;
     }
 
-    // 1. length (1 byte)
-    uint8_t value_len = static_cast<uint8_t>(payload[offset]);
-    offset += 1;
+    // Length prefix: uint16_t (2 bytes)
+    uint16_t value_len = 0;
+    std::memcpy(&value_len, payload + offset, sizeof(value_len));
+    offset += sizeof(value_len);
 
-    // 2. reserved byte skip
-    if (offset < payload_len && payload[offset] == 0x00)
-    {
-        offset += 1;
-    }
-
-    // 3. bounds check
-    if (offset + value_len > payload_len)
+    if(payload_len - offset < value_len)
     {
         errMsg = "payload length overflow";
         return false;
