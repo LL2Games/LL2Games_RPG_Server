@@ -34,6 +34,23 @@
 | Channel move load test | 300 clients, crash/restart 없이 유지 |
 | Valgrind Memcheck | definitely lost / indirectly lost 0 bytes |
 
+## 서버 안정성 개선 사례
+
+### 비동기 인증 결과의 fd 재사용 문제
+비동기 인증 처리 중 클라이언트가 연결을 종료하면 기존 fd가 새로운 세션에 재사용될 수 있었다. 인증 결과가 fd만으로 세션을 조회하면
+이전 사용자의 결과가 새 세션에 적용될 가능성이 있었다.
+
+개선 내용 :
+- 인증 작업 생성 시 sessionId와 generation 저장
+- 인증 결과 처리 시 현재 세션과 식별자 비교
+- BeginValudSessionTask()로 세션 유효성 및 종료 상태 확인
+- RAII 가드로 모든 종료 경로에서 EndSessionTassk() 호출 보장
+
+검증:
+- 인증 작업에 테스트용 3초지연 적용
+- 동일 fd 42가 sessionId 8에서 ssessionId 9로 재사용되는 상황 재현
+- sessionId 9는 characterId 3 으로 정상 인증
+
 ## 📋 목차
 
 - [프로젝트 개요](#-프로젝트-개요)
