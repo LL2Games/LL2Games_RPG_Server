@@ -4,6 +4,8 @@
 #include <type_traits>
 #include "K_slog.h"
 #include "utility.h"
+#include <limits>
+#include <stdexcept>
 
 std::optional<ParsedPacket> PacketParser::Parse(std::vector<char>& buf)
 {
@@ -163,27 +165,41 @@ bool PacketParser::ParseNextFloatField(const char* data, size_t payloadSize, siz
 
 std::string PacketParser::MakeBody(const std::vector<std::string>& datas)
 {
-    std::string body;
-
-    for (auto& data : datas)
+     std::string body;
+    for (const auto& data : datas)
     {
-        uint16_t dataLen = (uint16_t)data.size();
-        body.append((char *)&dataLen, sizeof(dataLen));
+        if(data.size() > std::numeric_limits<uint16_t>::max())
+        {
+            throw std::length_error("packet field is too larger");
+        }
+        uint16_t dataLen = static_cast<uint16_t>(data.size());
+        body.append(reinterpret_cast<const char*>(&dataLen), sizeof(dataLen));
         body.append(data);
     }
-
     return body;
 }
 
 std::string PacketParser::MakePacket(uint16_t type, const std::string &body)
 {
-    PacketHeader hdr;
-    std::string packet;
+   const size_t maximumPacketSize = std::min(
+        static_cast<size_t>(BUFFER_SIZE),
+        static_cast<size_t>(std::numeric_limits<uint16_t>::max())
+    );
 
+    if (maximumPacketSize < sizeof(PacketHeader) || body.size() > maximumPacketSize - sizeof(PacketHeader))
+    {
+        throw std::length_error("packet is too large");
+    }
+
+    const size_t packetLength = sizeof(PacketHeader) + body.size();
+
+    PacketHeader hdr{};
     hdr.type = type;
-    hdr.length = sizeof(PacketHeader) + body.size();
+    hdr.length = static_cast<uint16_t>(packetLength);
 
-    packet.append((char *)&hdr, sizeof(hdr));
+    std::string packet;
+    packet.reserve(packetLength);
+    packet.append(reinterpret_cast<const char*>(&hdr), sizeof(hdr));
     packet.append(body);
 
     return packet;

@@ -5,14 +5,35 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <algorithm>
+#include <limits>
 
 namespace
 {
+    
 void Require(bool condition, const char* message)
 {
     if (!condition)
         throw std::runtime_error(message);
 }
+
+template <typename Func>
+void RequireLengthError(Func&& func, const char* message)
+{
+    bool thrown = false;
+
+    try
+    {
+        func();
+    }
+    catch (const std::length_error&)
+    {
+        thrown = true;
+    }
+
+    Require(thrown, message);
+}
+
 
 void TestThreeHundredByteRoundTrip()
 {
@@ -110,6 +131,130 @@ void TestDeclaredLengthOverflow()
     Require(!success, "short payload was accepted");
     Require(!error.empty(), "short payload did not return an error");
 }
+
+void TestMakePacketRoundTrip()
+{
+    constexpr uint16_t expectedType = 123;
+    const std::string body = "test-body";
+
+    const std::string packet =
+        PacketParser::MakePacket(expectedType, body);
+
+    Require(
+        packet.size() == sizeof(PacketHeader) + body.size(),
+        "packet size is incorrect"
+    );
+
+    PacketHeader header{};
+    std::memcpy(
+        &header,
+        packet.data(),
+        sizeof(header)
+    );
+
+    Require(
+        header.type == expectedType,
+        "packet type is incorrect"
+    );
+
+    Require(
+        header.length == packet.size(),
+        "packet header length is incorrect"
+    );
+
+    const std::string parsedBody(
+        packet.data() + sizeof(PacketHeader),
+        body.size()
+    );
+
+    Require(
+        parsedBody == body,
+        "packet body is incorrect"
+    );
+}
+
+void TestMaximumPacketSizeAccepted()
+{
+    const size_t maximumPacketSize = std::min(
+        static_cast<size_t>(BUFFER_SIZE),
+        static_cast<size_t>(
+            std::numeric_limits<uint16_t>::max()
+        )
+    );
+
+    Require(
+        maximumPacketSize >= sizeof(PacketHeader),
+        "maximum packet size is smaller than header"
+    );
+
+    const size_t maximumBodySize =
+        maximumPacketSize - sizeof(PacketHeader);
+
+    const std::string body(maximumBodySize, 'A');
+
+    const std::string packet =
+        PacketParser::MakePacket(123, body);
+
+    Require(
+        packet.size() == maximumPacketSize,
+        "maximum-size packet has an incorrect size"
+    );
+
+    PacketHeader header{};
+    std::memcpy(
+        &header,
+        packet.data(),
+        sizeof(header)
+    );
+
+    Require(
+        header.length == maximumPacketSize,
+        "maximum-size packet length is incorrect"
+    );
+}
+
+void TestPacketSizeOverflowRejected()
+{
+    const size_t maximumPacketSize = std::min(
+        static_cast<size_t>(BUFFER_SIZE),
+        static_cast<size_t>(
+            std::numeric_limits<uint16_t>::max()
+        )
+    );
+
+    const size_t overflowBodySize =
+        maximumPacketSize - sizeof(PacketHeader) + 1;
+
+    const std::string body(overflowBodySize, 'A');
+
+    RequireLengthError(
+        [&]()
+        {
+            PacketParser::MakePacket(123, body);
+        },
+        "oversized packet was accepted"
+    );
+}
+
+void TestUint16PacketLengthOverflowRejected()
+{
+    const size_t overflowBodySize =
+        static_cast<size_t>(
+            std::numeric_limits<uint16_t>::max()
+        )
+        - sizeof(PacketHeader)
+        + 1;
+
+    const std::string body(overflowBodySize, 'A');
+
+    RequireLengthError(
+        [&]()
+        {
+            PacketParser::MakePacket(123, body);
+        },
+        "uint16 packet length overflow was accepted"
+    );
+}
 }
 
 int main()
@@ -120,6 +265,10 @@ int main()
         TestEmptyFieldRoundTrip();
         TestTruncatedLengthHeader();
         TestDeclaredLengthOverflow();
+        TestMakePacketRoundTrip();
+        TestMaximumPacketSizeAccepted();
+        TestPacketSizeOverflowRejected();
+        TestUint16PacketLengthOverflowRejected();
     }
     catch (const std::exception& error)
     {
