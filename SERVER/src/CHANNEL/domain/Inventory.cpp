@@ -18,7 +18,7 @@ Inventory::Inventory(InventoryMetaInfo& inventoryMetaInfo)
         slot.itemCount = 0;
         m_slots.emplace(i, slot);
     }
-    K_LOG_DEBUG( "Inventory Init Success");
+    //K_LOG_DEBUG( "Inventory Init Success");
 }
 
 

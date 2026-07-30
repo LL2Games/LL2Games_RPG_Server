@@ -24,8 +24,8 @@ bool PlayerManager::AddPlayer(std::unique_ptr<Player> player)
     {
         return false; 
     }
-    K_LOG_TRACE( "Player character_id [%d]", player->GetId());
-    K_LOG_TRACE( "Player character_id [%s]", player->GetName().c_str());
+    //K_LOG_TRACE( "Player character_id [%d]", player->GetId());
+    //K_LOG_TRACE( "Player character_id [%s]", player->GetName().c_str());
 
     m_players[playerId] = move(player);
     return true;

@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <optional>
 #include "Collider.h"
-
+#include "MapData.h"
 
 class MapInstance;
 class Player;
@@ -116,7 +116,7 @@ typedef struct MapInitData{
 	std::string name;
    
     std::vector<MonsterSpawnData> MonstersData;
-
+    std::vector<PortalData> portals;
 }mapData;
 
 

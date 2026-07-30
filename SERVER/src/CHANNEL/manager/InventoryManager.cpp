@@ -12,7 +12,7 @@ bool InventoryManager::CreateInventory(InventoryMetaInfo& inventoryMetaInfo)
         return false;
     }
 
-    K_LOG_TRACE( "Success");
+    //K_LOG_TRACE("Success");
     m_inventories.emplace(inventoryMetaInfo.inventoryType, Inventory(inventoryMetaInfo));
 
     return true;
