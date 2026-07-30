@@ -37,7 +37,7 @@ void PlayerPacketSender::SendPlayerStat(Player* player)
 
     if(!session) 
     {
-        K_LOG_ERROR( "session이 nullptr입니다.");
+        K_LOG_ERROR("session이 nullptr입니다.");
         return;
     }
 
@@ -81,16 +81,14 @@ void PlayerPacketSender::SendPlayerSkillList(Player* player)
     
     
     std::vector<std::string> payload;
-    payload.push_back(std::to_string(sizeof(playerSkillList)));
+    payload.push_back(std::to_string(playerSkillList.size()));
     // 나중에 스탯 정보에 공격력도 들어가야함
     for(auto skill : playerSkillList)
     {
         payload.push_back(std::to_string(skill.skill_id));
         payload.push_back(std::to_string(skill.skill_level));
     }
-    K_LOG_TRACE( "[SendPlayerSkillList] before Send payload_count:%zu", payload.size());
-    int ret = session->Send(PKT_PLAYER_SKILLLIST, payload);
-    K_LOG_TRACE( "[SendPlayerSkillList] after Send ret:%d", ret);
+    session->Send(PKT_PLAYER_SKILLLIST, payload);
     K_LOG_TRACE( "SendPlayerSkillList Send Success.");
 }
 
