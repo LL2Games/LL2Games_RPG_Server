@@ -14,6 +14,7 @@
 #include "Inventory.h"
 #include "DropInfos.h"
 #include "ProjectileManager.h"
+#include "MapData.h"
 
 #include <nlohmann/json.hpp>
 #include <functional>
@@ -57,6 +58,7 @@ public:
     bool SpawnDropItem(const Vec2& dropPos, Player* owner, const std::vector<DropResult>& dropItems);
     void CheckDropItem();
     
+    std::optional<PortalData> FindPortal(const std::string& portalId) const;
 private:
     void BroadcastDropSpawn(std::vector<DropSpawnInfo> spawnedInfos);
     void BroadcastRemoveItem(std::vector<int> removeItems);
@@ -99,6 +101,7 @@ private:
 
     std::unordered_map<int, Player*> m_playerList;
     std::unordered_map<int, DropItems> m_dropItems;
+    std::unordered_map<std::string, PortalData> m_portals;
    
     std::vector<MonsterSpawnData> m_monsterSpawnList;
     std::vector<MonsterSpawnData>::iterator m_monsterSpawnListIter;

@@ -112,6 +112,8 @@ SRCS := \
 	packet/HandleTrade.cpp \
 	packet/InventoryPacketHandler.cpp\
 	packet/PacketProcessTask.cpp \
+	packet/PortalHandler.cpp\
+	packet/PortalPacketSender.cpp\
 	\
 	service/MapService.cpp \
 	service/StatService.cpp \
@@ -132,21 +134,37 @@ SRCS := \
 OBJS := $(SRCS:%.cpp=$(OBJ_DIR)/%.o)
 DEPS := $(OBJS:.o=.d)
 
+AUTH_TEST_TARGET := $(BIN_DIR)/auth_session_regression_test
+AUTH_TEST_SRC := $(PROJECT_ROOT)/../Test/AuthSessionRegressionTest.cpp
+AUTH_TEST_OBJ := $(OBJ_DIR)/test/AuthSessionRegressionTest.o
+AUTH_TEST_OBJS := $(filter-out $(OBJ_DIR)/main.o,$(OBJS))
 # ==================================
 # Build Rules
 # ==================================
-.PHONY: all clean fclean re
+.PHONY: all clean fclean re test
 
 all: $(TARGET)
+
+test-auth-session: $(AUTH_TEST_TARGET)
+	$(AUTH_TEST_TARGET)
 
 $(TARGET): $(OBJS) | $(BIN_DIR) $(LOG_DIR)
 	@echo " [LD] $@"
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LFLAGS) $(LDFLAGS)
 
+$(AUTH_TEST_TARGET): $(AUTH_TEST_OBJS) $(AUTH_TEST_OBJ) | $(BIN_DIR) $(LOG_DIR)
+	@echo " [LD] $@"
+	$(CXX) -o $@ $^ $(LIB_PATH) $(LFLAGS) $(LDFLAGS)
+	
 $(OBJ_DIR)/%.o: %.cpp
 	@mkdir -p $(dir $@)
 	@echo " [CXX] $<"
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@ $(LIB_PATH) $(LFLAGS) $(LDFLAGS) -DGLOBAL
+
+$(AUTH_TEST_OBJ): $(AUTH_TEST_SRC)
+	@mkdir -p $(dir $@)
+	@echo " [CXX] $<"
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -DGLOBAL -c $< -o $@
 
 # ==================================
 # Directories
@@ -164,7 +182,7 @@ clean:
 	rm -rf $(OBJ_DIR)
 
 fclean: clean
-	rm -f $(TARGET)
+	rm -f $(TARGET) $(AUTH_TEST_TARGET)
 
 re: fclean all
 

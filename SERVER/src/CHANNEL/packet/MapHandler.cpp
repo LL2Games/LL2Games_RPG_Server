@@ -86,18 +86,18 @@ void MapHandler::Execute(PacketContext * ctx)
     if(!ctx->map_service)
     {
         rc = EXIT_FAILURE;
-        K_LOG_ERROR( "HandlePortalUse fail");
+        K_LOG_ERROR( "map_service is fail");
         errMsg = "map_service is NULL";
         goto err;
     }
 
-    rc = ctx->map_service->HandlePortalUse(playerid, mapId);
+    rc = ctx->map_service->EnterMap(playerid, mapId);
 
     if(rc != EXIT_SUCCESS)
     {
         rc = EXIT_FAILURE;
-        K_LOG_ERROR( "HandlePortalUse fail");
-        errMsg = "HandlePortalUse Failed";
+        K_LOG_ERROR( "EnterMap fail");
+        errMsg = "EnterMap Failed";
         goto err;
     }
    

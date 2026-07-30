@@ -93,7 +93,7 @@ def run_auth_test(host, port, character_id, timeout):
     for index, (packet_type, body) in enumerate(packets, start=1):
         fields = parse_fields(body)
 
-        if packet_type == PKT_CHANNEL_AUTH:
+        if packet_type in (PKT_CHANNEL_AUTH, 0x0026):
             print(f"packet[{index}] type=0x{packet_type:04X} fields={fields}")
         else:
             print(f"packet[{index}] type=0x{packet_type:04X} field_count={len(fields)} body_bytes={len(body)}")

@@ -8,11 +8,11 @@ MapService::MapService(PlayerManager& playermanager, MapManager& mapManager) : m
 
 }
 
-int MapService::HandlePortalUse(int playerID, int mapID)
+int MapService::EnterMap(int playerId, int mapID)
 {
     Player* player;
     MapInstance* map;
-    player = m_playerManager.GetPlayer(playerID);
+    player = m_playerManager.GetPlayer(playerId);
     if(player == nullptr) 
     {
         K_LOG_ERROR( "Player is nullptr");
@@ -21,11 +21,80 @@ int MapService::HandlePortalUse(int playerID, int mapID)
     // 맵 정보 로드 및 생성
     map = m_MapManger.GetOrCreate(mapID);
 
+    if (map == nullptr)
+        return EXIT_FAILURE;
     // 플레이어 현재 맵 설정
     player->SetCurrentMap(map);
 
     // 맵 Enter 로직 수행
-    map->OnEnter(playerID, player);
+    map->OnEnter(playerId, player);
 
     return EXIT_SUCCESS;
+}
+
+PortalMoveResult MapService::MoveByPortal(Player* player, const std::string& portalId)
+{
+    PortalMoveResult moveResult{};
+
+    if(player == nullptr)
+    {
+        moveResult.error = "player is nullptr";
+        return moveResult;
+    }
+
+    MapInstance* currentMap = player->GetCurrentMap();
+
+    if(currentMap == nullptr)
+    {
+        moveResult.error = "current map is nullptr";
+        return moveResult;
+    }
+
+    std::optional<PortalData> portal = currentMap->FindPortal(portalId);
+
+    if(!portal.has_value())
+    {
+        moveResult.error = "portal not found";
+        return moveResult;
+    }
+
+    if(!portal->IsInInteractionRange(player->GetPos()))
+    {
+        moveResult.error = "portal is out of range";
+        return moveResult;
+    }
+
+    if(portal->destinationMapId <= 0)
+    {
+        moveResult.error = "invalid destination map";
+        return moveResult;
+    }
+
+    MapInstance* destinationMap = m_MapManger.GetOrCreate(portal->destinationMapId);
+
+    if(destinationMap == nullptr)
+    {
+        moveResult.error = "destination map load failed";
+        return moveResult;
+    }
+
+    const int playerId = player->GetId();
+
+    currentMap->OnLeave(playerId);
+
+    player->SetMapId(portal->destinationMapId);
+
+    player->SetPos(portal->spawnPosition);
+
+    player->SetCurrentMap(destinationMap);
+
+    destinationMap->OnEnter(playerId, player);
+
+
+    moveResult.success = true;
+    moveResult.destinationMapId = portal->destinationMapId;
+    moveResult.spawnPosition = portal->spawnPosition;
+
+    return moveResult;
+
 }

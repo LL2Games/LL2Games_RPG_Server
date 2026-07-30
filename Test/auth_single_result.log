@@ -1,0 +1,13 @@
+target=127.0.0.1:9001
+character_id=900000
+received_bytes=2744
+received_packets=7
+elapsed_sec=2.190
+packet[1] type=0x0009 fields=['ok', 'PerfTest0000']
+packet[2] type=0x0024 field_count=7 body_bytes=51
+packet[3] type=0x0025 field_count=12 body_bytes=43
+packet[4] type=0x0026 field_count=3 body_bytes=10
+packet[5] type=0x0080 field_count=16 body_bytes=53
+packet[6] type=0x0081 field_count=641 body_bytes=2035
+packet[7] type=0x1002 field_count=161 body_bytes=506
+[PASS] channel_auth: received ok

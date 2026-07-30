@@ -50,7 +50,12 @@ int MapInstance::Init(const MapInitData& data)
 	// 여기서 Map Json 파일에서 읽어온 몬스터 정보 저장
     this->m_monsterSpawnList = data.MonstersData;
 
-#if 1 //guno22_TEST
+	for(const PortalData& portal : data.portals)
+	{
+		m_portals.emplace(portal.portalId, portal);
+	}
+
+#if 0 //guno22_TEST
 	{
 		//"100000000”
 		std::vector<MonsterSpawnData>& list = this->m_monsterSpawnList;
@@ -215,7 +220,7 @@ int MapInstance::SpawnMonster()
 
 void MapInstance::OnEnter(int PlayerID, Player* player)
 {
-	 int playerCount = 0;
+	//int playerCount = 0;
 	{
 		std::lock_guard<std::mutex> lock(m_playerMutex);
 		auto it = m_playerList.find(PlayerID);
@@ -232,11 +237,13 @@ void MapInstance::OnEnter(int PlayerID, Player* player)
             m_destroyRequested = false;
             m_emptyTime = {};
         }
-		playerCount = m_playerCount;
+		//playerCount = m_playerCount;
 	}
-	K_LOG_DEBUG( "PlayerID(%d)", PlayerID);
-	K_LOG_DEBUG( "m_playerCount(%d)", playerCount);
+	//K_LOG_DEBUG( "PlayerID(%d)", PlayerID);
+	//K_LOG_DEBUG( "m_playerCount(%d)", playerCount);
 	// 들어온 플레이어 한테 몬스터 정보 전달
+	PlayerPacketSender::SendExistingPlayersToNewPlayer(player, m_playerList);
+	PlayerPacketSender::SendPlayerEnter(player, m_playerList);
 	SendMonsterSnapshot(player);
 }
 
@@ -807,6 +814,16 @@ void MapInstance::CheckDropItem()
         playerSnapshot = m_playerList;
 	}
 	ItemPacketSender::SendRemoveDropItem(removeItems, playerSnapshot);
+}
+
+std::optional<PortalData> MapInstance::FindPortal(const std::string &portalId) const
+{
+	auto iter = m_portals.find(portalId);
+
+	if(iter == m_portals.end())
+		return std::nullopt;
+
+	return iter->second;
 }
 
 bool MapInstance::HasPlayer()

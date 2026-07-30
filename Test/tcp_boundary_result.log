@@ -1,0 +1,8 @@
+target=127.0.0.1:9001
+Run ChannelServer first, then execute this script.
+[PASS] partial_header: expected open, actual open
+[PASS] partial_body: expected open, actual open
+[PASS] invalid_short_length: expected closed, actual closed
+[PASS] invalid_large_length: expected closed, actual closed
+[PASS] coalesced_packets: expected open, actual open
+5/5 passed

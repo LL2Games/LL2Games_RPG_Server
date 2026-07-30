@@ -100,3 +100,145 @@ int PlayerStatRepository::Update(const std::string &charId, const std::string &s
     m_mySql->ReleaseConnection(conn);
     return 0;
 }
+
+int PlayerStatRepository::UpdateExpLevel(int charId, int level, int64_t exp, int remainAp, std::string& errMsg)
+{
+     MYSQL* conn = m_mySql->GetConnection();
+    if (!conn)
+    {
+        errMsg = "MYSQL GetConnection failed";
+        return -1;
+    }
+
+    MYSQL_STMT* stmt = mysql_stmt_init(conn);
+    if (!stmt)
+    {
+        errMsg = mysql_error(conn);
+        m_mySql->ReleaseConnection(conn);
+        return -1;
+    }
+
+    const char* query =
+        "UPDATE character_stat "
+        "SET level = ?, exp = ?, remain_ap = ? "
+        "WHERE char_id = ?";
+
+    if (mysql_stmt_prepare(stmt, query, strlen(query)) != 0)
+    {
+        errMsg = mysql_stmt_error(stmt);
+        mysql_stmt_close(stmt);
+        m_mySql->ReleaseConnection(conn);
+        return -1;
+    }
+
+    MYSQL_BIND param[4]{};
+
+    param[0].buffer_type = MYSQL_TYPE_LONG;
+    param[0].buffer = &level;
+
+    param[1].buffer_type = MYSQL_TYPE_LONGLONG;
+    param[1].buffer = &exp;
+
+    param[2].buffer_type = MYSQL_TYPE_LONG;
+    param[2].buffer = &remainAp;
+
+    param[3].buffer_type = MYSQL_TYPE_LONG;
+    param[3].buffer = &charId;
+
+    if (mysql_stmt_bind_param(stmt, param) != 0)
+    {
+        errMsg = mysql_stmt_error(stmt);
+        mysql_stmt_close(stmt);
+        m_mySql->ReleaseConnection(conn);
+        return -1;
+    }
+
+    if (mysql_stmt_execute(stmt) != 0)
+    {
+        errMsg = mysql_stmt_error(stmt);
+        mysql_stmt_close(stmt);
+        m_mySql->ReleaseConnection(conn);
+        return -1;
+    }
+
+    mysql_stmt_close(stmt);
+    m_mySql->ReleaseConnection(conn);
+    return 0;
+}
+
+int PlayerStatRepository::SaveRuntimeStat(int charId, const CharacterStat& stat, std::string& errMsg)
+{
+    MYSQL* conn = m_mySql->GetConnection();
+    if (!conn)
+    {
+        errMsg = "MYSQL GetConnection failed";
+        return -1;
+    }
+
+    MYSQL_STMT* stmt = mysql_stmt_init(conn);
+    if (!stmt)
+    {
+        errMsg = mysql_error(conn);
+        m_mySql->ReleaseConnection(conn);
+        return -1;
+    }
+
+    const char* query =
+        "UPDATE character_stat "
+        "SET cur_hp = ?, cur_mp = ?, exp = ?, level = ?, remain_ap = ? "
+        "WHERE char_id = ?";
+
+    if (mysql_stmt_prepare(stmt, query, strlen(query)) != 0)
+    {
+        errMsg = mysql_stmt_error(stmt);
+        mysql_stmt_close(stmt);
+        m_mySql->ReleaseConnection(conn);
+        return -1;
+    }
+
+    int curHp = stat.GetCurHp();
+    int curMp = stat.GetCurMp();
+    long long exp = static_cast<long long>(stat.GetExp());
+    int level = stat.GetLevel();
+    int remainAp = stat.GetRemainAp();
+
+    MYSQL_BIND param[6]{};
+
+    param[0].buffer_type = MYSQL_TYPE_LONG;
+    param[0].buffer = &curHp;
+
+    param[1].buffer_type = MYSQL_TYPE_LONG;
+    param[1].buffer = &curMp;
+
+    param[2].buffer_type = MYSQL_TYPE_LONGLONG;
+    param[2].buffer = &exp;
+
+    param[3].buffer_type = MYSQL_TYPE_LONG;
+    param[3].buffer = &level;
+
+    param[4].buffer_type = MYSQL_TYPE_LONG;
+    param[4].buffer = &remainAp;
+
+    param[5].buffer_type = MYSQL_TYPE_LONG;
+    param[5].buffer = &charId;
+
+    if (mysql_stmt_bind_param(stmt, param) != 0)
+    {
+        errMsg = mysql_stmt_error(stmt);
+        mysql_stmt_close(stmt);
+        m_mySql->ReleaseConnection(conn);
+        return -1;
+    }
+
+    if (mysql_stmt_execute(stmt) != 0)
+    {
+        errMsg = mysql_stmt_error(stmt);
+        mysql_stmt_close(stmt);
+        m_mySql->ReleaseConnection(conn);
+        return -1;
+    }
+
+    mysql_stmt_close(stmt);
+    m_mySql->ReleaseConnection(conn);
+    return 0;
+}

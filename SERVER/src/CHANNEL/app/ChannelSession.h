@@ -13,6 +13,7 @@ class ChannelServer;
 
 class ChannelSession
 {
+   
 public:
     ChannelSession(int fd, ChannelServer* server, uint64_t sessionId, uint64_t generation);
     ~ChannelSession();

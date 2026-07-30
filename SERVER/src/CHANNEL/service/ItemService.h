@@ -11,12 +11,9 @@ public:
     ItemService();
     ~ItemService(){};
 
-
 public:
     const ItemInitData* Find(int itemID);
     int HandleUseItem(Player* player, UseItem itemData, UseItemResult& result);
 private:
-   
-
     ItemManager* m_item_manager;
 };

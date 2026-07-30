@@ -25,6 +25,7 @@ class ItemManager;
 class ItemService;
 class CombatService;
 class TradeService;
+class PortalService;
 
 class CommandDispatcher;
 
@@ -52,7 +53,8 @@ enum PACKET_TYPE : uint16_t {
     PKT_INIT_CHANNEL        = 0x0008,
     PKT_CHANNEL_AUTH        = 0x0009,
     PKT_ENTER_MAP           = 0x000A,
-
+    PKT_PORTAL_ENTER        = 0x000B,
+    
     // 0x0020 ~ 0x003F : 플레이어
     PKT_PLAYER_MOVE         = 0x0020,
     PKT_PLAYER_ATTACK       = 0x0021,
@@ -135,6 +137,7 @@ struct PacketContext
     ItemService* item_service = nullptr;
     CombatService* combat_service = nullptr;
     TradeService* trade_service = nullptr;
+    PortalService* portal_service = nullptr;
 };
 
 typedef struct packet

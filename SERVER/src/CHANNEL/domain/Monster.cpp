@@ -41,9 +41,9 @@ int Monster::Init(const MonsterTemplate &monsterTemplate, const MonsterSpawnData
 	m_spawnPos.xPos = monsterspawnData.spawnPos.xPos;
 	m_spawnPos.yPos = monsterspawnData.spawnPos.yPos;
 
-	K_LOG_DEBUG( "[MonsterInit] instanceId=%d monsterId=%d respawnDelayRaw=%d",monsterspawnData.instanceId,
-    monsterspawnData.monsterId,
-    monsterspawnData.respawnDelay);
+	//K_LOG_DEBUG( "[MonsterInit] instanceId=%d monsterId=%d respawnDelayRaw=%d",monsterspawnData.instanceId,
+    //monsterspawnData.monsterId,
+    //monsterspawnData.respawnDelay);
 	m_respawnDelay = std::chrono::seconds(monsterspawnData.respawnDelay);
 	m_itemGroup = monsterspawnData.ItemId;
 
@@ -70,7 +70,7 @@ int Monster::Init(const MonsterTemplate &monsterTemplate, const MonsterSpawnData
 		m_attackCooldown = monsterTemplate.projectileData.coolDown;
 	}
 
-#if 1 /*gunoo22 260223 원거리 공격 TestLog*/
+#if 0 /*gunoo22 260223 원거리 공격 TestLog*/
 	K_LOG_TRACE( "Monster [%s] initialized. Ranged Attack: %s", m_name.c_str(), m_isRangedAttack ? "Yes" : "No");
 	K_LOG_TRACE( "Projectile Data - ID: %d, Damage: %f, Speed: %f, Range: %f, Cooldown: %ld", m_projectileId, m_projectileDamage, m_projectileSpeed, m_ragedAttackRange, m_attackCooldown);
 #endif

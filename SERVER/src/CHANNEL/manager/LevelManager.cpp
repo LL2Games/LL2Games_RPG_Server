@@ -16,7 +16,6 @@ LevelManager *LevelManager::GetInstance()
     if(m_instance == nullptr)
     {
         m_instance = new LevelManager();
-        m_instance->Init();
     }
     return m_instance;
 }

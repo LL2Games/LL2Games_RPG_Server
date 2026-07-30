@@ -8,6 +8,9 @@
 #include <cstring>
 #include <stdexcept>
 
+
+
+
 namespace
 {
 int ReadCharacterIdFromPayload(const std::string& payload)
@@ -30,11 +33,14 @@ int ReadCharacterIdFromPayload(const std::string& payload)
 }
 }
 
-ChannelAuthTask::ChannelAuthTask(ChannelServer* server, int fd, std::string payload)
-    : m_server(server),
-      m_fd(fd),
-      m_payload(std::move(payload))
+ChannelAuthTask::ChannelAuthTask(ChannelServer* server, int fd, uint64_t sessionId, uint64_t generation, std::string payload)
+        : m_server(server),
+        m_fd(fd),
+        m_sessionId(sessionId),
+        m_generation(generation),
+        m_payload(std::move(payload))
 {
+
 }
 
 void ChannelAuthTask::Execute()
@@ -42,6 +48,8 @@ void ChannelAuthTask::Execute()
 
     ChannelAuthResult result;
     result.fd = m_fd;
+    result.sessionId = m_sessionId;
+    result.generation = m_generation;
     result.success = false;
 
     try

@@ -34,6 +34,43 @@
 | Channel move load test | 300 clients, crash/restart 없이 유지 |
 | Valgrind Memcheck | definitely lost / indirectly lost 0 bytes |
 
+## 서버 안정성 개선 사례
+
+### 비동기 인증 결과의 fd 재사용 문제
+비동기 인증 처리 중 클라이언트가 연결을 종료하면 기존 fd가 새로운 세션에 재사용될 수 있었다. 인증 결과가 fd만으로 세션을 조회하면
+이전 사용자의 결과가 새 세션에 적용될 가능성이 있었다.
+
+개선 내용 :
+- 인증 작업 생성 시 sessionId와 generation 저장
+- 인증 결과 처리 시 현재 세션과 식별자 비교
+- BeginValudSessionTask()로 세션 유효성 및 종료 상태 확인
+- RAII 가드로 모든 종료 경로에서 EndSessionTassk() 호출 보장
+
+검증:
+- 인증 작업에 테스트용 3초지연 적용
+- 동일 fd 42가 sessionId 8에서 ssessionId 9로 재사용되는 상황 재현
+- sessionId 9는 characterId 3 으로 정상 인증
+
+### 자동 회귀 테스트
+
+```bash
+cd SERVER
+make test
+```
+검증항목 :
+- PacketParser uint16_t length-prefix 왕복
+- 잘린 length header 및 payload 거부
+- fd 재사용 후 stale 인증 결과 폐기
+- stale Player의 신규 세션 및 PlayerManager 등록 방지
+- 현재 세션 식별자 허용
+- closing 세션의 작업 진입 거부
+
+```text
+[PASS] PacketParser length-prefix tests
+[PASS] stale auth result rejected after fd reuse
+[PASS] current session accepted and closing session rejected
+```
+
 ## 📋 목차
 
 - [프로젝트 개요](#-프로젝트-개요)
@@ -45,7 +82,7 @@
 - [시퀀스 다이어그램](#-시퀀스-다이어그램)
 - [클래스 다이어그램](#-클래스-다이어그램)
 - [코딩 규칙](#-코딩-규칙)
-
+- [문서](#-문서)
 ---
 
 ## 🎮 프로젝트 개요
@@ -153,7 +190,7 @@ LL2Games_RPG는 C++17로 작성된 Linux 기반 MMORPG 게임 서버입니다.
 - **Repository 패턴**: 데이터베이스 접근 (예: `PlayerStatRepository`)
 - **Service 패턴**: 비즈니스 로직 계층 (예: `StatService`, `MapService`)
 - **Manager 패턴**: 리소스 관리 (예: `PlayerManager`, `MapManager`)
-- **Object Pool**: MySQL 및 Redis 커넥션 풀링
+- **Connection Pool**: MySQL 및 Redis 커넥션 풀링
 
 ---
 
@@ -349,7 +386,8 @@ make re       # 전체 재빌드 (fclean + all)
 cd SERVER/bin
 
 # MAIN 서버 먼저 실행 (프로세스 관리자)
-./mainD
+./mainD --config <config-file-path>
+# 서버 실행에는 환경별 설정 파일이 필요합니다. 설정 파일에는 서버 포트, MySQL 및 Redis 연결 정보 등이 포함됩니다.
 
 # 개별 서버 실행
 ./loginD
@@ -534,6 +572,9 @@ void PlayerHandler::HandleStatView(Player& player)
 ## 📄 문서
 
 - [채널 서버 성능/수신 경계 테스트 기준 측정](SERVER/docs/Tests/channel_server_performance_baseline_2026-06-30.md)
+- [패킷 프로토콜 명세서](https://bottlenose-error-361.notion.site/LL2Games_PRG-3a7c0b1b991d803199c1cec7e7c7de70)
+- [데이터베이스 설계 및 데이터 흐름](https://bottlenose-error-361.notion.site/LL2Games_RPG-3a7c0b1b991d809f8e11cb7901c26e86)
+---
 
 ## 📄 라이선스
 
