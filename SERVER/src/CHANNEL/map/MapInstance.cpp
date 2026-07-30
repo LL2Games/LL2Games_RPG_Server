@@ -239,6 +239,8 @@ void MapInstance::OnEnter(int PlayerID, Player* player)
 	//K_LOG_DEBUG( "PlayerID(%d)", PlayerID);
 	//K_LOG_DEBUG( "m_playerCount(%d)", playerCount);
 	// 들어온 플레이어 한테 몬스터 정보 전달
+	PlayerPacketSender::SendExistingPlayersToNewPlayer(player, m_playerList);
+	PlayerPacketSender::SendPlayerEnter(player, m_playerList);
 	SendMonsterSnapshot(player);
 }
 

@@ -29,6 +29,7 @@ void InventoryManager::EnsureInventory(InventoryMetaInfo& inventoryMetaInfo)
 
 bool InventoryManager::MoveItemSlots(const MoveItem& moveData,std::vector<InventorySlotUpdate>& updatedSlots,std::string& errMsg)
 {
+    std::lock_guard<std::mutex> lock(m_inventoryMutex);
     auto inventory = m_inventories.find(moveData.inventorytype);
     if (inventory == m_inventories.end())
     {
@@ -110,6 +111,7 @@ const Inventory* InventoryManager::GetInventory(int inventoryType) const
 
 InventorySlot* InventoryManager::FindSlot(int inventoryType, int slotPos)
 {
+
     auto it = m_inventories.find(inventoryType);
 
     if (it == m_inventories.end())
@@ -122,6 +124,7 @@ InventorySlot* InventoryManager::FindSlot(int inventoryType, int slotPos)
 std::vector<InventoryMetaInfo> InventoryManager::GetAllMetaInfos() const
 {
     std::vector<InventoryMetaInfo> inventoryMetaInfos;
+     std::lock_guard<std::mutex> lock(m_inventoryMutex);
     for(auto [type, inventory] : m_inventories)
     {
         InventoryMetaInfo inventorymetaInfo;
@@ -139,6 +142,7 @@ std::vector<InventoryItemInfo> InventoryManager::GetAllItemInfos() const
 {
     std::vector<InventoryItemInfo> inventoryItemInfos;
 
+     std::lock_guard<std::mutex> lock(m_inventoryMutex);
     for(auto [type, inventory] : m_inventories)
     {
          std::vector<InventoryItemInfo> items = inventory.MakeItemInfos();
@@ -154,6 +158,7 @@ std::vector<InventoryItemInfo> InventoryManager::GetAllItemInfos() const
 
 void InventoryManager::Clear()
 {
+    std::lock_guard<std::mutex> lock(m_inventoryMutex);
     m_inventories.clear();
 }
 

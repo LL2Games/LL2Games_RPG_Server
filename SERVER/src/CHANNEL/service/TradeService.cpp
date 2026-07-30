@@ -161,9 +161,9 @@ int TradeService::Ready(Player* player, const std::vector<TradeItem>& , std::str
             executeData.a_items = session->a_items;
             executeData.b_items = session->b_items;
 
-            m_sessions.erase(session->a_id);
-            m_sessions.erase(session->b_id);
-            delete session;
+            //m_sessions.erase(session->a_id);
+            //m_sessions.erase(session->b_id);
+            //delete session;
         }
     }
 
@@ -618,7 +618,11 @@ int TradeService::SelectInventoryItemSlot(MYSQL *conn, const std::string &char_i
     int fetchResult = mysql_stmt_fetch(stmt);
     if (fetchResult == 0)
     {
-        hasItem = true; // row 있음
+        hasItem = true;
+    
+        // 받는 사람의 실제 합쳐진 슬롯 위치
+        item.slot_index = slotPos;
+    
         mysql_stmt_close(stmt);
         return 0;
     }

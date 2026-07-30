@@ -25,6 +25,16 @@ ChannelSession::~ChannelSession()
     {
         m_player->SetSession(nullptr);
 
+        if (m_server != nullptr)
+        {
+            std::string errMsg;
+            int saveResult = m_server->GetStatService()->SaveRuntimeStat(*m_player, errMsg);
+            if (saveResult != 0)
+            {
+                K_LOG_ERROR("SaveRuntimeStat failed. playerId[%d] err[%s]", m_player->GetId(), errMsg.c_str());
+            }
+        }
+
         MapInstance *map = m_player->GetCurrentMap();
         
         if (map != nullptr)
