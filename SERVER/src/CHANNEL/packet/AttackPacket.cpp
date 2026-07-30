@@ -12,7 +12,9 @@
 
 // 플레이어가 공격을 했을 때 클라이언트에서 피격 여부를 판정하고 누가 피격당했는지 어떤 스킬 및 공격을 수행했는지에 대해서 정보를 전달하는 것이 아니라
 // 플레이어가 공격을 했다라는 정보만을 가지고 서버에서 피격 판정 여부와 공격 가능 여부를 판단해서 같은 맵의 플레이어들한테 정보 전달
-void PlayerHandler::AttackPacket(PacketContext * ctx)
+
+//gunoo22 260729 스킬 사용부분 확인
+void PlayerHandler::SkillAttackPacket(PacketContext * ctx)
 {   
     CombatService *combat_service = nullptr;
     ChannelSession *session = nullptr;
@@ -105,20 +107,22 @@ void PlayerHandler::AttackPacket(PacketContext * ctx)
         K_LOG_ERROR( "StringToInt fail");
         goto err;
     }
-    result = combat_service->HandleAttack(player, skill_id, attack_dir);
+    result = combat_service->HandleSkillAttack(player, skill_id, attack_dir);
 
     if(result != 1)
     {
         rc = EXIT_FAILURE;
-        K_LOG_ERROR( "HandleAttack fail");
+        K_LOG_ERROR( "HandleSkillAttack fail");
         goto err;
     }
     
     
 err:
     if (rc != EXIT_SUCCESS) { 
-        session->SendNok(PKT_PLAYER_ATTACK, errMsg);
+        session->SendNok(PKT_PLAYER_SKILL_ATTACK, errMsg);
     } else {
+        session->SendOk(PKT_PLAYER_SKILL_ATTACK, {std::to_string(skill_id)});
+
         K_LOG_TRACE( "Player Attack End");
         PlayerPacketSender::SendPlayerAttack(player,skill_id,attack_dir,player->GetCurrentMap()->GetPlayerList());
     }

@@ -10,7 +10,7 @@
   "requirements": [{"root_job": 0,"min_tier": 0,"min_skill_level": 0}],
 
   "hit": [{ "shape": "MELEE_ARC", "range": 80.0, "angle_deg": 45.0, "max_targets": 1, "hit_count": 1 }],
-  "damage": [{ "multiplier": 1.0, "flat_add": 0 }],
+  "damage": [{ "multiplier": 0.3, "flat_add": 0 }],
 
   "effects": [{ "type": "", "force": 0 }],
 

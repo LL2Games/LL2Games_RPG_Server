@@ -78,7 +78,7 @@ void Player::SetInitData(const PlayerInitData playerInitData, const CharacterSta
 }
 
 
-bool Player::CanAttack(SkillDef* skillDef)
+bool Player::CanUseSkill(SkillDef* skillDef)
 {
     if (skillDef == nullptr)
     {

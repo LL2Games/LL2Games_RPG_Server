@@ -16,7 +16,7 @@ CombatService::~CombatService()
 }
 
 
-int CombatService::HandleAttack(Player* Attacker, int skill_id, int attack_dir)
+int CombatService::HandleSkillAttack(Player* Attacker, int skill_id, int attack_dir)
 {
     MapInstance* map = Attacker->GetCurrentMap();
 
@@ -25,7 +25,7 @@ int CombatService::HandleAttack(Player* Attacker, int skill_id, int attack_dir)
     if(!skillDef) return 0;
 
     //캐릭터가 공격 가능 상태인지 확인
-    if(!Attacker->CanAttack(&*skillDef))
+    if(!Attacker->CanUseSkill(&*skillDef))
     {
         K_LOG_TRACE( "플레이어가 공격 가능한 상태가 아닙니다.\n");
         return 0;
@@ -91,7 +91,7 @@ int CombatService::HandleBasicAttack(Player* Attacker, int attack_dir)
         return 0;
     }
     //캐릭터가 공격 가능 상태인지 확인
-    if(!Attacker->CanAttack(&*skillDef))
+    if(!Attacker->CanUseSkill(&*skillDef))
     {
         K_LOG_TRACE( "플레이어가 공격 가능한 상태가 아닙니다.\n");
         return 0;
