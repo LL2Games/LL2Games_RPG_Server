@@ -15,19 +15,28 @@ CombatService::~CombatService()
     
 }
 
-
+//gunoo22 260729 스킬 사용부분 확인
 int CombatService::HandleSkillAttack(Player* Attacker, int skill_id, int attack_dir)
 {
     MapInstance* map = Attacker->GetCurrentMap();
+    if(!map)
+    { 
+        K_LOG_ERROR( "Attacker->GetCurrentMap() fail");
+        return 0;
+    }
 
     std::optional<SkillDef> skillDef = m_skillManager->GetSkill(skill_id);
 
-    if(!skillDef) return 0;
+    if(!skillDef)
+    { 
+        K_LOG_ERROR( "m_skillManager->GetSkill(%d) fail", skill_id);
+        return 0;
+    }
 
     //캐릭터가 공격 가능 상태인지 확인
     if(!Attacker->CanUseSkill(&*skillDef))
     {
-        K_LOG_TRACE( "플레이어가 공격 가능한 상태가 아닙니다.\n");
+        K_LOG_ERROR( "플레이어가 공격 가능한 상태가 아닙니다.\n");
         return 0;
     }
 
@@ -147,6 +156,7 @@ std::vector<Monster*> CombatService::ComputeHitMonsters(Player* attacker, std::v
         bool isHit = false;
         const Collider2D& monsterCollider = m.GetCollider();
   
+        K_LOG_DEBUG( " 공격 타입[%d].\n", skillDef.hit.shape);
         if (skillDef.hit.shape == HitShape::BOX)
         {
             Collider2D attackCollider = Collision::MakeBoxAttackCollider(skillDef, attack_dir);

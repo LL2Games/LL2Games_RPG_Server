@@ -100,6 +100,8 @@ bool Player::CanUseSkill(SkillDef* skillDef)
     // 기본 공격이 아닌 경우에만 직업/습득 여부 검사
     if (!isBasicAttack)
     {
+#if 1 //gunoo22 260729 스킬 사용부분 확인을 위해 주석 실제 운영시 주석 풀어야함
+
         if (m_root_job != skillDef->Requirements.root_job)
         {
             K_LOG_TRACE( "플레이어가 사용 가능한 스킬이 아닙니다.\n");
@@ -112,6 +114,7 @@ bool Player::CanUseSkill(SkillDef* skillDef)
             K_LOG_TRACE( "플레이어가 배우지 않은 스킬입니다.\n");
             return false;
         }
+#endif
     }
 
     // 마나 검사
