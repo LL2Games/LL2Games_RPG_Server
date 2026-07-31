@@ -119,6 +119,15 @@ typedef struct MapInitData{
     std::vector<PortalData> portals;
 }mapData;
 
-
-
-
+struct ProjectileSnapshotInfo
+{
+    std::uint64_t instanceId; // 맵 안에서 고유한 개별 투사체 ID
+    int projectileTypeId;  // 이미지/콜라이더 설정 종류
+    int ownerMonsterId;
+    float dirX;
+    float dirY;
+    float xPos;
+    float yPos;
+    float range;
+    float speed;
+};

@@ -1,5 +1,6 @@
 #include "MonsterPacketSender.h"
 #include "ChannelSession.h"
+#include "K_slog.h"
 
 
 void MonsterPacketSender::SendMonsterSnapShot(Player* player, const std::vector<MonsterSnapshotInfo>& monsters)
@@ -57,6 +58,50 @@ void MonsterPacketSender::SendMonsterMove(Player* player, const std::vector<Mons
     }
 
     session->Send(PKT_MONSTER_MOVE, payload);
+}
+
+void MonsterPacketSender::SendProjectileMove(Player* player, const std::vector<ProjectileSnapshotInfo>& projectiles)
+{
+    if (player == nullptr)
+        return;
+
+    auto session = player->GetSession();
+    if (session == nullptr)
+        return;
+
+    std::vector<std::string> payload;
+    payload.reserve(1 + projectiles.size() * 4);
+
+    payload.push_back(std::to_string(projectiles.size()));
+
+    //gunoo22 260726 투사체부분 클라이언트 패킷수신부분과 맞춰줘야함.
+    for (const auto& projectile : projectiles)
+    {
+        payload.push_back(std::to_string(projectile.instanceId));
+        payload.push_back(std::to_string(projectile.projectileTypeId));
+        payload.push_back(std::to_string(projectile.ownerMonsterId));
+        payload.push_back(std::to_string(projectile.dirX));
+        payload.push_back(std::to_string(projectile.dirY));
+        payload.push_back(std::to_string(projectile.range));
+        payload.push_back(std::to_string(projectile.speed));
+        payload.push_back(std::to_string(projectile.xPos));
+        payload.push_back(std::to_string(projectile.yPos));
+
+        // K_LOG_TRACE( "projectileTypeId [%d]", projectile.projectileTypeId);
+        // K_LOG_TRACE( "ownerMonsterId [%d]", projectile.ownerMonsterId);
+        // K_LOG_TRACE( "PROJECTILE POS [%f, %f]", projectile.xPos, projectile.yPos);
+
+        int idx = 0;
+        for (const auto &pay: payload)
+        {
+            K_LOG_TRACE("[%d]%s", ++idx, pay.c_str());
+        }
+        
+    }
+
+    
+
+    session->Send(PKT_PROJECTILE_MOVE, payload);
 }
 
 

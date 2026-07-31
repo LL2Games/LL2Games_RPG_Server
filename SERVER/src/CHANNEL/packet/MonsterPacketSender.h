@@ -12,5 +12,6 @@ public:
     static void SendMonsterMove(Player* player, const std::vector<MonsterMoveInfo>& monsters);
     static void SendMonsterOnDamaged(Player* Attacker, int SkillID, std::vector<MonsterHitResult>& result, std::unordered_map<int, Player*>& playerList);
     static void SendMonsterRespawn(std::unordered_map<int, Player*>& playerList, const std::vector<MonsterRespawnInfo>& monsters);
+    static void SendProjectileMove(Player* player, const std::vector<ProjectileSnapshotInfo>& projectiles);
 private:
 };

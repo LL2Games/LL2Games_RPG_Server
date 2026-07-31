@@ -11,11 +11,12 @@ Player::Player() : m_char_id(0),
                    m_nextContactDamageAllowedMs(-1),
                    m_contactDamageCooldownMs(1000) //무적 쿨타임
 {
+    //Player Collider 초기화 부분
     m_collider.type = ColliderType::Rect2D;
     // 일단 콜라이더 offset과 halfW, halfH 고정으로 설정 나중에 리소스 크기에 따라서 변경 해야함
-    m_collider.rect.offset = {0.f, 2.0f};
-    m_collider.rect.halfW = 12.f;
-    m_collider.rect.halfH = 14.f;
+    m_collider.rect.offset = {-6.f, -20.f};
+    m_collider.rect.halfW = 18.f;
+    m_collider.rect.halfH = 30.f;
     m_quickSlotManager.Init();
 }
 

@@ -20,7 +20,7 @@
     "projectile" :[{
         "id" : 1,
         "damage" : 3,
-        "speed" : 15,
+        "speed" : 45,
         "range" : 30,
         "coolDown" : 1800,
         "collider" : [{

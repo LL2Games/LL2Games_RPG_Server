@@ -81,9 +81,9 @@ int MapInstance::Update()
 	{
 		SpawnMonster();
 		UpdateMonster();
+		m_projectileManager.Update(); //투사체 업데이트
 		SendMapInfo();
-		//m_projectileManager.Update(); //투사체 업데이트
-		//ProcessRangedDamage(NowMs()); //원거리 공격 판정 및 데미지 처리
+		ProcessRangedDamage(NowMs()); //원거리 공격 판정 및 데미지 처리
 		ProcessContactDamage(NowMs()); //플레이어-몬스터 접촉 판정 및 데미지 처리
 	}
 
@@ -105,10 +105,13 @@ void MapInstance::SendMapInfo()
         }
     }
 
+	//Broadcast
 	for (Player* player : players)
     {
         SendMonsterMove(player);
+		SendProjectileMove(player);
     }
+	//BroadcastProjectileMove(players);
 }
 
 int MapInstance::InitSpawnMonster()
@@ -358,7 +361,7 @@ void MapInstance::SendMonsterSnapshot(Player* player)
         	if (!monster.IsAlive())
         	    continue;
 
-        	monster.SetState(MonsterState::E_Move);
+        	//monster.SetState(MonsterState::E_Move); //gunoo22 260712 여기서 SetState를 재정의해서 Chase, Patrol다 안되고있었음
 
         	MonsterMoveInfo info;
         	info.instanceId = monster.GetInstanceId();
@@ -373,6 +376,56 @@ void MapInstance::SendMonsterSnapshot(Player* player)
     	}
 	}
 	MonsterPacketSender::SendMonsterMove(player, aliveMonsters);
+ }
+
+ //void MapInstance::BroadcastProjectileMove(std::vector<Player*> players)
+ void MapInstance::SendProjectileMove(Player* player)
+ {
+	if (player == nullptr)
+    {
+        K_LOG_ERROR( "player is nullptr");
+        return;
+    }
+
+	const std::vector<ProjectileSnapshotInfo> projectileInfos = m_projectileManager.CreateSnapshot();
+
+	if (projectileInfos.empty())
+	{
+		K_LOG_DEBUG("projectile nothing");
+		return;
+	}
+
+	MonsterPacketSender::SendProjectileMove(player, projectileInfos);
+
+    // std::vector<MonsterMoveInfo> aliveMonsters;
+	// {
+	// 	std::lock_guard<std::mutex> lock(m_monsterMutex);
+    // 	aliveMonsters.reserve(m_monsterList.size());
+    // 	for (auto& monster : m_monsterList)
+    // 	{
+    //     	if (!monster.IsAlive())
+    //     	    continue;
+
+    //     	//monster.SetState(MonsterState::E_Move); //gunoo22 260712 여기서 SetState를 재정의해서 Chase, Patrol다 안되고있었음
+
+    //     	MonsterMoveInfo info;
+    //     	info.instanceId = monster.GetInstanceId();
+    //     	info.state = static_cast<int>(monster.GetState());
+    //     	info.dirX = static_cast<int>(monster.GetDir().xPos);
+    //     	info.xPos = monster.GetPos().xPos;
+    //     	info.yPos = monster.GetPos().yPos;
+    //     	info.currentHp = monster.GetCurrentHP();
+    //     	info.maxHp = monster.GetMaxHP();
+
+    //     	aliveMonsters.push_back(info);
+    // 	}
+	// }
+	//for (auto player : players)
+	//{
+		//SendProjectileInfo
+	//}
+
+	//MonsterPacketSender::SendMonsterMove(player, aliveMonsters);
  }
 
 // 맵이 사라지는 경우 호출
@@ -535,8 +588,12 @@ void MapInstance::ProcessContactDamage(int64_t nowMs)
 /*gunoo22 260223 원거리 공격 처리*/
 void MapInstance::ProcessRangedDamage(int64_t nowMs)
 {
+	std::vector<ContactDamageEvent> events;
+	std::unordered_map<int, Player*> playerSnapshot;
+
 	{
 		std::lock_guard<std::mutex> lock(m_playerMutex);
+		playerSnapshot = m_playerList;
    		for(auto p : m_playerList)
    		{
 				Player* player = p.second;
@@ -549,12 +606,12 @@ void MapInstance::ProcessRangedDamage(int64_t nowMs)
 		
 				const Vec2 player_pos = player->GetPos();
 		
-				K_LOG_TRACE( "\n\nPLAYER POS [%f, %f]", player_pos.xPos, player_pos.yPos);
+				//K_LOG_TRACE( "\n\nPLAYER POS [%f, %f]", player_pos.xPos, player_pos.yPos);
 				for (const auto& p : m_projectileManager.GetProjectiles())
 				{
 					const Vec2& projectile_pos = p->GetPos();
 				
-					K_LOG_DEBUG( "PROJECTILE POS [%f, %f]", projectile_pos.xPos, projectile_pos.yPos);
+					//K_LOG_DEBUG( "PROJECTILE POS [%f, %f]", projectile_pos.xPos, projectile_pos.yPos);
 				
 					//플레이어와 투사체 거리가 일정거리 이상이라면 스킵
 					if (Distancesquare(player_pos, projectile_pos) > m_contactCheckRadiusSq) continue;
@@ -562,11 +619,24 @@ void MapInstance::ProcessRangedDamage(int64_t nowMs)
 					 // 정밀 충돌(AABB/원형)
 					if (!Collision::Intersects(player_pos, player->GetCollider(), projectile_pos, p->GetCollider())) continue;
 				
+					int dmg = p->GetDamage();
+
 					//플레이어 온데미지
-					player->OnDamaged(p->GetDamage(), nowMs);
+					player->OnDamaged(dmg, nowMs);
+
+					PlayerHitResult result;
+					result.damage = dmg;
+					SetPlayerHitResult(player, p->GetOwnerId(), result);
+
+					events.push_back({ player, result });
 				}
    		}
 	}
+
+	for (const auto& event : events)
+    {
+        PlayerPacketSender::SendPlayerOnDamaged(event.player, event.result, playerSnapshot);
+    }
 }
 
 void MapInstance::SetPlayerHitResult(Player* player, int monster_instanceId, PlayerHitResult& result)
