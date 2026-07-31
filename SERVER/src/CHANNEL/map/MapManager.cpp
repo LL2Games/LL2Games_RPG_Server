@@ -75,12 +75,10 @@ MapInstance *MapManager::GetOrCreate(int mapId)
     auto itInit = m_maps_initData.find(mapId);
     if (itInit != m_maps_initData.end())
     {
-        K_LOG_TRACE( "gunoo22_TEST");
         mapData = itInit->second;
     }
     else
     {
-        K_LOG_TRACE( "gunoo22_TEST");
         if (!LoadJsonFile(mapId, mapData))
             return nullptr;
     }
@@ -89,13 +87,6 @@ MapInstance *MapManager::GetOrCreate(int mapId)
 
     newMap->SetCombatService(m_server->GetCombatService());
 
-    K_LOG_TRACE("map create. mapId[%d], portalCount[%zu]", mapId, mapData.portals.size());
-
-    for (const PortalData& portal : mapData.portals)
-    {
-        K_LOG_TRACE("map portal. mapId[%d], portalId[%s]", mapId, portal.portalId.c_str());
-    }
-    
     if (newMap->Init(mapData) != 1)
     {
         delete newMap;

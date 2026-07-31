@@ -41,7 +41,7 @@ void PlayerPacketSender::SendPlayerStat(Player* player)
         return;
     }
 
-    auto playerStat = player->GetStat();
+    auto playerStat = player->GetStatSnapShot();
     auto playerBastStat = playerStat.GetBase();
     std::vector<std::string> payload;
 
@@ -177,6 +177,7 @@ void PlayerPacketSender::SendPlayerEnter(Player *player, std::unordered_map<int,
     std::vector<std::string> payload;
 
     payload.push_back(std::to_string(player->GetId()));
+    payload.push_back(player->GetName());
     payload.push_back(std::to_string(player->GetJob()));  
     payload.push_back(std::to_string(player->GetPos().xPos));
     payload.push_back(std::to_string(player->GetPos().yPos));
@@ -228,6 +229,7 @@ void PlayerPacketSender::SendExistingPlayersToNewPlayer(Player *newPlayer, std::
             continue;
 
         payload.push_back(std::to_string(other->GetId()));
+        payload.push_back(other->GetName());
         payload.push_back(std::to_string(other->GetJob()));
         payload.push_back(std::to_string(other->GetPos().xPos));
         payload.push_back(std::to_string(other->GetPos().yPos));

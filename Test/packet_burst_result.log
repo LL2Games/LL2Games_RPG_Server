@@ -1,0 +1,11 @@
+target=127.0.0.1:9001
+clients=1000, packets_per_client=1000, total_expected=1000000, timeout=30.0, delay=0.0
+success_clients=1000
+failed_clients=0
+total_sent=1000000
+elapsed_sec=48.919
+packets_per_sec=20442.151
+connect_ms_avg=57.078
+connect_ms_max=386.699
+send_ms_avg=33159.585
+send_ms_max=38889.949

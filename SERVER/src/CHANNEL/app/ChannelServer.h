@@ -29,8 +29,11 @@
 #include <mutex>
 #include <cstdint>
 
+class ChannelServerTestAccess;
+
 class ChannelServer
 {
+    friend class ChannelServerTestAccess;
 public:
     ChannelServer(const int channelId, const int threadCount, const int maxUserCount);
     ~ChannelServer();

@@ -5,7 +5,7 @@
     "attackDamage"  : 20,
     "level"         : 10,
     "exp"           : 5,
-    "moveSpeed"     : 10,
+    "moveSpeed"     : 30,
 
     "common_drop_group_id": "FIELD_COMMON_LV1_20",
     "unique_drop_group_id": "UNIQUE_GREEN_SNAIL",
@@ -18,15 +18,15 @@
 
     "isRanged" : true,
     "projectile" :[{
-        "id" : 2,
+        "id" : 1,
         "damage" : 3,
-        "speed" : 1,
+        "speed" : 30,
         "range" : 100,
         "coolDown" : 2000,
         "collider" : [{
             "type" : "Circle2D",
-            "offset" : {"x" : 0, "y" : 0},
-            "radius": 2
+            "offset" : {"x" : -8, "y" : 7},
+            "radius": 6
         }]
     }]
 }

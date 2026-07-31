@@ -41,9 +41,9 @@ int Monster::Init(const MonsterTemplate &monsterTemplate, const MonsterSpawnData
 	m_spawnPos.xPos = monsterspawnData.spawnPos.xPos;
 	m_spawnPos.yPos = monsterspawnData.spawnPos.yPos;
 
-	K_LOG_DEBUG( "[MonsterInit] instanceId=%d monsterId=%d respawnDelayRaw=%d",monsterspawnData.instanceId,
-    monsterspawnData.monsterId,
-    monsterspawnData.respawnDelay);
+	//K_LOG_DEBUG( "[MonsterInit] instanceId=%d monsterId=%d respawnDelayRaw=%d",monsterspawnData.instanceId,
+    //monsterspawnData.monsterId,
+    //monsterspawnData.respawnDelay);
 	m_respawnDelay = std::chrono::seconds(monsterspawnData.respawnDelay);
 	m_itemGroup = monsterspawnData.ItemId;
 
@@ -70,7 +70,7 @@ int Monster::Init(const MonsterTemplate &monsterTemplate, const MonsterSpawnData
 		m_attackCooldown = monsterTemplate.projectileData.coolDown;
 	}
 
-#if 1 /*gunoo22 260223 원거리 공격 TestLog*/
+#if 0 /*gunoo22 260223 원거리 공격 TestLog*/
 	K_LOG_TRACE( "Monster [%s] initialized. Ranged Attack: %s", m_name.c_str(), m_isRangedAttack ? "Yes" : "No");
 	K_LOG_TRACE( "Projectile Data - ID: %d, Damage: %f, Speed: %f, Range: %f, Cooldown: %ld", m_projectileId, m_projectileDamage, m_projectileSpeed, m_ragedAttackRange, m_attackCooldown);
 #endif
@@ -97,37 +97,40 @@ int Monster::Init(const MonsterTemplate &monsterTemplate, const MonsterSpawnData
 int Monster::Update(float dt)
 {
 
-	//K_LOG_TRACE( "state=[%d]", m_state);
+	K_LOG_TRACE("[%s]state=[%d]", m_name.c_str(), m_state);
 	//K_LOG_TRACE( "Monster Pointer[%p]", this);
 
 	switch (m_state)
 	{
 		case E_Idle:
+		case E_Move: //gunoo22 260712 E_Move가 UpdatePatrol을 안하고있어서 몬스터가 안움직이고 있었음
 		case E_Patrol:
 		//K_LOG_TRACE( "state=[Patrol]");
+		K_LOG_TRACE("[%s]state=Patrol", m_name.c_str());
 		UpdatePatrol(dt);
 		break;
 
 	case E_Chase:
-		K_LOG_TRACE( "state=[Chase]");
+		K_LOG_TRACE( "[%s]state=[Chase]", m_name.c_str());
 		UpdateChase(dt);
 		break;
 
 	case E_RangeAttack:
-		K_LOG_TRACE( "state=[RangeAttack]");
+		K_LOG_TRACE( "[%s]state=[RangeAttack]", m_name.c_str());
 		UpdateChase(dt);
 		break;
 		
 	case E_Dead:
-		K_LOG_TRACE( "state=[Dead]");
+		K_LOG_TRACE( "[%s]state=[Dead]", m_name.c_str());
 		break;
-  case E_Die:
-	case E_Move:
+    case E_Die:
 	case E_Hit:
 	case E_NONE:
 	default:
 			break;
 	}
+
+	K_LOG_TRACE("[%s]x_pos[%f]", m_name.c_str(), m_Pos.xPos);
 	return 0;
 }
 
@@ -135,6 +138,9 @@ int Monster::Update(float dt)
 int Monster::UpdatePatrol(float dt)
 {
 	//이동
+	K_LOG_TRACE("[%s]m_dir.xPos[%f]", m_name.c_str(), m_dir.xPos);
+	K_LOG_TRACE("[%s]m_moveSpeed[%d]", m_name.c_str(), m_moveSpeed);
+	K_LOG_TRACE("[%s]dt[%d]", m_name.c_str(), dt);
 	m_Pos.xPos += m_dir.xPos * m_moveSpeed * dt;
 
 	//오른쪽 경계 도달
@@ -175,7 +181,8 @@ bool Monster::TryRangedAttack(const Vec2& dir)
 		dir,
 		m_projectileSpeed,
 		m_ragedAttackRange,
-		m_instanceId
+		m_projectileId,
+		m_monsterId
 	);
 
 	//맵 인스턴스의 투사체 매니저에 투사체 추가

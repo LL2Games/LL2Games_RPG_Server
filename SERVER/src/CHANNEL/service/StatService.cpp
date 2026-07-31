@@ -24,5 +24,20 @@ int StatService::UpStat(Player &player, const std::string &statType, std::string
     (void)errMsg;
     //객체 업
     stat.Up(statType);
+  
+    return result;
+}
+
+int StatService::SaveRuntimeStat(Player& player, std::string& errMsg)
+{
+    if (!player.IsStatDirty())
+        return 0;
+
+    CharacterStat stat = player.GetStatSnapShot();
+
+    int result = m_repo.SaveRuntimeStat(player.GetId(), stat, errMsg);
+    if (result == 0)
+        player.ClearStatDirty();
+
     return result;
 }

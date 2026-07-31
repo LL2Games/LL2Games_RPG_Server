@@ -57,6 +57,10 @@ channel:
 	@echo "===== Build CHANNEL Server ====="
 	@$(MAKE) -C src/CHANNEL
 
+test:
+	@echo "===== Run Regression Tests ====="
+	@$(MAKE) -C ../Test run
+
 clean:
 	rm -rf $(OBJ_DIR_COMMON) $(OBJ_DIR_MAIN) $(OBJ_DIR_LOGIN) $(OBJ_DIR_CHAT) $(OBJ_DIR_WORLD) $(OBJ_DIR_CHANNEL)
 
@@ -65,4 +69,4 @@ fclean: clean
 
 re : fclean all
 
- .PHONY: all clean fclean re common main login chat world channel
+ .PHONY: all clean fclean re common main login chat world channel test

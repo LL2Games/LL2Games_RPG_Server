@@ -25,8 +25,8 @@ void PlayerHandler::Execute(PacketContext * ctx)
           case PKT_PLAYER_MOVE:
                MovePacket(ctx);
                break;
-          case PKT_PLAYER_ATTACK:
-               AttackPacket(ctx);
+          case PKT_PLAYER_SKILL_ATTACK:
+               SkillAttackPacket(ctx);
                break;
           case PKT_PLAYER_BASIC_ATTACK:
                K_LOG_TRACE( "PKT_PLAYER_BASIC_ATTACK START\n");

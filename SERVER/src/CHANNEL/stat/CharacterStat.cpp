@@ -29,7 +29,7 @@ ExpResult CharacterStat::AddExp(int64_t exp)
         m_expStat.exp -= needExp;
         m_expStat.level++;
 
-        m_remain_ap += 5;
+        m_remain_ap += m_levelUp_ap;
         m_cur_hp = m_derived.maxHp;
         m_cur_mp = m_derived.maxMp;
     }

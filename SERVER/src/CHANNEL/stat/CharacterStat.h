@@ -112,7 +112,8 @@ private:
     int m_cur_hp;
     int m_cur_mp;
     int m_remain_ap;
-
+private:
+    static constexpr u_int16_t m_levelUp_ap = 5;
 
     
 };

@@ -16,7 +16,6 @@ ChannelServer::ChannelServer(const int channelId, const int threadCount, const i
     m_monster_manager = MonsterManager::GetInstance();
     m_skill_manager = SkillManager::GetInstance();
     m_drop_manager = DropManager::GetInstance();
-    m_level_manager = LevelManager::GetInstance();
 }
 
 ChannelServer::~ChannelServer()
@@ -85,7 +84,19 @@ bool ChannelServer::Init(const int port, const RedisConfig& redisConfig)
     if(!m_monster_manager->Init()) return false;
     if(!m_skill_manager->Init()) return false;
     if(!m_drop_manager->Init()) return false;
-    if(!m_level_manager->Init()) return false;
+    m_level_manager = LevelManager::GetInstance();
+
+    if (m_level_manager == nullptr)
+    {
+        K_LOG_ERROR("LevelManager GetInstance failed");
+        return false;
+    }
+
+    if (!m_level_manager->Init())
+    {
+        K_LOG_ERROR("LevelManager Init failed");
+        return false;
+    }
 
 
     if(!InitListenSocket(port))
@@ -370,7 +381,12 @@ void ChannelServer::OnAccept()
             // 로그로 접속한 IP 정보 출력
         }
         currentUserCount = m_current_user_count.fetch_add(1) + 1;
-        K_LOG_TRACE( "New Connection FD [%d] Current User Count [%u]\n", cfd, currentUserCount);
+        K_LOG_TRACE("[%s][%d] New Connection FD [%d] SessionId [%llu] Generation [%llu] Current User Count [%u]",__FUNCTION__,
+                    __LINE__,
+                    cfd,
+                    static_cast<unsigned long long>(sessionId),
+                    static_cast<unsigned long long>(generation),
+                    currentUserCount);
     }
 }
 
@@ -585,8 +601,8 @@ void ChannelServer::UpdateChannelStateToRedis(const int ttl)
         return;
     }
 
-    K_LOG_DEBUG( "Updated channel status to Redis: state=%s, percentage=%d%%", state.c_str(), percentage);
-    K_LOG_DEBUG( "Current User Count: %d, Max User Count: %d", curUser, maxUser);
+    //K_LOG_DEBUG( "Updated channel status to Redis: state=%s, percentage=%d%%", state.c_str(), percentage);
+    //K_LOG_DEBUG( "Current User Count: %d, Max User Count: %d", curUser, maxUser);
 }
 
 void ChannelServer::ProcessAuthResults()
@@ -598,23 +614,39 @@ void ChannelServer::ProcessAuthResults()
         std::swap(local, m_authResults);
     }
 
+    struct SessionTaskGuard
+    {
+        ChannelServer* server;
+        ChannelSession* session;
+
+        ~SessionTaskGuard()
+        {
+            if(server != nullptr && session != nullptr)
+            {
+                server->EndSessionTask(session);
+            }
+        }
+    };
+
     while (!local.empty())
     {
 
         ChannelAuthResult result = std::move(local.front());
         local.pop();
-        ChannelSession* session = nullptr;
-        {
-            std::lock_guard<std::mutex> lock(m_sessionMutex);
-            auto it = m_sessions.find(result.fd);
-            if (it == m_sessions.end())
-            {
-                K_LOG_TRACE( "[ProcessAuthResults] fd closed:%d", result.fd);
-                continue;
-            }
 
-            session = it->second;
+        ChannelSession* session = BeginValidSessionTask(result.fd, result.sessionId, result.generation);
+
+        if(session == nullptr)
+        {
+            K_LOG_TRACE("[ProcessAuthResults] invalid or stale session fd:%d sessionId:%llu generation:%llu ",
+                result.fd,
+                static_cast<unsigned long long>(result.sessionId),
+                static_cast<unsigned long long>(result.generation));
+            continue;
         }
+        
+        SessionTaskGuard taskGuard{this, session};
+
 
         if (!result.success || result.player == nullptr)
         {

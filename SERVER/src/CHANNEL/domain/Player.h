@@ -13,6 +13,7 @@
 #include "QuickSlotManager.h"
 #include "Weapon_Info.h"
 #include "StatInfoPacket.h"
+#include <mutex>
 
 class ChannelSession;
 class MapInstance;
@@ -56,22 +57,68 @@ public:
     void SetState(PlayerState state) {m_CurrentState = state;}
 
 public:
-    int GetCurHP(){return m_stat.GetCurHp();}
-    int GetCurMP(){return m_stat.GetCurMp();}
-    int GetMaxHP(){return m_stat.GetMaxHp();}
+    int GetCurHP() const
+    {
+        std::lock_guard<std::mutex> lock(m_statMutex);
+        return m_stat.GetCurHp();
+    }
+    int GetCurMP() const
+    {
+        std::lock_guard<std::mutex> lock(m_statMutex);
+        return m_stat.GetCurMp();
+    }
+    int GetMaxHP() const
+    {
+        std::lock_guard<std::mutex> lock(m_statMutex);
+        return m_stat.GetMaxHp();
+    }
+    PlayerState GetState() const
+    {
+        std::lock_guard<std::mutex> lock(m_statMutex);
+        return m_CurrentState;
+    }
+    bool IsAlive() const
+    {
+        std::lock_guard<std::mutex> lock(m_statMutex);
+        return m_CurrentState != PlayerState::DEAD ? true : false;
+    }
+
+    CharacterStat GetStatSnapShot() const
+    {
+        std::lock_guard<std::mutex> lock(m_statMutex);
+        return m_stat;
+    }
+    BaseStat GetBaseStatSnapshot() const
+    {
+        std::lock_guard<std::mutex> lock(m_statMutex);
+        return m_stat.GetBase();
+    }
+
+    bool IsStatDirty() const
+    {
+        std::lock_guard<std::mutex> lock(m_statMutex);
+        return m_statDirty;
+    }
+    
+    void ClearStatDirty()
+    {
+        std::lock_guard<std::mutex> lock(m_statMutex);
+        m_statDirty = false;
+    }
+
     int GetJob() {return m_job;}
     int GetId() {return m_char_id;}
     int GetMapId() {return m_map_id;}
     int GetLevel() const {return m_level;}
     int GetSkillLevel(int skill_id) const;
     WeaponType GetWeaponType() const {return m_weaponType;}
-    PlayerState GetState(){return m_CurrentState;}
+    
 
     InventoryManager* GetInventoryManager() {return &m_inventoryManager;}
     SkillManager* GetSkillManager() {return m_skillManager;}
     QuickSlotManager* GetQuickSlotManager() {return &m_quickSlotManager;}
 
-    bool IsAlive(){return m_CurrentState != PlayerState::DEAD ? true : false;}
+    
 
     std::string GetName() {return m_name;}
 
@@ -93,12 +140,13 @@ public:
 public:
 
     // 현재 플레이어가 공격 가능 상태인지 확인한다.
-    bool CanAttack(SkillDef* skillDef);
+    bool CanUseSkill(SkillDef* skillDef);
 
     bool CanUseItem(int inventoryType, int slotPos, int item_id, int useCount);
     bool UseItem(int inventoryType, int slotPos, int itemId, int useCount);
 
     void UseSkill(SkillDef* skillDef);
+    void UpStat(const std::string& statType);
     void AddHP(int HP);
     void AddMP(int MP);
 
@@ -148,6 +196,7 @@ private:
     bool m_isChangedInventory;
     bool m_isChangedStatas;
     bool m_isChangedPositon;
+    bool m_statDirty = false;
 
     CharacterStat m_stat;
     InventoryManager m_inventoryManager;
@@ -156,4 +205,6 @@ private:
    
     int64_t m_nextContactDamageAllowedMs;
     int64_t m_contactDamageCooldownMs;
+
+    mutable std::mutex m_statMutex;
 };

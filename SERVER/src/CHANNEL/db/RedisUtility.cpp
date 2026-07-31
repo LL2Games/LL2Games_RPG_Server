@@ -57,6 +57,7 @@ std::map<std::string, std::string> PlayerInfoToRedisMap(const PlayerInitData pla
     redisMap["name"] = playerData.name;
     redisMap["level"] = std::to_string(playerData.level);
     redisMap["job"] = std::to_string(playerData.job);
+    redisMap["root_job"] = std::to_string(playerData.root_job);
     redisMap["map_id"] = std::to_string(playerData.map_id);
     redisMap["xPos"] = std::to_string(playerData.xPos);
     redisMap["yPos"] = std::to_string(playerData.yPos);
