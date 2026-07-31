@@ -182,7 +182,7 @@ std::string PacketParser::MakeBody(const std::vector<std::string>& datas)
 std::string PacketParser::MakePacket(uint16_t type, const std::string &body)
 {
    const size_t maximumPacketSize = std::min(
-        static_cast<size_t>(BUFFER_SIZE),
+        static_cast<size_t>(14096),
         static_cast<size_t>(std::numeric_limits<uint16_t>::max())
     );
 
