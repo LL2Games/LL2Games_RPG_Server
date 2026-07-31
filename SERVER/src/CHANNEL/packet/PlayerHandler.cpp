@@ -29,25 +29,25 @@ void PlayerHandler::Execute(PacketContext * ctx)
                SkillAttackPacket(ctx);
                break;
           case PKT_PLAYER_BASIC_ATTACK:
-               K_LOG_ERROR( "PKT_PLAYER_BASIC_ATTACK START\n");
+               K_LOG_TRACE( "PKT_PLAYER_BASIC_ATTACK START\n");
                BasicAttackPacket(ctx);
                break;
           case PKT_PLAYER_ONDAMAGED:
-               K_LOG_ERROR( "PKT_PLAYER_ONDAMAGED START\n");
+               K_LOG_TRACE( "PKT_PLAYER_ONDAMAGED START\n");
                OnDamagedPacket(ctx);
                break;
           case PKT_PLAYER_USE_ITEM:
-               K_LOG_ERROR( "PKT_PLAYER_USE_ITEM START\n");
+               K_LOG_TRACE( "PKT_PLAYER_USE_ITEM START\n");
                UseItemPacket(ctx);
                break;
-          case PKT_STAT_VIEW:
-               K_LOG_ERROR( "PKT_STAT_VIEW START\n");
-               HandleStatView(ctx);
-                break;
+          // case PKT_STAT_VIEW:
+          //      K_LOG_ERROR( "PKT_STAT_VIEW START\n");
+          //      HandleStatView(ctx);
+          //       break;
           case PKT_STAT_UP:
-               K_LOG_ERROR( "PKT_STAT_UP START\n");
+               K_LOG_TRACE("PKT_STAT_UP START\n");
                HandleStatUp(ctx);
-                break;
+               break;
           case PKT_TRADE_REQUEST:
                HandleTradeRequest(ctx);
                break;

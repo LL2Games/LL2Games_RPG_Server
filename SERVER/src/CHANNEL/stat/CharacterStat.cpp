@@ -51,6 +51,7 @@ ExpResult CharacterStat::AddExp(int64_t exp)
 
 void CharacterStat::Up(const std::string &statType)
 {
+    if(m_remain_ap <= 0) return;
     int statNum = 0;
     const static std::string stats[4] = {"str", "dex", "intel", "luck"};
     for (int i = 0; i < 4; i++)
@@ -66,20 +67,24 @@ void CharacterStat::Up(const std::string &statType)
     {
     case E_STR:
         m_base.str++;
+        m_remain_ap--;
         break;
 
     case E_DEX:
         m_base.dex++;
+        m_remain_ap--;
         break;
 
     case E_INT:
         m_base.intel++;
+        m_remain_ap--;
         break;
 
     case E_LUCK:
         m_base.luck++;
+        m_remain_ap--;
         break;
     }
 
-    K_LOG_DEBUG( "stat[%s] up", statType);
+    K_LOG_DEBUG( "stat[%s] up", statType.c_str());
 }
