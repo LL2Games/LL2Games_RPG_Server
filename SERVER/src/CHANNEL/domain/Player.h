@@ -140,7 +140,7 @@ public:
 public:
 
     // 현재 플레이어가 공격 가능 상태인지 확인한다.
-    bool CanAttack(SkillDef* skillDef);
+    bool CanUseSkill(SkillDef* skillDef);
 
     bool CanUseItem(int inventoryType, int slotPos, int item_id, int useCount);
     bool UseItem(int inventoryType, int slotPos, int itemId, int useCount);

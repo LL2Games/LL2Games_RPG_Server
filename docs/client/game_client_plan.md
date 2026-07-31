@@ -362,7 +362,7 @@ body는 문자열 필드 배열이다. 서버 `MakeBody`는 각 필드를 `uint1
 | `PKT_CHANNEL_AUTH` | `0x0009` | C/S | 채널 인증 |
 | `PKT_ENTER_MAP` | `0x000A` | C/S | 맵 입장 |
 | `PKT_PLAYER_MOVE` | `0x0020` | C/S | 플레이어 이동 |
-| `PKT_PLAYER_ATTACK` | `0x0021` | C/S | 스킬 공격 |
+| `PKT_PLAYER_SKILL_ATTACK` | `0x0021` | C/S | 스킬 공격 |
 | `PKT_PLAYER_BASIC_ATTACK` | `0x0027` | C/S | 기본 공격 |
 | `PKT_MONSTER_SNAPSHOT` | `0x0042` | S/C | 몬스터 초기 상태 |
 | `PKT_MONSTER_MOVE` | `0x0040` | S/C | 몬스터 이동 |

@@ -5,7 +5,7 @@
     "attackDamage"  : 2,
     "level"         : 10,
     "exp"           : 5,
-    "moveSpeed"     : 10,
+    "moveSpeed"     : 30,
 
     "common_drop_group_id": "FIELD_COMMON_LV1_20",
     "unique_drop_group_id": "UNIQUE_ORANGE_MUSHROOM",

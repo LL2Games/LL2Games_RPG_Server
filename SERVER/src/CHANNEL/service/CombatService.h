@@ -14,7 +14,7 @@ public:
     CombatService();
     ~CombatService();
 
-    int HandleAttack(Player* Attacker, int skill_id, int attack_dir);
+    int HandleSkillAttack(Player* Attacker, int skill_id, int attack_dir);
     int HandleBasicAttack(Player* Attacker, int attack_dir);
     int ApplyContactDamage(Player* player, Monster& monster);
     int CalculateSkillBaseDamage(const Player* attacker, const SkillDef& skillDef); 

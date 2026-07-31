@@ -57,7 +57,7 @@ enum PACKET_TYPE : uint16_t {
     
     // 0x0020 ~ 0x003F : 플레이어
     PKT_PLAYER_MOVE         = 0x0020,
-    PKT_PLAYER_ATTACK       = 0x0021,
+    PKT_PLAYER_SKILL_ATTACK       = 0x0021,
     PKT_PLAYER_ONDAMAGED    = 0x0022,
     PKT_PLAYER_USE_ITEM     = 0x0023,
     PKT_PLAYER_INFO         = 0x0024,
