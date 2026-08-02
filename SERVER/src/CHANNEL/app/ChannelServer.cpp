@@ -392,8 +392,8 @@ void ChannelServer::OnAccept()
 
 void ChannelServer::OnReceive(int fd)
 {
-    char temp[BUFFER_SIZE];
-    int tempLen = 0;
+    char temp[PacketLimits::kReceiveChunkSize];
+    ssize_t tempLen = 0;
     std::string buf;
 
     do
@@ -420,7 +420,7 @@ void ChannelServer::OnReceive(int fd)
             OnDisconnect(fd);
             return;
         }
-    } while (tempLen == BUFFER_SIZE);
+    } while (tempLen == static_cast<ssize_t>(PacketLimits::kReceiveChunkSize));
 
     //K_LOG_DEBUG( "fd %d\n", fd);
     ChannelSession* session = nullptr;

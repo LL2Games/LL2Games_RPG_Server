@@ -175,19 +175,15 @@ void TestMakePacketRoundTrip()
 
 void TestMaximumPacketSizeAccepted()
 {
-    const size_t maximumPacketSize = std::min(
-        static_cast<size_t>(BUFFER_SIZE),
-        static_cast<size_t>(
-            std::numeric_limits<uint16_t>::max()
-        )
-    );
+      constexpr std::size_t maximumPacketSize =
+        PacketLimits::kMaxPacketSize;
 
-    Require(
+    static_assert(
         maximumPacketSize >= sizeof(PacketHeader),
-        "maximum packet size is smaller than header"
+        "Maximum packet size is smaller than packet header"
     );
 
-    const size_t maximumBodySize =
+    const std::size_t maximumBodySize =
         maximumPacketSize - sizeof(PacketHeader);
 
     const std::string body(maximumBodySize, 'A');
@@ -215,14 +211,10 @@ void TestMaximumPacketSizeAccepted()
 
 void TestPacketSizeOverflowRejected()
 {
-    const size_t maximumPacketSize = std::min(
-        static_cast<size_t>(BUFFER_SIZE),
-        static_cast<size_t>(
-            std::numeric_limits<uint16_t>::max()
-        )
-    );
+    constexpr std::size_t maximumPacketSize =
+        PacketLimits::kMaxPacketSize;
 
-    const size_t overflowBodySize =
+    const std::size_t overflowBodySize =
         maximumPacketSize - sizeof(PacketHeader) + 1;
 
     const std::string body(overflowBodySize, 'A');
@@ -232,7 +224,7 @@ void TestPacketSizeOverflowRejected()
         {
             PacketParser::MakePacket(123, body);
         },
-        "oversized packet was accepted"
+        "packet larger than maximum size was accepted"
     );
 }
 

@@ -244,6 +244,12 @@ std::vector<InventoryItemInfo> Inventory::MakeItemInfos() const
 
     for(auto [slotpos, item] : m_slots)
     {
+        if (!item.isEnable)
+            continue;
+
+        if (item.itemId == 0 || item.itemCount <= 0)
+            continue;
+
         InventoryItemInfo iteminfo;
 
         iteminfo.inventoryType =m_inventoryType;

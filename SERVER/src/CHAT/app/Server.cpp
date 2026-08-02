@@ -8,7 +8,6 @@
 #include <unistd.h>
 #include <cstring>
 
-#define BUFFER_SIZE 1024
 
 #define MSG_KEY 1234
 #define MSG_COMMAND_SEND 1
@@ -109,20 +108,27 @@ void Server::AcceptNewClient()
 
 void Server::ProcessClient(Client *cli)
 {
-    char temp[BUFFER_SIZE];
-    int tempLen = 0;
-    std::string buf;
+    char temp[PacketLimits::kReceiveChunkSize];
+    std::string receivedData;
 
-    do
+    while (true)
     {
-        memset(temp, 0x00, sizeof(temp));
-        tempLen = recv(cli->GetFD(), temp, sizeof(temp), 0);
-        if (tempLen <= 0)
+        const ssize_t receivedLength = recv(cli->GetFD(),temp,sizeof(temp),0);
+
+        if (receivedLength > 0)
         {
-            // disconnect
-            K_LOG_TRACE( "[%s] Client %d disconnected", CHAT_DAEMON_NAME, cli->GetFD());
+            receivedData.append(temp, static_cast<std::size_t>(receivedLength));
+
+            continue;
+        }
+
+        if (receivedLength == 0)
+        {
+            K_LOG_TRACE("[%s] Client %d disconnected", CHAT_DAEMON_NAME, cli->GetFD());
+
             close(cli->GetFD());
-            for (auto it = m_clients.begin(); it != m_clients.end(); it++)
+
+            for (auto it = m_clients.begin(); it != m_clients.end(); ++it)
             {
                 if (*it == cli)
                 {
@@ -131,41 +137,103 @@ void Server::ProcessClient(Client *cli)
                     break;
                 }
             }
+
             return;
         }
-        buf.append(temp, tempLen);
-    } while (tempLen == BUFFER_SIZE);
 
-    cli->m_recvBuffer.insert(cli->m_recvBuffer.end(), buf.begin(), buf.end());
+        const int socketError = errno;
 
-    K_LOG_DEBUG( "recv from fd=%d, len=%d", cli->GetFD(), buf.size());
-    auto pkt = PacketParser::Parse(cli->m_recvBuffer);
-    if (!pkt.has_value())
-    {
-        K_LOG_ERROR( "Packet Parse failed");
+        if (socketError == EINTR)
+        {
+            continue;
+        }
+
+        if (socketError == EAGAIN || socketError == EWOULDBLOCK)
+        {
+            break;
+        }
+
+        K_LOG_ERROR("[%s] recv failed. fd:%d errno:%d", CHAT_DAEMON_NAME, cli->GetFD(), socketError);
+
+        close(cli->GetFD());
+
+        for (auto it = m_clients.begin(); it != m_clients.end();++it)
+        {
+            if (*it == cli)
+            {
+                delete cli;
+                m_clients.erase(it);
+                break;
+            }
+        }
+
         return;
     }
-    
 
-    auto handler = m_factory.Create(pkt->type);
-    PacketContext ctx;
-    ctx.redis_pool = &m_redisPool;
-    ctx.dispatcher = &m_dispatcher;
-    ctx.client = cli;
-    ctx.clients = &m_clients;
-    ctx.payload = (char *)pkt->payload.c_str();
-    ctx.payload_len = pkt->payload.size(); 
-    ctx.broadcast = [&](const std::string &nick,
-                        const std::string &msg,
-                        const int execptFD)
+    cli->m_recvBuffer.insert(cli->m_recvBuffer.end(), receivedData.begin(),receivedData.end());
+
+    K_LOG_DEBUG("recv from fd=%d, len=%zu",cli->GetFD(),receivedData.size());
+
+    while (true)
     {
-        this->BroadCast(nick, msg, execptFD);
-    };
-    if (handler)
-    {
+        ParseResult parseResult =
+            PacketParser::TryParse(cli->m_recvBuffer);
+
+        if (parseResult.status == ParseStatus::NeedMoreData)
+        {
+            break;
+        }
+
+        if (parseResult.status == ParseStatus::InvalidPacket)
+        {
+            K_LOG_ERROR("Invalid packet from fd=%d",cli->GetFD());
+
+            // 잘못된 헤더가 버퍼 앞에 계속 남으므로 연결 종료
+            close(cli->GetFD());
+
+            for (auto it = m_clients.begin();it != m_clients.end();++it)
+            {
+                if (*it == cli)
+                {
+                    delete cli;
+                    m_clients.erase(it);
+                    break;
+                }
+            }
+
+            return;
+        }
+
+        ParsedPacket packet = std::move(parseResult.packet);
+
+        auto handler = m_factory.Create(packet.type);
+
+        if (!handler)
+        {
+            K_LOG_ERROR("Unknown packet type=%u fd=%d", packet.type,cli->GetFD());
+            continue;
+        }
+
+        PacketContext ctx{};
+        ctx.redis_pool = &m_redisPool;
+        ctx.dispatcher = &m_dispatcher;
+        ctx.client = cli;
+        ctx.clients = &m_clients;
+        ctx.payload = packet.payload.data();
+        ctx.payload_len = static_cast<int>(packet.payload.size());
+
+        ctx.broadcast = [this](
+            const std::string& nick,
+            const std::string& msg,
+            int exceptFD)
+        {
+            BroadCast(nick, msg, exceptFD);
+        };
+
         handler->Execute(&ctx);
     }
-    K_LOG_DEBUG( "ProcessClient fd=%d done", cli->GetFD());
+
+    K_LOG_DEBUG("ProcessClient fd=%d done",cli->GetFD());
 }
 
 void Server::BroadCast(const std::string &nick, const std::string &msg, const int exceptFd)
