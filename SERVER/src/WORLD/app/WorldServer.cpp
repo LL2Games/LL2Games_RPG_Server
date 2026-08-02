@@ -133,100 +133,54 @@ int WorldServer::OnAccept()
 
 int WorldServer::OnReceive(int fd)
 {
-    auto sessionIt = m_sessions.find(fd);
+    char temp[PacketLimits::kReceiveChunkSize];
+    ssize_t tempLen = 0;
+    std::string buf;
+    WorldSession *session = m_sessions[fd];
 
-    if (sessionIt == m_sessions.end() ||sessionIt->second == nullptr)
+    if (session == nullptr)
     {
-        K_LOG_ERROR("session not found. fd=%d",fd);
-
+        K_LOG_ERROR( "session error");
         return -1;
     }
 
-    WorldSession* session = sessionIt->second;
-
-    char temp[PacketLimits::kReceiveChunkSize];
-    std::size_t totalReceivedLength = 0;
-
-    while (true)
+    do
     {
-        const ssize_t receivedLength = recv(fd,temp,sizeof(temp),0);
-
-        if (receivedLength > 0)
+        memset(temp, 0x00, sizeof(temp));
+        tempLen = recv(fd, temp, sizeof(temp), 0);
+        if (tempLen <= 0)
         {
-            session->m_recvBuffer.insert(session->m_recvBuffer.end(), temp,temp + receivedLength);
-            totalReceivedLength += static_cast<std::size_t>(receivedLength);
-            continue;
-        }
-
-        if (receivedLength == 0)
-        {
-            K_LOG_TRACE("client disconnected. fd=%d",fd);
-
-            OnDisconnect(fd);
+            OnDisconnect(fd);    
             return 1;
         }
+        buf.append(temp, tempLen);
+    } while (tempLen == static_cast<ssize_t>(PacketLimits::kReceiveChunkSize));
 
-        const int socketError = errno;
+    session->m_recvBuffer.insert(session->m_recvBuffer.end(), buf.begin(), buf.end());
 
-        if (socketError == EINTR)
-        {
-            continue;
-        }
-
-        if (socketError == EAGAIN || socketError == EWOULDBLOCK)
-        {
-            break;
-        }
-
-        K_LOG_ERROR("recv failed. fd=%d errno=%d",fd,socketError);
-
-        OnDisconnect(fd);
-        return 1;
+    K_LOG_DEBUG( "recv from fd=%d, len=%d", fd, buf.size());
+    auto pkt = PacketParser::Parse(session->m_recvBuffer);
+    if (!pkt.has_value())
+    {
+        K_LOG_ERROR( "Packet Parse failed");
+        return -1;
     }
+    
 
-    K_LOG_DEBUG("recv from fd=%d, len=%zu",fd, totalReceivedLength);
-
-    while (true)
+    auto handler = m_factory.Create(pkt->type);
+    PacketContext ctx;
+    ctx.world_session = m_sessions[fd];
+    ctx.char_service = &m_char_service;
+    ctx.channel_manager = &m_channel_manager;
+    ctx.redis_pool = &m_redisPool;
+    ctx.fd = fd;
+    ctx.payload = (char *)pkt->payload.c_str();
+    ctx.payload_len = pkt->payload.size();
+    if (handler)
     {
-        ParseResult parseResult = PacketParser::TryParse(session->m_recvBuffer);
-
-        if (parseResult.status == ParseStatus::NeedMoreData)
-        {
-            // 부분 패킷이므로 다음 수신까지 보관
-            break;
-        }
-
-        if (parseResult.status == ParseStatus::InvalidPacket)
-        {
-            K_LOG_ERROR("invalid packet. fd=%d",fd);
-
-            OnDisconnect(fd);
-            return 1;
-        }
-
-        ParsedPacket packet = std::move(parseResult.packet);
-
-        auto handler = m_factory.Create(packet.type);
-
-        if (!handler)
-        {
-            K_LOG_ERROR("unknown packet type=%u fd=%d",packet.type,fd);
-
-            continue;
-        }
-
-        PacketContext ctx{};
-        ctx.world_session = session;
-        ctx.char_service = &m_char_service;
-        ctx.channel_manager = &m_channel_manager;
-        ctx.redis_pool = &m_redisPool;
-        ctx.fd = fd;
-        ctx.payload = packet.payload.data();
-        ctx.payload_len = static_cast<int>(packet.payload.size());
         handler->Execute(&ctx);
     }
-
-    K_LOG_DEBUG("ProcessClient fd=%d done",fd);
+    K_LOG_DEBUG( "ProcessClient fd=%d done", fd);
 
     return 0;
 }

@@ -3,7 +3,6 @@
 #include <vector>
 #include <functional>
 #include <string>
-#include <string>
 #include <limits>
 
 class Client;
