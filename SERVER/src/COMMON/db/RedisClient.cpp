@@ -221,3 +221,112 @@ std::optional<std::map<std::string, std::string>> RedisClient::HGetAll(const std
     return result;
 }
 
+RedisSetResult RedisClient::SetIfAbsentWithTtl(const std::string& key, const std::string& value, int ttlSeconds)
+{
+    if (m_ctx == nullptr)
+    {
+        K_LOG_ERROR("SetIfAbsentWithTtl failed: Redis context is null");
+        return RedisSetResult::Error;
+    }
+
+    if (key.empty() || value.empty())
+    {
+        K_LOG_ERROR("SetIfAbsentWithTtl failed: key or value is empty");
+        return RedisSetResult::Error;
+    }
+
+    if (ttlSeconds <= 0)
+    {
+        K_LOG_ERROR("SetIfAbsentWithTtl failed: invalid TTL");
+        return RedisSetResult::Error;
+    }
+
+    redisReply* reply = static_cast<redisReply*>(
+        redisCommand(
+            m_ctx,
+            "SET %b %b EX %d NX",
+            key.data(),
+            key.size(),
+            value.data(),
+            value.size(),
+            ttlSeconds
+        )
+    );
+
+    if (reply == nullptr)
+    {
+        K_LOG_ERROR("SetIfAbsentWithTtl failed: Redis command failed");
+        return RedisSetResult::Error;
+    }
+
+    RedisSetResult result = RedisSetResult::Error;
+
+    if (reply->type == REDIS_REPLY_STATUS &&
+        reply->str != nullptr &&
+        std::string(reply->str, reply->len) == "OK")
+    {
+        result = RedisSetResult::Stored;
+    }
+    else if (reply->type == REDIS_REPLY_NIL)
+    {
+        // NX 조건에 의해 기존 키를 덮어쓰지 않음
+        result = RedisSetResult::AlreadyExists;
+    }
+    else
+    {
+        K_LOG_ERROR("SetIfAbsentWithTtl failed: unexpected Redis reply");
+    }
+
+    freeReplyObject(reply);
+
+    return result;
+}
+
+RedisGetDelResult RedisClient::GetAndDelete(const std::string& key)
+{
+     if (m_ctx == nullptr)
+    {
+        K_LOG_ERROR("GetAndDelete failed: Redis context is null");
+        return {RedisGetDelStatus::Error,{}};
+    }
+
+    if (key.empty())
+    {
+        K_LOG_ERROR("GetAndDelete failed: key is empty");
+        return {RedisGetDelStatus::Error,{}};
+    }
+
+    redisReply* reply = static_cast<redisReply*>(redisCommand(m_ctx,"GETDEL %b",key.data(),key.size()));
+
+    if (reply == nullptr)
+    {
+        K_LOG_ERROR("GetAndDelete failed: Redis command failed");
+        return {RedisGetDelStatus::Error,{}};
+    }
+
+    RedisGetDelResult result;
+
+    if (reply->type == REDIS_REPLY_STRING)
+    {
+        result.status = RedisGetDelStatus::Found;
+
+        if (reply->str != nullptr)
+        {
+            result.value.assign(reply->str,reply->len);
+        }
+    }
+    else if (reply->type == REDIS_REPLY_NIL)
+    {
+        // 키가 없거나, 만료됐거나, 이미 사용된 티켓
+        result.status = RedisGetDelStatus::NotFound;
+    }
+    else
+    {
+        K_LOG_ERROR("GetAndDelete failed: unexpected Redis reply type [%d]",reply->type);
+        result.status = RedisGetDelStatus::Error;
+    }
+
+    freeReplyObject(reply);
+
+    return result;
+}

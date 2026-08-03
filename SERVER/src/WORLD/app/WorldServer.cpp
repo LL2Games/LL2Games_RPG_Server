@@ -166,6 +166,12 @@ int WorldServer::OnReceive(int fd)
         return -1;
     }
     
+    if (!session->IsAuthenticated() && pkt->type != PKT_INIT_WORLD)
+    {
+        K_LOG_ERROR("Unauthenticated world packet rejected. fd:%d type:%u",fd,static_cast<unsigned int>(pkt->type));
+        session->SendNok(pkt->type,"World authentication required");
+        return 0;
+    }
 
     auto handler = m_factory.Create(pkt->type);
     PacketContext ctx;

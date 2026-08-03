@@ -25,6 +25,10 @@ public:
         return 0;
     }
     
+    bool IsAuthenticated() const;
+    void SetAuthenticated(bool authenticated);
+
+public:
     int OnPacket(const std::string& packet);
     int Send(int type, const std::vector<std::string>& payload);
     int SendOk(int type, std::vector<std::string> payload = {});
@@ -37,4 +41,6 @@ private:
     std::string m_account_id;
     std::string m_selected_char_id;
     SessionState m_state;
+
+    bool m_authenticated;
 };
