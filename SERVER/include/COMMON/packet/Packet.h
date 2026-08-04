@@ -54,6 +54,8 @@ enum PACKET_TYPE : uint16_t {
     PKT_CHANNEL_AUTH        = 0x0009,
     PKT_ENTER_MAP           = 0x000A,
     PKT_PORTAL_ENTER        = 0x000B,
+    PKT_NEW_CHARACTER       = 0x000C,
+    PKT_CHECK_DUP_CHAR      = 0x000D,
     
     // 0x0020 ~ 0x003F : 플레이어
     PKT_PLAYER_MOVE         = 0x0020,
