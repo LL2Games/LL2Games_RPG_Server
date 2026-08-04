@@ -12,6 +12,8 @@ public:
     std::vector<std::string> GetCharacterList(const std::string& account_id, RedisClient& redis);
     int LoadCharacterSummary(const std::string& char_id);
     int CacheCharacterSummary(const std::string& char_id);
+
+    bool OwnsCharacter(const std::string& account_id, int char_id);
 private:
     MySqlConnectionPool* m_db = nullptr;
     // RedisClient& m_redis;

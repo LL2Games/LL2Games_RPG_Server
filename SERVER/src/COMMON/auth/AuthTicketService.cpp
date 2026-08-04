@@ -1,6 +1,7 @@
 #include "AuthTicketService.h"
 
 #include "AuthTokenGenerator.h"
+#include "PacketParser.h"
 #include "RedisClient.h"
 #include "K_slog.h"
 
@@ -12,10 +13,12 @@
 namespace
 {
     constexpr int kWorldTicketTtlSeconds = 300;
+    constexpr int kChannelTicketTtlSeconds = 60;
     constexpr int kMaxTicketIssueAttempts = 3;
     constexpr std::size_t kTicketLength = 64;
 
     const std::string kWorldTicketKeyPrefix ="auth:world:";
+    constexpr char kChannelTicketKeyPrefix[] = "auth:channel:";
 
     bool IsValidTicketFormat(const std::string& ticket)
     {
@@ -44,11 +47,99 @@ std::optional<std::string>AuthTicketService::IssueWorldTicket(
     return IssueTicket(redis, kWorldTicketKeyPrefix,accountId,kWorldTicketTtlSeconds);
 }
 
-std::optional<std::string> AuthTicketService::ConsumeWorldTicket(
+std::optional<std::string>AuthTicketService::IssueChannelTicket(
     RedisClient& redis,
-    const std::string& ticket)
+    const ChannelTicketClaims& claims
+)
+{
+    if (claims.accountId.empty() || claims.characterId <= 0 ||claims.channelId <= 0)
+    {
+        K_LOG_ERROR("IssueChannelTicket failed: invalid claims");
+        return std::nullopt;
+    }
+
+    try
+    {
+        const std::string serializedClaims = PacketParser::MakeBody({claims.accountId, std::to_string(claims.characterId),std::to_string(claims.channelId)});
+
+        return IssueTicket(redis, kChannelTicketKeyPrefix, serializedClaims, kChannelTicketTtlSeconds);
+    }
+    catch (const std::exception& exception)
+    {
+        K_LOG_ERROR(
+            "IssueChannelTicket failed: claims serialization error [%s]",
+            exception.what()
+        );
+
+        return std::nullopt;
+    }
+}
+
+std::optional<std::string> AuthTicketService::ConsumeWorldTicket(RedisClient& redis, const std::string& ticket)
 {
     return ConsumeTicket(redis, kWorldTicketKeyPrefix, ticket);
+}
+
+std::optional<ChannelTicketClaims> AuthTicketService::ConsumeChannelTicket(RedisClient& redis, const std::string& ticket)
+{
+    const auto serializedClaims = ConsumeTicket(redis,kChannelTicketKeyPrefix,ticket);
+
+    if (!serializedClaims.has_value())
+    {
+        return std::nullopt;
+    }
+
+    ChannelTicketClaims claims;
+    std::size_t offset = 0;
+    std::string parseError;
+
+    if (!PacketParser::ParseLengthPrefixedString(
+            serializedClaims->data(),
+            serializedClaims->size(),
+            offset,
+            claims.accountId,
+            parseError))
+    {
+        K_LOG_ERROR("ConsumeChannelTicket failed: account ID parse error [%s]",parseError.c_str());
+        return std::nullopt;
+    }
+
+    if (!PacketParser::ParseNextIntField(
+            serializedClaims->data(),
+            serializedClaims->size(),
+            offset,
+            claims.characterId,
+            parseError))
+    {
+        K_LOG_ERROR("ConsumeChannelTicket failed: character ID parse error [%s]",parseError.c_str());
+        return std::nullopt;
+    }
+
+    if (!PacketParser::ParseNextIntField(
+            serializedClaims->data(),
+            serializedClaims->size(),
+            offset,
+            claims.channelId,
+            parseError))
+    {
+        K_LOG_ERROR("ConsumeChannelTicket failed: channel ID parse error [%s]",parseError.c_str());
+
+        return std::nullopt;
+    }
+
+    if (offset != serializedClaims->size())
+    {
+        K_LOG_ERROR("ConsumeChannelTicket failed: trailing claims data");
+        return std::nullopt;
+    }
+
+    if (claims.accountId.empty() || claims.characterId <= 0 || claims.channelId <= 0)
+    {
+        K_LOG_ERROR("ConsumeChannelTicket failed: invalid claims");
+        return std::nullopt;
+    }
+
+    return claims;
 }
 
 

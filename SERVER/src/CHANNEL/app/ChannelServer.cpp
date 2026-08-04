@@ -650,6 +650,7 @@ void ChannelServer::ProcessAuthResults()
 
         if (!result.success || result.player == nullptr)
         {
+            session->ResetAuthentication();
             session->SendNok(PKT_CHANNEL_AUTH, result.error.empty() ? "auth failed" : result.error);
             continue;
         }
@@ -659,12 +660,14 @@ void ChannelServer::ProcessAuthResults()
 
         if (!m_player_mamager.AddPlayer(std::move(result.player)))
         {   
+            session->ResetAuthentication();
             session->SendNok(PKT_CHANNEL_AUTH, "already connected");
             continue;
         }
 
         session->SetPlayer(rawPlayer);
         session->SetPlayerManager(&m_player_mamager);
+        session->MarkAuthenticated();
 
         session->SendOk(PKT_CHANNEL_AUTH, { rawPlayer->GetName() });
 

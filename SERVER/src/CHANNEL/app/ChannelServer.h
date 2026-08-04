@@ -62,6 +62,8 @@ public:
     ThreadPool* GetAuthThreadPool() { return &m_authPool; }
     std::mutex& GetAuthLoadMutex() { return m_authLoadMutex; }
     RedisConnectionPool* GetRedisConnectionPool() { return &m_redisPool; }
+
+    int GetChannelId() const {return m_channel_id;}
     void UpdateChannelState(const int interval, const int ttl);
     void UpdateChannelStateToRedis(const int ttl);
 private:
