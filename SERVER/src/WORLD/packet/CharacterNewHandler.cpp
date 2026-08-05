@@ -12,7 +12,7 @@ void CharacterNewHandler::Execute(PacketContext* ctx)
     int rc = EXIT_SUCCESS;
     std::string errMsg;
     size_t offset = 0;
-    std::string nick;
+    std::string account_id, nick;
     int job;
 
     if (ctx == nullptr)
@@ -38,7 +38,19 @@ void CharacterNewHandler::Execute(PacketContext* ctx)
         errMsg = "[" + std::to_string(rc) + "]char_service is nullptr";
         goto err;
     }
-
+    
+    if (!PacketParser::ParseLengthPrefixedString(
+            ctx->payload,
+            ctx->payload_len,
+            offset,
+            account_id,
+            errMsg))
+    {
+        rc = EXIT_FAILURE;
+        K_LOG_ERROR( "ParseLengthPrefixedString fail");
+        goto err;
+    }
+    
     if (!PacketParser::ParseLengthPrefixedString(
             ctx->payload,
             ctx->payload_len,
@@ -51,6 +63,7 @@ void CharacterNewHandler::Execute(PacketContext* ctx)
         goto err;
     }
 
+
     if (!PacketParser::ParseNextIntField(
             ctx->payload,
             ctx->payload_len,
@@ -62,7 +75,8 @@ void CharacterNewHandler::Execute(PacketContext* ctx)
         K_LOG_ERROR( "ParseNextIntField fail");
         goto err;
     }
-    
+
+    rc = char_service->CreateCharacter(account_id, nick, job);
 
 err:
     if (rc != EXIT_SUCCESS)

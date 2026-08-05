@@ -33,8 +33,8 @@ std::vector<std::string> CharacterService::GetCharacterList(const std::string& a
     //test
     K_LOG_DEBUG( "id[%s]", account_id.c_str());
 
+#if 0 //gunoo22 260805 캐릭터 리스트 Redis 캐싱때문에 캐릭터 생성후 캐릭터 리스트가 바로 안보이는 문제 발생 
     //1.Redis charlist 조회
-   
     auto cached = redis.HGetAll("charlist:" + account_id);
     if (cached.has_value() && !cached->empty())
     {
@@ -47,6 +47,7 @@ std::vector<std::string> CharacterService::GetCharacterList(const std::string& a
     }
     
     K_LOG_DEBUG( "redis miss for account_id[%s]", account_id.c_str());
+    #endif
 
     //2.Redis miss-> MySQL 조회
     conn = m_db->GetConnection();
@@ -179,14 +180,156 @@ std::vector<std::string> CharacterService::GetCharacterList(const std::string& a
 }
 
 
-CreateCharacterResult CharacterService::CreateCharacter(
-        const std::string&, //account_id,
-        const std::string&, // name,
-        int, // job,
-        int) // root_job)
+int CharacterService::CreateCharacter(const std::string& account_id, const std::string& nick, int job)
 {
-    CreateCharacterResult res;
-    return res;
+    //TODO
+    //캐릭터 최대 갯수 예외처리 필요
+
+    int rc = EXIT_FAILURE;
+
+    MYSQL* conn = nullptr; 
+    MYSQL_STMT* stmt = nullptr;
+    std::string query;
+    int root_job = job; //root_job을 일단 job으로 설정
+
+    //1. MySQL 연결 가져오기
+    conn = m_db->GetConnection();
+    if (!conn)
+    {
+        K_LOG_ERROR( "MYSQL GetConnection failed");
+        goto cleanup;
+    }
+
+    //2. Prepared Statement 생성
+    stmt = mysql_stmt_init(conn);
+    if(!stmt)
+    {
+        K_LOG_ERROR( "mysql_stmt_prepare Error [%s]", mysql_error(conn));
+        goto cleanup;
+    }
+
+    //3. 쿼리준비
+    query =
+    "INSERT INTO `character` "
+    "(`account_id`, `name`, `job`, `root_job`, `created_at`) "
+    "VALUES (?, ?, ?, ?, NOW())";
+    //query = "SELECT 1 FROM `character` WHERE name = ? LIMIT 1";
+
+    if(mysql_stmt_prepare(stmt, query.c_str(), query.size()) != 0)
+    {
+        K_LOG_ERROR( "mysql_stmt_prepare Error [%s]", mysql_stmt_error(stmt));
+        goto cleanup;
+    }
+
+    //4. 입력 파라미터 바인딩
+    {
+        MYSQL_BIND paramBind[4]{};
+        memset(paramBind, 0x00, sizeof(paramBind));
+
+        unsigned long nickLength = static_cast<unsigned long>(nick.size());
+        unsigned long account_idLength = static_cast<unsigned long>(account_id.size());
+        unsigned long jobLength = sizeof(job);
+        unsigned long root_jobLength = sizeof(root_job);
+
+        paramBind[0].buffer_type = MYSQL_TYPE_STRING;
+        paramBind[0].buffer = const_cast<char*>(account_id.data());
+        paramBind[0].buffer_length = account_idLength;
+        paramBind[0].length = &account_idLength;
+
+        paramBind[1].buffer_type = MYSQL_TYPE_STRING;
+        paramBind[1].buffer = const_cast<char*>(nick.data());
+        paramBind[1].buffer_length = nickLength;
+        paramBind[1].length = &nickLength;
+
+        paramBind[2].buffer_type = MYSQL_TYPE_LONG;
+        paramBind[2].buffer = &job;
+        paramBind[2].buffer_length = jobLength;
+        paramBind[2].length = &jobLength;
+
+        paramBind[3].buffer_type = MYSQL_TYPE_LONG;
+        paramBind[3].buffer = &root_job;
+        paramBind[3].buffer_length = root_jobLength;
+        paramBind[3].length = &root_jobLength;
+
+        if (mysql_stmt_bind_param(stmt, paramBind) != 0)
+        {
+            K_LOG_ERROR("mysql_stmt_bind_param Error [%s]", mysql_stmt_error(stmt));
+            goto cleanup;
+        }
+    }
+
+    //5. 쿼리실행
+    if (mysql_stmt_execute(stmt) != 0)
+    {
+        const unsigned int errorCode = mysql_stmt_errno(stmt);
+
+        // ER_DUP_ENTRY
+        // 닉네임 중복검사 이후 다른 요청이 같은 닉네임을 먼저
+        // 생성했을 때 여기에서 최종적으로 차단된다.
+        if (errorCode == 1062)
+        {
+            K_LOG_ERROR(
+                "Character nickname already exists. "
+                "account_id=[%s], name=[%s]",
+                account_id.c_str(),
+                nick.c_str());
+
+            //rc = 1;
+            goto cleanup;
+        }
+
+        // 존재하지 않는 account_id 등 외래키 오류
+        if (errorCode == 1452)
+        {
+            K_LOG_ERROR(
+                "Invalid account_id. account_id=[%s], error=[%s]",
+                account_id.c_str(),
+                mysql_stmt_error(stmt));
+
+            //rc = 2;
+            goto cleanup;
+        }
+
+        K_LOG_ERROR(
+            "mysql_stmt_execute Error code=[%u], message=[%s]",
+            errorCode,
+            mysql_stmt_error(stmt));
+
+        goto cleanup;
+    }
+
+    //6 INSERT 성공 시, 생성된 char_id를 가져온다.
+     {
+        const unsigned long long charId =
+            mysql_stmt_insert_id(stmt);
+
+        K_LOG_TRACE(
+            "Character created. char_id=[%llu], "
+            "account_id=[%s], name=[%s], job=[%d]",
+            charId,
+            account_id.c_str(),
+            nick.c_str(),
+            job);
+    }
+    
+    rc = EXIT_SUCCESS;
+    
+    //7. 자원 정리
+cleanup:
+    if (stmt)
+    {
+        mysql_stmt_free_result(stmt);
+        mysql_stmt_close(stmt);
+        stmt = nullptr;
+    }
+
+    if (conn)
+    {
+        m_db->ReleaseConnection(conn);
+        conn = nullptr;
+    }
+
+    return rc;
 }
 
 int CharacterService::CheckDupNick(const std::string& nick)
