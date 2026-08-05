@@ -23,11 +23,14 @@
 #include "TradeService.h"
 #include "LevelManager.h"
 #include "ChannelAuthResult.h"
+#include "PlayerDataSaveService.h"
+#include "PlayerSaveTask.h"
 
 #include <atomic>
 #include <queue>
 #include <mutex>
 #include <cstdint>
+#include <chrono>
 
 class ChannelServerTestAccess;
 
@@ -62,6 +65,7 @@ public:
     ThreadPool* GetAuthThreadPool() { return &m_authPool; }
     std::mutex& GetAuthLoadMutex() { return m_authLoadMutex; }
     RedisConnectionPool* GetRedisConnectionPool() { return &m_redisPool; }
+    PlayerDataSaveService* GetPlayerDataSaveService(){return &m_playerDataSaveService;}
 
     int GetChannelId() const {return m_channel_id;}
     void UpdateChannelState(const int interval, const int ttl);
@@ -79,6 +83,7 @@ private:
     void OnSend(int fd);
     void ProcessAuthResults();
 
+    void SchedulePlayerSaves();
 private:
     int m_channel_id;
     int m_listen_fd;
@@ -110,6 +115,8 @@ private:
     TradeService m_trade_service;
 
     LevelManager* m_level_manager;
+
+    PlayerDataSaveService m_playerDataSaveService;
 
     std::queue<ChannelAuthResult> m_authResults;
     std::atomic<uint64_t> m_nextSessionId{1};

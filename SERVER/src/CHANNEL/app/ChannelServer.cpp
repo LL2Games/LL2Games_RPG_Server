@@ -122,12 +122,13 @@ bool ChannelServer::Init(const int port, const RedisConfig& redisConfig)
     //m_cmd_receiver.Start(); 지금 미사용 나중에 다시 풀어야함
    
    //맵매니저 스레드 시작
-   m_map_manager.Start();
+    m_map_manager.Start();
     if (!m_redisPool.Init(redisConfig, redisConfig.poolCount))
     {
         K_LOG_ERROR( "[ChannelServer] RedisConnectionPool Init failed");
         return false;
     }
+    m_playerDataSaveService.SetRedisPool(&m_redisPool);
    //채널 상태 업데이트 스레드 시작
     std::thread stateUpdateThread(&ChannelServer::UpdateChannelState, this, 3, 10); // 3초마다 업데이트, TTL은 10초
     stateUpdateThread.detach(); // 스레드를 분리하여 백그라운드에서 실행
@@ -248,6 +249,9 @@ void ChannelServer::Run()
 
 void ChannelServer::GameLoop()
 {
+    constexpr auto saveInterval = std::chrono::seconds(60);
+
+    auto nextSaveTime =std::chrono::steady_clock::now() + saveInterval;
     while(true)
     {
         // m_epfd에 등록된 관심 목록에서 이벤트가 발생한 것들을 기다렸다가 m_events 배열에 채워 넣고 발생한 이벤트 개수를 n에 저장/ -1은 무한 대기의 의미 이벤트가 발생할 때 까지 계속 블로킹 
@@ -297,6 +301,14 @@ void ChannelServer::GameLoop()
             }
         }
         ProcessAuthResults();
+
+        const auto currentTime = std::chrono::steady_clock::now();
+
+        if (currentTime >= nextSaveTime)
+        {
+            SchedulePlayerSaves();
+            nextSaveTime = currentTime + saveInterval;
+        }
     }
 
 }
@@ -511,6 +523,7 @@ void ChannelServer::OnDisconnect(int fd)
     epoll_ctl(m_epfd, EPOLL_CTL_DEL, fd, nullptr);
     close(fd);
     session->WaitForNoTasks();
+    session->FinalizePlayer();
     delete session;
 
     unsigned int currentUserCount = m_current_user_count.load();
@@ -679,5 +692,45 @@ void ChannelServer::ProcessAuthResults()
         InventoryPacketSender::SendInventoryItems(rawPlayer);
 
         QuickSlotPacketSender::SendQuickSlotList(rawPlayer);
+    }
+}
+
+void ChannelServer::SchedulePlayerSaves()
+{
+    struct SaveTarget
+    {
+        int fd = -1;
+        std::uint64_t sessionId = 0;
+        std::uint64_t generation = 0;
+    };
+
+    std::vector<SaveTarget> saveTargets;
+
+    {
+        std::lock_guard<std::mutex> lock(m_sessionMutex);
+
+        saveTargets.reserve(m_sessions.size());
+
+        for (const auto& [fd, session] : m_sessions)
+        {
+            if (session == nullptr || session->IsClosing() || !session->IsAuthenticated())
+            {
+                continue;
+            }
+
+            saveTargets.push_back({fd, session->GetSessionId(),session->GetGeneration()});
+        }
+    }
+
+    for (const SaveTarget& target : saveTargets)
+    {
+        auto task = std::make_unique<PlayerSaveTask>(
+            this,
+            target.fd,
+            target.sessionId,
+            target.generation
+        );
+
+        m_pool.SubmitByKey(target.sessionId,std::move(task));
     }
 }

@@ -330,3 +330,37 @@ RedisGetDelResult RedisClient::GetAndDelete(const std::string& key)
 
     return result;
 }
+
+bool RedisClient::Delete(const std::string& key)
+{
+    if (m_ctx == nullptr)
+    {
+        K_LOG_ERROR("Delete failed: Redis context is null");
+        return false;
+    }
+
+    if (key.empty())
+    {
+        K_LOG_ERROR("Delete failed: key is empty");
+        return false;
+    }
+
+    redisReply* reply = static_cast<redisReply*>(redisCommand(m_ctx,"DEL %b",key.data(),key.size()));
+
+    if (reply == nullptr)
+    {
+        K_LOG_ERROR("Delete failed: Redis command failed. key[%s]",key.c_str());
+        return false;
+    }
+
+    const bool succeeded = reply->type == REDIS_REPLY_INTEGER;
+
+    if (!succeeded)
+    {
+        K_LOG_ERROR("Delete failed: unexpected reply type[%d]",reply->type);
+    }
+
+    freeReplyObject(reply);
+
+    return succeeded;
+}

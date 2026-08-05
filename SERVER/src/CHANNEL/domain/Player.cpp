@@ -144,14 +144,17 @@ bool Player::CanUseSkill(SkillDef* skillDef)
 void Player::UseSkill(SkillDef* skillDef)
 {
     std::lock_guard<std::mutex> lock(m_statMutex);
-    int cur_mp = 0;
-    int64_t now = NowMs();
+   
+    const int64_t now = NowMs();
     skillCooldownEndMs[skillDef->skill_id] = now + skillDef->cooldown_ms;
 
-    cur_mp = m_stat.GetCurMp();
+    int cur_mp = m_stat.GetCurMp();
     cur_mp -= skillDef->mp_cost;
 
     m_stat.SetCurMp(cur_mp);
+
+    m_statDirty = true;
+    MarkSaveNeeded();
 
     K_LOG_TRACE( "CurMp =%d\n", cur_mp);
 }
@@ -160,6 +163,9 @@ void Player::UpStat(const std::string& statType)
 {
     std::lock_guard<std::mutex> lock(m_statMutex);
     m_stat.Up(statType);
+
+    m_statDirty = true;
+    MarkSaveNeeded();
 }
 
 
@@ -188,9 +194,7 @@ bool Player::CanUseItem(int inventoryType, int slotPos, int item_id, int useCoun
         return false;
     }
 
-    auto inventory = m_inventoryManager.GetInventory(inventoryType);
-
-    if(!inventory->HasItemBySlot(slotPos, item_id, useCount))
+    if(!m_inventoryManager.HasItemBySlot(inventoryType,slotPos, item_id, useCount))
     {
         K_LOG_ERROR( "아이템을 사용할 수 없습니다. item_id=%d type=%s\n", item_id, def->type.c_str());
         return false;
@@ -209,14 +213,13 @@ bool Player::UseItem(int inventoryType, int slotPos, int itemId, int useCount)
     const ItemInitData* def = ItemManager::GetInstance()->Find(itemId);
     if (!def) return false;
 
-    auto inventory = m_inventoryManager.GetInventory(inventoryType);
-
-    if(!inventory->RemoveItemBySlot(slotPos, itemId, useCount))
+    if(!m_inventoryManager.RemoveItemBySlot(inventoryType,slotPos, itemId, useCount))
     {
         K_LOG_ERROR( "아이템을 사용할 수 없습니다. item_id=%d\n", itemId);
         return false;
     }
 
+    MarkSaveNeeded();
     // 효과 적용
     // (ItemInitData.use_effect 타입에 따라 아래 분기만 맞추면 됨)
     if (def->use_effect)
@@ -238,14 +241,13 @@ bool Player::UseItem(int inventoryType, int slotPos, int itemId, int useCount)
 
 int Player::GetItemCount(int inventoryType, int slotPos, int itemId) const
 {
-    
-    auto inventory = m_inventoryManager.GetInventory(inventoryType);
-    if(!inventory->HasItemBySlot(slotPos, itemId))
+    const int itemCount = m_inventoryManager.GetItemCount(inventoryType,slotPos,itemId);
+    if (itemCount <= 0)
     {
-        K_LOG_TRACE( "플레이어가 소유하지 않은 아이템입니다.\n");
-        return 0;
+        K_LOG_TRACE("플레이어가 소유하지 않은 아이템입니다.\n");
     }
-    return inventory->GetItemCount(slotPos, itemId);
+
+    return itemCount;
 }
 
 int Player::GetSkillLevel(int skill_id) const
@@ -285,6 +287,7 @@ void Player::AddHP(int HP)
     if (m_stat.GetCurHp() > m_stat.GetMaxHp()) m_stat.GetCurHp() = m_stat.GetMaxHp();
     // if (m_stat.GetCurHp() < 0) m_stat.GetCurHp() = 0; //체력깎일때 조건사용 ex)OnDamage에서 HP 감소할 때
     m_statDirty = true;
+    MarkSaveNeeded();
 }
 
 void Player::AddMP(int MP)
@@ -294,6 +297,7 @@ void Player::AddMP(int MP)
     if (m_stat.GetCurMp() > m_stat.GetMaxMp()) m_stat.GetCurMp() = m_stat.GetMaxMp();
     // if (m_stat.GetCurMp() < 0) m_stat.GetCurMp() = 0; //Mp깎일때 조건사용 ex)스킬 사용시 MP 감소할때
     m_statDirty = true;
+    MarkSaveNeeded();
 }
 
 
@@ -321,6 +325,7 @@ void Player::OnDamaged(int dmg,int64_t nowMs)
     // 다음 피격 가능 시간 설정
     m_nextContactDamageAllowedMs = nowMs + m_contactDamageCooldownMs;
     m_statDirty = true;
+    MarkSaveNeeded();
 }
 
 void Player::Dead()
@@ -334,5 +339,100 @@ ExpResult Player::AddExp(int64_t exp)
     std::lock_guard<std::mutex> lock(m_statMutex);
     ExpResult result = m_stat.AddExp(exp);
     m_statDirty = true;
+    MarkSaveNeeded();
     return result;
 }
+
+PlayerSaveData Player::MakeSaveData() const
+{
+    PlayerSaveData saveData{};
+
+     // 저장을 시작한 시점의 변경 버전
+    saveData.saveVersion = m_saveVersion.load();
+    saveData.characterId = m_char_id;
+
+    {
+        std::lock_guard<std::mutex> lock(m_positionMutex);
+
+        saveData.mapId = m_map_id;
+        saveData.position.xPos = m_xPos;
+        saveData.position.yPos = m_yPos;
+    }
+
+    saveData.stat = GetStatSnapShot();
+
+    InventorySaveData inventorySaveData = m_inventoryManager.MakeSaveInventoryData();
+    saveData.inventoryMetas = std::move(inventorySaveData.metaInfos);
+    saveData.inventoryItems = std::move(inventorySaveData.itemInfos);
+    saveData.quickSlots = m_quickSlotManager.GetSlotList();
+
+    return saveData;
+}
+
+void Player::MarkSaveNeeded()
+{
+    m_saveVersion.fetch_add(1);
+}
+
+bool Player::IsSaveNeeded() const
+{
+    return m_saveVersion.load() != 0;
+}
+
+bool Player::TryMarkSaved(const std::uint64_t saveVersion)
+{
+    std::uint64_t expectedVersion = saveVersion;
+
+    return m_saveVersion.compare_exchange_strong(expectedVersion,0);
+}
+
+
+void Player::SetMapId(int map_id)
+{
+    {
+        std::lock_guard<std::mutex> lock(m_positionMutex);
+        m_map_id = map_id;
+    }
+
+    MarkSaveNeeded();
+}
+void Player::SetPos(float xPos, float yPos)
+{
+    {
+        std::lock_guard<std::mutex> lock(m_positionMutex);
+        m_xPos = xPos;
+        m_yPos = yPos;
+    }
+
+    MarkSaveNeeded();
+}
+void Player::SetPos(Vec2 Pos)
+{
+    {
+        std::lock_guard<std::mutex> lock(m_positionMutex);
+        m_xPos = Pos.xPos;
+        m_yPos = Pos.yPos;
+    }
+
+    MarkSaveNeeded();
+}
+
+int Player::GetMapId() const
+{
+    std::lock_guard<std::mutex> lock(m_positionMutex);
+    return m_map_id;
+}
+
+Vec2 Player::GetPos() const
+{
+    std::lock_guard<std::mutex> lock(m_positionMutex);
+    return Vec2{m_xPos, m_yPos};
+}
+
+
+
+
+
+
+
+

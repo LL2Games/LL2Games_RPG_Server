@@ -2,7 +2,8 @@
 
 void QuickSlotManager::Init()
 {
-   m_quickSlots.clear();
+    std::lock_guard<std::mutex> lock(m_quickSlotMutex);
+    m_quickSlots.clear();
 
     for (int i = 0; i < m_maxSlotCount; ++i)
     {
@@ -15,22 +16,23 @@ void QuickSlotManager::Init()
 
 std::vector<QuickSlotData> QuickSlotManager::SetSlot(const QuickSlotData& data)
 {
+    std::lock_guard<std::mutex> lock(m_quickSlotMutex);
+
     std::vector<QuickSlotData> changedSlots;
-    K_LOG_DEBUG( "LHJ TEST0\n");
     if (data.slot_index < 0)
     {
-        K_LOG_DEBUG( "LHJ TEST1\n");
+       
         return changedSlots;
     }
-    K_LOG_DEBUG( "LHJ TEST5\n");    
+
     auto slot = m_quickSlots.find(data.slot_index);
     if (slot == m_quickSlots.end())
     {
-        K_LOG_DEBUG( "LHJ TEST2\n");
+     
         return changedSlots;
     }
         
-    K_LOG_DEBUG( "LHJ TEST4\n");
+    
     for (auto& [slotIndex, slotData] : m_quickSlots)
     {
         if (slotIndex == data.slot_index)
@@ -44,7 +46,7 @@ std::vector<QuickSlotData> QuickSlotManager::SetSlot(const QuickSlotData& data)
             changedSlots.push_back(slotData);
         }
     }
-    K_LOG_DEBUG( "LHJ TEST3\n");
+    
     slot->second = data;
     slot->second.slot_index = data.slot_index;
 
@@ -57,6 +59,8 @@ std::vector<QuickSlotData> QuickSlotManager::SetSlot(const QuickSlotData& data)
     
 void QuickSlotManager::RemoveSlot(int slotIndex)
 {
+    std::lock_guard<std::mutex> lock(m_quickSlotMutex);
+
     auto slot = m_quickSlots.find(slotIndex);
 
     if(slot != m_quickSlots.end())
@@ -65,20 +69,22 @@ void QuickSlotManager::RemoveSlot(int slotIndex)
     }
 }
 
- const QuickSlotData* QuickSlotManager::GetSlot(int slotIndex) const
+std::optional<QuickSlotData> QuickSlotManager::GetSlot(int slotIndex) const
  {
+    std::lock_guard<std::mutex> lock(m_quickSlotMutex);
     auto slot = m_quickSlots.find(slotIndex);
 
     if(slot == m_quickSlots.end())
     {
-        return nullptr;
+        return std::nullopt;
     }
 
-    return &(slot->second);
+    return slot->second;
  }
 
- const std::vector<QuickSlotData> QuickSlotManager::GetSlotList() const
+std::vector<QuickSlotData> QuickSlotManager::GetSlotList() const
  {
+    std::lock_guard<std::mutex> lock(m_quickSlotMutex);
     std::vector<QuickSlotData> quickSlotDatas;
 
     quickSlotDatas.reserve(m_quickSlots.size());
@@ -95,12 +101,7 @@ void QuickSlotManager::RemoveSlot(int slotIndex)
     if (a.type != b.type)
         return false;
 
-    if (a.type == QuickSlotType::Skill)
-    {
-        return a.ref_id == b.ref_id;
-    }
-
-    if (a.type == QuickSlotType::Item)
+    if (a.type == QuickSlotType::Skill || a.type == QuickSlotType::Item)
     {
         return a.ref_id == b.ref_id;
     }
@@ -110,6 +111,8 @@ void QuickSlotManager::RemoveSlot(int slotIndex)
 
  void QuickSlotManager::ClearSlot(int slotIndex)
  {
+    std::lock_guard<std::mutex> lock(m_quickSlotMutex);
+    
     auto it = m_quickSlots.find(slotIndex);
     if (it == m_quickSlots.end())
         return;

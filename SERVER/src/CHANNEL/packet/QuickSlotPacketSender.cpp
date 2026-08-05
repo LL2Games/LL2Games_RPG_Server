@@ -25,6 +25,7 @@ void QuickSlotPacketSender::SendQuickSlotList(Player* player)
         payload.push_back(std::to_string(quickSlot.ref_id));
         payload.push_back(std::to_string(quickSlot.inventory_type));
         payload.push_back(std::to_string(quickSlot.inventory_slotPos));
+        payload.push_back(std::to_string(quickSlot.count));
     }
 
     session->Send(PKT_QUICKSLOT_LIST, payload);

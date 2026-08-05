@@ -3,6 +3,16 @@
 #include "LevelManager.h"
 
 
+CharacterStat::CharacterStat() : m_base{},
+      m_derived{},
+      m_expStat{},
+      m_cur_hp(0),
+      m_cur_mp(0),
+      m_remain_ap(0)
+{
+
+}
+
 ExpResult CharacterStat::AddExp(int64_t exp)
 {
     ExpResult result{};  

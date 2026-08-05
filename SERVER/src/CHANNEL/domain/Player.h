@@ -13,7 +13,11 @@
 #include "QuickSlotManager.h"
 #include "Weapon_Info.h"
 #include "StatInfoPacket.h"
+#include "PlayerSaveData.h"
+
 #include <mutex>
+#include <atomic>
+#include <cstdint>
 
 class ChannelSession;
 class MapInstance;
@@ -34,17 +38,16 @@ public:
     ~Player();
 
 public: 
-    void SetId(int m_char_id){this->m_char_id = m_char_id;}
-    void SetAccountId(std::string m_account_id) {this->m_account_id = m_account_id;}
-    void SetName(std::string m_name){ this->m_name = m_name;}
+    void SetId(int char_id){this->m_char_id = char_id;}
+    void SetAccountId(std::string account_id) {this->m_account_id = account_id;}
+    void SetName(std::string name){ this->m_name = name;}
     
     void SetJob(int m_job){this->m_job = m_job;}
-    void SetMapId(int m_map_id){this->m_map_id = m_map_id;}
-
     void SetLevel(int m_level){this->m_level = m_level;}
 
-    void SetPos(float m_xPos, float m_yPos) {this->m_xPos = m_xPos; this->m_yPos = m_yPos;}\
-    void SetPos(Vec2 Pos) {m_xPos = Pos.xPos, m_yPos = Pos.yPos;}
+    void SetMapId(int map_id);
+    void SetPos(float xPos, float yPos);
+    void SetPos(Vec2 Pos);  
 
     void SetInitData(const PlayerInitData playerInitData);
     void SetInitData(const PlayerInitData playerInitData, const CharacterStat &stat);
@@ -108,7 +111,7 @@ public:
 
     int GetJob() {return m_job;}
     int GetId() {return m_char_id;}
-    int GetMapId() {return m_map_id;}
+    int GetMapId() const;
     int GetLevel() const {return m_level;}
     int GetSkillLevel(int skill_id) const;
     WeaponType GetWeaponType() const {return m_weaponType;}
@@ -129,7 +132,7 @@ public:
     CharacterStat& GetStat() {return m_stat;}
     const CharacterStat& GetStat() const {return m_stat;}    
   
-    Vec2 GetPos() {return Vec2{m_xPos, m_yPos};}
+    Vec2 GetPos() const;
     RootJob GetRootJob() const {return m_root_job;}
     Collider2D GetCollider() {return m_collider;}
 
@@ -161,6 +164,15 @@ public:
     void Dead();
 
     ExpResult AddExp(int64_t  exp);
+
+    // 현재 상태를 PlayerSaveData로 복사
+    PlayerSaveData MakeSaveData() const;
+    // 플레이어 상태가 변경됐다고 표시
+    void MarkSaveNeeded();
+    // DB 저장이 필요한지 확인
+    bool IsSaveNeeded() const;
+    // 저장 중 추가 변경이 없었을 때만 저장 완료 처리
+    bool TryMarkSaved(std::uint64_t saveVersion);
 
 private:
     int m_char_id;
@@ -207,4 +219,7 @@ private:
     int64_t m_contactDamageCooldownMs;
 
     mutable std::mutex m_statMutex;
+
+    std::atomic<std::uint64_t> m_saveVersion{0};
+    mutable std::mutex m_positionMutex;
 };

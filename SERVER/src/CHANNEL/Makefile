@@ -71,6 +71,7 @@ SRCS := \
     \
 	db/PlayerService.cpp \
 	db/RedisUtility.cpp \
+	db/PlayerStateRepository.cpp \
 	\
 	domain/Player.cpp \
 	domain/Monster.cpp \
@@ -121,6 +122,8 @@ SRCS := \
 	service/CombatService.cpp \
 	service/ItemService.cpp \
 	service/TradeService.cpp \
+	service/PlayerDataSaveService.cpp \
+	service/PlayerSaveTask.cpp \
 	\
 	stat/PlayerStatRepository.cpp \
 	stat/CharacterStat.cpp \

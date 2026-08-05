@@ -307,3 +307,47 @@ bool ChannelSession::IsAuthenticated() const
 {
     return m_authenticationState.load() == ChannelAuthenticationState::Authenticated;
 }
+
+void ChannelSession::FinalizePlayer()
+{
+    if (m_player == nullptr)
+    {
+        return;
+    }
+
+    Player* player = m_player;
+    player->SetSession(nullptr);
+
+    MapInstance* map = player->GetCurrentMap();
+
+    if (map != nullptr)
+    {
+        map->OnLeave(player->GetId());
+        K_LOG_DEBUG("map->OnLeave(Id:%d)",player->GetId());
+    }
+
+    if (m_server != nullptr)
+    {
+        std::string errMsg;
+
+        if (!m_server->GetPlayerDataSaveService()->SaveNow(*player,errMsg))
+        {
+            K_LOG_ERROR("Final player save failed. playerId[%d] err[%s]",player->GetId(),errMsg.c_str());
+        }
+    }
+
+    const int playerId = player->GetId();
+
+    // RemovePlayer에서 Player 객체가 삭제될 수 있으므로 이후 player를 사용하면 안 된다.
+    m_player = nullptr;
+
+    if (m_playerManager != nullptr)
+    {
+        m_playerManager->RemovePlayer(playerId);
+        K_LOG_TRACE("[ChannelSession Finalize] RemovePlayer id:%d",playerId);
+    }
+    else
+    {
+        K_LOG_ERROR("[ChannelSession Finalize] playerManager is null. player id:%d",playerId);
+    }
+}

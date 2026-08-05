@@ -117,6 +117,15 @@ void ChannelAuthTask::Execute()
             K_LOG_ERROR("ChannelAuthTask: learned skill load failed");
         }
 
+        if (!PlayerService::LoadSlotSetting(player.get()))
+        {
+            K_LOG_ERROR("ChannelAuthTask: quick slot load failed");
+            result.error = "player quick slot load failed";
+            m_server->PushAuthResult(std::move(result));
+        
+            return;
+        }
+
         result.success = true;
         result.player = std::move(player);
         m_server->PushAuthResult(std::move(result));

@@ -13,9 +13,6 @@ StatService::~StatService()
 
 int StatService::UpStat(Player &player, const std::string &statType, std::string &errMsg)
 {
-    int result = 0;
-    CharacterStat& stat = player.GetStat();
-
     // //db 업
     // result = m_repo.Update(std::to_string(player.GetId()), statType, errMsg);
     // if (result != 0)
@@ -23,9 +20,9 @@ int StatService::UpStat(Player &player, const std::string &statType, std::string
 
     (void)errMsg;
     //객체 업
-    stat.Up(statType);
+    player.UpStat(statType);
   
-    return result;
+    return 0;
 }
 
 int StatService::SaveRuntimeStat(Player& player, std::string& errMsg)

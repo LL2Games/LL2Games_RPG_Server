@@ -44,6 +44,9 @@ public:
     void MarkAuthenticated();
     void ResetAuthentication();
     bool IsAuthenticated() const;
+
+    // 세션 종료 시 플레이어 정리 절차 수행 함수
+    void FinalizePlayer();
 public: 
     void SetPlayer(Player* player) {m_player = player;}
     Player* GetPlayer() const {return m_player;}

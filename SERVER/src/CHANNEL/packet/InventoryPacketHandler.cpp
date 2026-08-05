@@ -131,7 +131,7 @@ void InventoryPacketHandler::Execute(PacketContext * ctx)
         K_LOG_ERROR( "MoveItemSlots Err [%s]", errMsg);
         goto err;
    }
-
+   player->MarkSaveNeeded();
    K_LOG_TRACE( "InventoryPacketHandler ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ");
 err:
     if (rc != EXIT_SUCCESS) {
