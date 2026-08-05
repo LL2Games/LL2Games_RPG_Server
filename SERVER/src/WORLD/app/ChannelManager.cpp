@@ -164,3 +164,47 @@ int ChannelManager::CanEnterChannel(const std::string& channel_id, RedisClient& 
 
     return (int)result_state;
 }
+
+int ChannelManager::GetChannelsState(RedisClient& redis, std::vector<std::string>& channel_states)
+{
+    const int MAX_CHANNELS = 3; 
+    channel_states.clear();
+    
+    for (int channel_id = 1; channel_id <= MAX_CHANNELS; ++channel_id)
+    {
+        E_ChannelState result_state = E_ChannelState::Die;
+        auto redis_value = redis.HGetAll("channel:" + std::to_string(channel_id) + ":status");
+        if (redis_value.has_value() && !redis_value->empty())
+        {
+            auto it = redis_value->find("state");
+            if (it != redis_value->end())
+            {
+                std::string state = it->second;
+                if (state == ChannelState::NORMAL)
+                    result_state = E_ChannelState::Normal;
+                else if (state == ChannelState::BUSY)
+                    result_state = E_ChannelState::Busy;
+                else if (state == ChannelState::FULL)
+                    result_state = E_ChannelState::Full;
+                else 
+                    result_state = E_ChannelState::Die;
+
+                // K_LOG_DEBUG( "channel(%s) status from Redis: state=%s", channel_id.c_str(), state.c_str());
+                // K_LOG_DEBUG( "channel(%s) percentage from Redis: percentage=%s%%", channel_id.c_str(), redis_value->find("percentage") != redis_value->end() ? redis_value->find("percentage")->second.c_str() : "N/A");
+
+                channel_states.push_back(std::to_string((int)result_state));
+            }
+            else
+            {
+                K_LOG_ERROR( "Failed to get channel state from Redis for channel(%d)", channel_id);
+                channel_states.push_back(std::to_string((int)E_ChannelState::Die));
+            }
+        }
+        else
+        {
+            K_LOG_ERROR( "Failed to get channel status from Redis for channel(%d)", channel_id);
+            channel_states.push_back(std::to_string((int)E_ChannelState::Die));
+        }
+    }
+    return 0;
+}

@@ -31,6 +31,8 @@ public:
     int LoadFromRedis(RedisClient&);
     int SaveToRedis(RedisClient&);
     int CanEnterChannel(const std::string& channel_id, RedisClient& redis);
+    int GetChannelsState(RedisClient &redis, std::vector<std::string>& channel_states);
+
 private:
     //key=channel_id, value=ChannelInfo
     std::map<std::string, ChannelInfo> m_channels;

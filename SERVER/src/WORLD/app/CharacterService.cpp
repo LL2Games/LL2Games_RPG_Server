@@ -140,6 +140,9 @@ std::vector<std::string> CharacterService::GetCharacterList(const std::string& a
         return char_list; 
     }
 
+    //전체 캐릭터 수 먼저 추가
+    char_list.push_back(std::to_string(mysql_stmt_num_rows(stmt)));
+    
     while (true)
     {
         int fetchResult = mysql_stmt_fetch(stmt);

@@ -4,9 +4,11 @@
 #include "K_slog.h"
 #include "PacketParser.h"
 #include "RedisConnectionPool.h"
+#include "ChannelManager.h"
 
 void CharacterHandler::Execute(PacketContext* ctx)
 {
+    ChannelManager *channel_manager = nullptr;
     WorldSession *session = nullptr;
     CharacterService *char_service = nullptr;
     int rc = EXIT_SUCCESS;
@@ -35,6 +37,14 @@ void CharacterHandler::Execute(PacketContext* ctx)
         errMsg = "[" + std::to_string(rc) + "]char_service is nullptr";
         goto err;
     }
+    channel_manager = ctx->channel_manager;
+    if (channel_manager == nullptr)
+    {
+        K_LOG_ERROR( "channel_manager is nullptr\n");
+        rc = EXIT_FAILURE;
+        errMsg = "[" + std::to_string(rc) + "]channel_manager is nullptr";
+        goto err;
+    }
     
 
 err:
@@ -50,7 +60,16 @@ err:
             session->SendNok(PKT_SELECT_CHARACTER, "redis connection acquire failed");
             return;
         }
+
         std::vector<std::string> char_list = char_service->GetCharacterList(session->GetID(), *redisGuard.Get());
-        session->SendOk(PKT_SELECT_CHARACTER, char_list);
+
+        std::vector<std::string> channel_states;
+        channel_manager->GetChannelsState(*redisGuard.Get(), channel_states);
+
+        std::vector<std::string> payload;
+        payload.insert(payload.end(), char_list.begin(), char_list.end());
+        payload.insert(payload.end(), channel_states.begin(), channel_states.end());
+
+        session->SendOk(PKT_SELECT_CHARACTER, payload);
     }
 }
