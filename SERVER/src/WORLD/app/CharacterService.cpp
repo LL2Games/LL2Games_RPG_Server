@@ -179,6 +179,167 @@ std::vector<std::string> CharacterService::GetCharacterList(const std::string& a
     return char_list;
 }
 
+static int InsertCharacter(MYSQL_STMT* stmt, const std::string& account_id, const std::string& nick, int job, int root_job)
+{
+    const char* query = "INSERT INTO `character` "
+    "(`account_id`, `name`, `job`, `root_job`, `created_at`) "
+    "VALUES (?, ?, ?, ?, NOW())";
+
+    if(mysql_stmt_prepare(stmt, query, strlen(query)) != 0)
+    {
+        K_LOG_ERROR( "mysql_stmt_prepare Error [%s]", mysql_stmt_error(stmt));
+        return EXIT_FAILURE;
+    }
+
+    unsigned long accountIdLength = static_cast<unsigned long>(account_id.size());
+    unsigned long nickLength = static_cast<unsigned long>(nick.size());
+
+    MYSQL_BIND param[4]{};
+
+    param[0].buffer_type = MYSQL_TYPE_STRING;
+    param[0].buffer = const_cast<char*>(account_id.c_str());
+    param[0].buffer_length = accountIdLength;
+    param[0].length = &accountIdLength;
+
+    param[1].buffer_type = MYSQL_TYPE_STRING;
+    param[1].buffer = const_cast<char*>(nick.c_str());
+    param[1].buffer_length = nickLength;
+    param[1].length = &nickLength;
+
+    param[2].buffer_type = MYSQL_TYPE_LONG;
+    param[2].buffer = &job;
+
+    param[3].buffer_type = MYSQL_TYPE_LONG;
+    param[3].buffer = &root_job;
+
+    if(mysql_stmt_bind_param(stmt, param) != 0)
+    {
+        K_LOG_ERROR( "mysql_stmt_bind_param Error [%s]", mysql_stmt_error(stmt));
+        return EXIT_FAILURE;
+    }
+
+    if(mysql_stmt_execute(stmt) != 0)
+    {
+        K_LOG_ERROR( "mysql_stmt_execute Error [%s]", mysql_stmt_error(stmt));
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
+}
+
+static int InsertCharacterStat(MYSQL_STMT* stmt, unsigned long long charId)
+{
+    const char* query =
+        "INSERT INTO `character_stat` "
+        "(`char_id`, `str`, `dex`, `intel`, `luk`, "
+        "`max_hp`, `max_mp`, `cur_hp`, `cur_mp`, `remain_ap`) "
+        "VALUES (?, 35, 4, 4, 4, 300, 100, 300, 100, 0)";
+
+    if(mysql_stmt_prepare(stmt, query, strlen(query)) != 0)
+    {
+        K_LOG_ERROR( "mysql_stmt_prepare Error [%s]", mysql_stmt_error(stmt));
+        return EXIT_FAILURE;
+    }
+
+    MYSQL_BIND param[1]{};
+
+    param[0].buffer_type = MYSQL_TYPE_LONGLONG;
+    param[0].buffer = &charId;
+    param[0].is_unsigned = true;
+
+
+    if(mysql_stmt_bind_param(stmt, param) != 0)
+    {
+        K_LOG_ERROR( "mysql_stmt_bind_param Error [%s]", mysql_stmt_error(stmt));
+        return EXIT_FAILURE;
+    }
+
+    if(mysql_stmt_execute(stmt) != 0)
+    {
+        K_LOG_ERROR( "mysql_stmt_execute Error [%s]", mysql_stmt_error(stmt));
+        return EXIT_FAILURE;
+    }
+
+    K_LOG_TRACE(
+        "Character stat inserted. char_id=[%llu]",
+        charId);
+
+    return EXIT_SUCCESS;
+}
+
+
+static int InsertCharacterInventoryMeta(MYSQL_STMT* stmt, unsigned long long charId)
+{
+    const char* query =
+        "INSERT INTO `character_inventory_meta` "
+        "(`char_id`, `inventory_type`, `max_slot`, `current_slot_count`) "
+        "VALUES "
+        "(?, 0, 128, 36), "
+        "(?, 1, 128, 36), "
+        "(?, 2, 128, 36), "
+        "(?, 3, 128, 36), "
+        "(?, 4, 128, 36)";
+
+    if (mysql_stmt_prepare( stmt, query, static_cast<unsigned long>(strlen(query))) != 0)
+    {
+        K_LOG_ERROR(
+            "mysql_stmt_prepare Error errno=[%u], error=[%s]",
+            mysql_stmt_errno(stmt),
+            mysql_stmt_error(stmt));
+
+        return EXIT_FAILURE;
+    }
+
+    MYSQL_BIND param[5]{};
+
+    for (int i = 0; i < 5; ++i)
+    {
+        param[i].buffer_type = MYSQL_TYPE_LONGLONG;
+        param[i].buffer = &charId;
+        param[i].is_unsigned = true;
+    }
+
+    if (mysql_stmt_bind_param(stmt, param) != 0)
+    {
+        K_LOG_ERROR(
+            "mysql_stmt_bind_param Error errno=[%u], error=[%s]",
+            mysql_stmt_errno(stmt),
+            mysql_stmt_error(stmt));
+
+        return EXIT_FAILURE;
+    }
+
+    if (mysql_stmt_execute(stmt) != 0)
+    {
+        K_LOG_ERROR(
+            "mysql_stmt_execute Error "
+            "errno=[%u], error=[%s], char_id=[%llu]",
+            mysql_stmt_errno(stmt),
+            mysql_stmt_error(stmt),
+            charId);
+
+        return EXIT_FAILURE;
+    }
+
+    if (mysql_stmt_affected_rows(stmt) != 5)
+    {
+        K_LOG_ERROR(
+            "Unexpected affected rows. "
+            "char_id=[%llu], affected_rows=[%llu]",
+            charId,
+            static_cast<unsigned long long>(
+                mysql_stmt_affected_rows(stmt)));
+
+        return EXIT_FAILURE;
+    }
+
+    K_LOG_TRACE(
+        "Character inventory meta inserted. "
+        "char_id=[%llu], inventory_type=[0~4]",
+        charId);
+
+    return EXIT_SUCCESS;
+}
 
 int CharacterService::CreateCharacter(const std::string& account_id, const std::string& nick, int job)
 {
@@ -190,7 +351,8 @@ int CharacterService::CreateCharacter(const std::string& account_id, const std::
     MYSQL* conn = nullptr; 
     MYSQL_STMT* stmt = nullptr;
     std::string query;
-    int root_job = job; //root_job을 일단 job으로 설정
+    int root_job = 20000; //root_job은 일단 Knight로 고정
+    unsigned long long charId;
 
     //1. MySQL 연결 가져오기
     conn = m_db->GetConnection();
@@ -208,100 +370,16 @@ int CharacterService::CreateCharacter(const std::string& account_id, const std::
         goto cleanup;
     }
 
-    //3. 쿼리준비
-    query =
-    "INSERT INTO `character` "
-    "(`account_id`, `name`, `job`, `root_job`, `created_at`) "
-    "VALUES (?, ?, ?, ?, NOW())";
-    //query = "SELECT 1 FROM `character` WHERE name = ? LIMIT 1";
-
-    if(mysql_stmt_prepare(stmt, query.c_str(), query.size()) != 0)
+    //3. 'character' 테이블 INSERT
+    if (InsertCharacter(stmt, account_id, nick, job, root_job) != EXIT_SUCCESS)
     {
-        K_LOG_ERROR( "mysql_stmt_prepare Error [%s]", mysql_stmt_error(stmt));
+        K_LOG_ERROR( "InsertCharacter failed");
         goto cleanup;
     }
 
-    //4. 입력 파라미터 바인딩
-    {
-        MYSQL_BIND paramBind[4]{};
-        memset(paramBind, 0x00, sizeof(paramBind));
-
-        unsigned long nickLength = static_cast<unsigned long>(nick.size());
-        unsigned long account_idLength = static_cast<unsigned long>(account_id.size());
-        unsigned long jobLength = sizeof(job);
-        unsigned long root_jobLength = sizeof(root_job);
-
-        paramBind[0].buffer_type = MYSQL_TYPE_STRING;
-        paramBind[0].buffer = const_cast<char*>(account_id.data());
-        paramBind[0].buffer_length = account_idLength;
-        paramBind[0].length = &account_idLength;
-
-        paramBind[1].buffer_type = MYSQL_TYPE_STRING;
-        paramBind[1].buffer = const_cast<char*>(nick.data());
-        paramBind[1].buffer_length = nickLength;
-        paramBind[1].length = &nickLength;
-
-        paramBind[2].buffer_type = MYSQL_TYPE_LONG;
-        paramBind[2].buffer = &job;
-        paramBind[2].buffer_length = jobLength;
-        paramBind[2].length = &jobLength;
-
-        paramBind[3].buffer_type = MYSQL_TYPE_LONG;
-        paramBind[3].buffer = &root_job;
-        paramBind[3].buffer_length = root_jobLength;
-        paramBind[3].length = &root_jobLength;
-
-        if (mysql_stmt_bind_param(stmt, paramBind) != 0)
-        {
-            K_LOG_ERROR("mysql_stmt_bind_param Error [%s]", mysql_stmt_error(stmt));
-            goto cleanup;
-        }
-    }
-
-    //5. 쿼리실행
-    if (mysql_stmt_execute(stmt) != 0)
-    {
-        const unsigned int errorCode = mysql_stmt_errno(stmt);
-
-        // ER_DUP_ENTRY
-        // 닉네임 중복검사 이후 다른 요청이 같은 닉네임을 먼저
-        // 생성했을 때 여기에서 최종적으로 차단된다.
-        if (errorCode == 1062)
-        {
-            K_LOG_ERROR(
-                "Character nickname already exists. "
-                "account_id=[%s], name=[%s]",
-                account_id.c_str(),
-                nick.c_str());
-
-            //rc = 1;
-            goto cleanup;
-        }
-
-        // 존재하지 않는 account_id 등 외래키 오류
-        if (errorCode == 1452)
-        {
-            K_LOG_ERROR(
-                "Invalid account_id. account_id=[%s], error=[%s]",
-                account_id.c_str(),
-                mysql_stmt_error(stmt));
-
-            //rc = 2;
-            goto cleanup;
-        }
-
-        K_LOG_ERROR(
-            "mysql_stmt_execute Error code=[%u], message=[%s]",
-            errorCode,
-            mysql_stmt_error(stmt));
-
-        goto cleanup;
-    }
-
-    //6 INSERT 성공 시, 생성된 char_id를 가져온다.
+    //3-2 INSERT 성공 시, 생성된 char_id를 가져온다.
      {
-        const unsigned long long charId =
-            mysql_stmt_insert_id(stmt);
+        charId = mysql_stmt_insert_id(stmt);
 
         K_LOG_TRACE(
             "Character created. char_id=[%llu], "
@@ -310,6 +388,20 @@ int CharacterService::CreateCharacter(const std::string& account_id, const std::
             account_id.c_str(),
             nick.c_str(),
             job);
+    }
+
+    //4. 'character_stat' 테이블 INSERT
+    if (InsertCharacterStat(stmt, charId) != EXIT_SUCCESS)
+    {
+        K_LOG_ERROR( "InsertCharacterStat failed");
+        goto cleanup;
+    }
+    
+    //5. 'character_inventory_meta' 테이블 INSERT
+    if (InsertCharacterInventoryMeta(stmt, charId) != EXIT_SUCCESS)
+    {
+        K_LOG_ERROR( "InsertCharacterInventoryMeta failed");
+        goto cleanup;
     }
     
     rc = EXIT_SUCCESS;
