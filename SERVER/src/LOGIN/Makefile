@@ -62,6 +62,7 @@ SRCS := \
     \
     packet/LoginPacketFactory.cpp \
     packet/LoginHandler.cpp \
+    packet/RegisterHandler.cpp \
     \
     db/MySQLManager.cpp \
     \

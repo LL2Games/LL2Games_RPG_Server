@@ -63,6 +63,8 @@ SRCS := \
     packet/CharacterHandler.cpp \
     packet/WorldInitHandler.cpp \
     packet/ChannelSelectHandler.cpp \
+    packet/CharacterNewHandler.cpp \
+    packet/CheckDupNickHandler.cpp \
     \
     main.cpp
 

@@ -12,6 +12,7 @@ static int Init(const MySqlConfig& mysqlConfig);
     static MySQLManager *GetInstance();
 
     bool Login(const std::string &id, const std::string &pw);
+    bool Register(const std::string &id, const std::string &pw, const std::string &pw_check);
     //std::string GetNick(const std::string &id);
 
 private:
