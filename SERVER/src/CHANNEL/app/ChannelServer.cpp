@@ -8,9 +8,21 @@
 #include "PlayerPacketSender.h"
 #include "QuickSlotPacketSender.h"
 #include "InventoryPacketSender.h"
+#include "FinalPlayerDataSaveTask.h"
+
+#include <memory>
+#include <utility>
 
 //threadCount == 0 인경우 하드웨어 CPU 코어 수를 계산하여 스레드풀 생성
-ChannelServer::ChannelServer(const int channelId, const int threadCount, const int maxUserCount) : m_channel_id(channelId), m_listen_fd(0), m_epfd(0), m_running(false), m_map_manager(this), m_map_service(m_player_mamager, m_map_manager), m_pool(threadCount == 0 ? std::thread::hardware_concurrency() : threadCount), m_authPool(threadCount == 0 ? std::thread::hardware_concurrency() : threadCount),m_level_manager(nullptr),m_current_user_count(0), m_max_user_count(maxUserCount)
+ChannelServer::ChannelServer(const int channelId, const int threadCount, const int maxUserCount) : 
+                m_channel_id(channelId), 
+                m_listen_fd(0), m_epfd(0), 
+                m_running(false), m_map_manager(this),
+                m_map_service(m_player_mamager, m_map_manager), 
+                m_pool(threadCount == 0 ? std::thread::hardware_concurrency() : threadCount), 
+                m_authPool(threadCount == 0 ? std::thread::hardware_concurrency() : threadCount),
+                m_savePool(2),
+                m_level_manager(nullptr),m_current_user_count(0), m_max_user_count(maxUserCount)
 {
     m_item_manager = ItemManager::GetInstance();
     m_monster_manager = MonsterManager::GetInstance();
@@ -20,7 +32,9 @@ ChannelServer::ChannelServer(const int channelId, const int threadCount, const i
 
 ChannelServer::~ChannelServer()
 {
-
+    m_authPool.Stop();
+    m_pool.Stop();
+    m_savePool.Stop();
 }
 
 int ChannelServer::SetNonblocking(int fd)
@@ -73,6 +87,11 @@ void ChannelServer::OnSend(int fd)
     if (!session->HasPendingSend())
     {
         DisableWriteEvent(fd);
+
+        if (session->HasPendingSend())
+        {
+            EnableWriteEvent(fd);
+        }
     }
 }
 
@@ -115,10 +134,11 @@ bool ChannelServer::Init(const int port, const RedisConfig& redisConfig)
    K_LOG_TRACE( "Thread Pool Start ==PoolSize: %zu\n", m_pool.GetPoolSize());
    K_LOG_TRACE( "Auth Thread Pool Start ==PoolSize: %zu\n", m_authPool.GetPoolSize());
    //스레드풀 시작
-   m_pool.Start();
-   K_LOG_TRACE( "ChatD MessageQueue Start\n");
-   //chatD 메시지큐 리시버 스레드 시작
+    m_pool.Start();
+    K_LOG_TRACE( "ChatD MessageQueue Start\n");
+    //chatD 메시지큐 리시버 스레드 시작
     m_authPool.Start();
+    m_savePool.Start();
     //m_cmd_receiver.Start(); 지금 미사용 나중에 다시 풀어야함
    
    //맵매니저 스레드 시작
@@ -733,4 +753,77 @@ void ChannelServer::SchedulePlayerSaves()
 
         m_pool.SubmitByKey(target.sessionId,std::move(task));
     }
+}
+
+bool ChannelServer::SubmitFinalPlayerDataSave(PlayerSaveData saveData)
+{
+    const int characterId = saveData.characterId;
+
+    if (characterId <= 0)
+    {
+        K_LOG_ERROR("Final player data save submit failed: ""invalid character ID");
+        return false;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(m_finalPlayerDataSaveMutex);
+
+        const auto insertResult = m_finalPlayerDataSavePending.insert(characterId);
+
+        if (!insertResult.second)
+        {
+            K_LOG_ERROR("Final player data save is already pending. characterId[%d]",characterId);
+            return false;
+        }
+    }
+
+    try
+    {
+        auto task = std::make_unique<FinalPlayerDataSaveTask>(this,std::move(saveData));
+        m_savePool.SubmitByKey(static_cast<std::uint64_t>(characterId),std::move(task));
+    }
+    catch (const std::exception& exception)
+    {
+        {
+            std::lock_guard<std::mutex> lock(m_finalPlayerDataSaveMutex);
+            m_finalPlayerDataSavePending.erase(characterId);
+        }
+
+        K_LOG_ERROR("Final player data save submit exception. characterId[%d] error[%s]",characterId,exception.what());
+        return false;
+    }
+    catch (...)
+    {
+        {
+            std::lock_guard<std::mutex> lock(m_finalPlayerDataSaveMutex);
+            m_finalPlayerDataSavePending.erase(characterId);
+        }
+        K_LOG_ERROR("Final player data save submit unknown exception. characterId[%d]",characterId);
+        return false;
+    }
+
+    return true;
+}
+
+bool ChannelServer::IsFinalPlayerDataSavePending(const int characterId) const
+{
+    std::lock_guard<std::mutex> lock(m_finalPlayerDataSaveMutex);
+
+    return m_finalPlayerDataSavePending.find(characterId) != m_finalPlayerDataSavePending.end();
+}
+
+void ChannelServer::CompleteFinalPlayerDataSave(const int characterId,const bool saveSucceeded,const std::string& errMsg)
+{
+    {
+        std::lock_guard<std::mutex> lock(m_finalPlayerDataSaveMutex);
+        m_finalPlayerDataSavePending.erase(characterId);
+    }
+
+    if (saveSucceeded)
+    {
+        K_LOG_TRACE("Final player data save completed. ""characterId[%d]",characterId);
+        return;
+    }
+
+    K_LOG_ERROR("Final player data save failed after retries. characterId[%d] error[%s]",characterId,errMsg.c_str());
 }

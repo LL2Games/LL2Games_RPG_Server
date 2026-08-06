@@ -33,6 +33,14 @@ build/
 out/
 compile_commands.json
 
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Editor temporary files
+*.swp
+
 #############################################
 # Visual Studio
 #############################################

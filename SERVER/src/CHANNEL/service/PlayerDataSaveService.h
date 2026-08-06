@@ -3,6 +3,7 @@
 #include "Player.h"
 #include "PlayerStateRepository.h"
 #include "RedisConnectionPool.h"
+#include "PlayerSaveData.h"
 
 #include <string>
 
@@ -13,6 +14,8 @@ public:
     bool SaveIfNeeded(Player& player,std::string& errMsg);
     // 접속 종료 시 최종 저장
     bool SaveNow(Player& player,std::string& errMsg);
+    // 캡처된 플레이어 데이터를 저장한다.
+    bool SavePlayerData(const PlayerSaveData& saveData,std::string& errMsg);
     void SetRedisPool(RedisConnectionPool* redisPool);
 private:
     bool Save(Player& player,bool forceSave,std::string& errMsg);

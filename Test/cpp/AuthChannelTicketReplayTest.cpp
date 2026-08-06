@@ -64,7 +64,7 @@ int main()
 
     RedisClient redis(redisConfig);
 
-    if (!Check(redis.IsConnected(),"connected to test Redis"))
+    if (!Check(redis.IsConnected(),"테스트 Redis 연결 성공"))
     {
         return EXIT_FAILURE;
     }
@@ -73,14 +73,14 @@ int main()
 
     const auto issuedTicket = AuthTicketService::IssueChannelTicket(redis,expectedClaims);
 
-    if (!Check(issuedTicket.has_value(),"Channel ticket issued"))
+    if (!Check(issuedTicket.has_value(),"Channel 입장권 발급 성공"))
     {
         return EXIT_FAILURE;
     }
 
     const auto firstConsume = AuthTicketService::ConsumeChannelTicket(redis,*issuedTicket);
 
-    if (!Check(firstConsume.has_value(),"first ticket consumption accepted"))
+    if (!Check(firstConsume.has_value(),"최초 입장권 사용 성공"))
     {
         return EXIT_FAILURE;
     }
@@ -88,19 +88,19 @@ int main()
     if (!Check(firstConsume->accountId == expectedClaims.accountId &&
                 firstConsume->characterId == expectedClaims.characterId &&
                 firstConsume->channelId == expectedClaims.channelId,
-                "ticket claims preserved"))
+                "입장권 클레임 유지 확인"))
     {
         return EXIT_FAILURE;
     }
 
     // 올바른 Channel ID
-    if (!Check(firstConsume->MatchesChannel(expectedClaims.channelId),"matching Channel ID accepted"))
+    if (!Check(firstConsume->MatchesChannel(expectedClaims.channelId),"일치하는 Channel ID 승인"))
     {
         return EXIT_FAILURE;
     }
 
     // 다른 Channel ID
-    if (!Check(!firstConsume->MatchesChannel(expectedClaims.channelId + 1),"mismatched Channel ID rejected"))
+    if (!Check(!firstConsume->MatchesChannel(expectedClaims.channelId + 1),"불일치 Channel ID 거부"))
     {
         return EXIT_FAILURE;
     }
@@ -108,7 +108,7 @@ int main()
 
     const auto secondConsume = AuthTicketService::ConsumeChannelTicket(redis,*issuedTicket);
 
-    if (!Check(!secondConsume.has_value(),"replayed ticket rejected"))
+    if (!Check(!secondConsume.has_value(),"재사용된 입장권 거부"))
     {
         return EXIT_FAILURE;
     }
@@ -117,7 +117,7 @@ int main()
 
     const RedisSetResult ttlSetResult =redis.SetIfAbsentWithTtl(ttlTestKey,"ttl-test-value",1);
 
-    if (!Check(ttlSetResult == RedisSetResult::Stored,"short-lived ticket stored"))
+    if (!Check(ttlSetResult == RedisSetResult::Stored,"짧은 TTL 입장권 저장 성공"))
     {
         return EXIT_FAILURE;
     }
@@ -126,12 +126,12 @@ int main()
 
     const RedisGetDelResult expiredResult = redis.GetAndDelete(ttlTestKey);
 
-    if (!Check(expiredResult.status == RedisGetDelStatus::NotFound,"expired ticket rejected"))
+    if (!Check(expiredResult.status == RedisGetDelStatus::NotFound,"만료된 입장권 거부"))
     {
         return EXIT_FAILURE;
     }
 
-    std::cout << "All Channel ticket integration tests passed\n";
+    std::cout << "Channel 입장권 통합 테스트 전체 통과\n";
 
     return EXIT_SUCCESS;
 }

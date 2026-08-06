@@ -124,6 +124,7 @@ SRCS := \
 	service/TradeService.cpp \
 	service/PlayerDataSaveService.cpp \
 	service/PlayerSaveTask.cpp \
+	service/FinalPlayerDataSaveTask.cpp \
 	\
 	stat/PlayerStatRepository.cpp \
 	stat/CharacterStat.cpp \
@@ -138,34 +139,73 @@ SRCS := \
 OBJS := $(SRCS:%.cpp=$(OBJ_DIR)/%.o)
 DEPS := $(OBJS:.o=.d)
 
+# ==================================
+# Test Config
+# ==================================
+CHANNEL_TEST_DIR := $(PROJECT_ROOT)/../Test/cpp
+
+CHANNEL_LINK_OBJS := $(filter-out $(OBJ_DIR)/main.o,$(OBJS))
+
 AUTH_TEST_TARGET := $(BIN_DIR)/auth_session_regression_test
-AUTH_TEST_SRC := $(PROJECT_ROOT)/../Test/AuthSessionRegressionTest.cpp
-AUTH_TEST_OBJ := $(OBJ_DIR)/test/AuthSessionRegressionTest.o
-AUTH_TEST_OBJS := $(filter-out $(OBJ_DIR)/main.o,$(OBJS))
+AUTH_TEST_SOURCE := $(CHANNEL_TEST_DIR)/AuthSessionRegressionTest.cpp
+AUTH_TEST_OBJECT := $(OBJ_DIR)/test/AuthSessionRegressionTest.o
+
+PLAYER_SAVE_FLOW_TEST_TARGET := $(BIN_DIR)/player_save_flow_test
+PLAYER_SAVE_FLOW_TEST_SOURCE := $(CHANNEL_TEST_DIR)/PlayerSaveFlowTest.cpp
+PLAYER_SAVE_FLOW_TEST_OBJECT := $(OBJ_DIR)/test/PlayerSaveFlowTest.o
+
+CHANNEL_TEST_TARGETS := \
+	$(AUTH_TEST_TARGET) \
+	$(PLAYER_SAVE_FLOW_TEST_TARGET)
+
+CHANNEL_TEST_OBJECTS := \
+	$(AUTH_TEST_OBJECT) \
+	$(PLAYER_SAVE_FLOW_TEST_OBJECT)
+
+CHANNEL_TEST_DEPS := $(CHANNEL_TEST_OBJECTS:.o=.d)
+
 # ==================================
 # Build Rules
 # ==================================
-.PHONY: all clean fclean re test
+.PHONY: all build-tests test test-auth-session test-player-save-flow clean fclean re
 
 all: $(TARGET)
 
+build-tests: $(CHANNEL_TEST_TARGETS)
+
+test: test-auth-session test-player-save-flow
+
 test-auth-session: $(AUTH_TEST_TARGET)
 	$(AUTH_TEST_TARGET)
+
+test-player-save-flow: $(PLAYER_SAVE_FLOW_TEST_TARGET)
+	$(PLAYER_SAVE_FLOW_TEST_TARGET)
+
+
 
 $(TARGET): $(OBJS) | $(BIN_DIR) $(LOG_DIR)
 	@echo " [LD] $@"
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LFLAGS) $(LDFLAGS)
 
-$(AUTH_TEST_TARGET): $(AUTH_TEST_OBJS) $(AUTH_TEST_OBJ) | $(BIN_DIR) $(LOG_DIR)
+$(AUTH_TEST_TARGET): $(CHANNEL_LINK_OBJS) $(AUTH_TEST_OBJECT) | $(BIN_DIR) $(LOG_DIR)
 	@echo " [LD] $@"
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LFLAGS) $(LDFLAGS)
 	
+$(PLAYER_SAVE_FLOW_TEST_TARGET): $(CHANNEL_LINK_OBJS) $(PLAYER_SAVE_FLOW_TEST_OBJECT) | $(BIN_DIR) $(LOG_DIR)
+	@echo " [LD] $@"
+	$(CXX) -o $@ $^ $(LIB_PATH) $(LFLAGS) $(LDFLAGS)
+
 $(OBJ_DIR)/%.o: %.cpp
 	@mkdir -p $(dir $@)
 	@echo " [CXX] $<"
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@ $(LIB_PATH) $(LFLAGS) $(LDFLAGS) -DGLOBAL
 
-$(AUTH_TEST_OBJ): $(AUTH_TEST_SRC)
+$(AUTH_TEST_OBJECT): $(AUTH_TEST_SOURCE)
+	@mkdir -p $(dir $@)
+	@echo " [CXX] $<"
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -DGLOBAL -c $< -o $@
+
+$(PLAYER_SAVE_FLOW_TEST_OBJECT): $(PLAYER_SAVE_FLOW_TEST_SOURCE)
 	@mkdir -p $(dir $@)
 	@echo " [CXX] $<"
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -DGLOBAL -c $< -o $@
@@ -186,12 +226,12 @@ clean:
 	rm -rf $(OBJ_DIR)
 
 fclean: clean
-	rm -f $(TARGET) $(AUTH_TEST_TARGET)
+	rm -f $(TARGET) $(CHANNEL_TEST_TARGETS)
+
 
 re: fclean all
 
 # ==================================
 # Dependency Include
 # ==================================
--include $(DEPS)
-
+-include $(DEPS) $(CHANNEL_TEST_DEPS)

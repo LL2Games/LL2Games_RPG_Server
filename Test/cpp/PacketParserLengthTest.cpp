@@ -425,6 +425,6 @@ int main()
         return 1;
     }
 
-    std::cout << "[PASS] PacketParser length-prefix tests\n";
+    std::cout << "[PASS] 패킷 파서 길이 접두사 테스트 통과\n";
     return 0;
 }

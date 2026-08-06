@@ -1,16 +1,9 @@
 #include "PlayerDataSaveService.h"
 
 
-bool PlayerDataSaveService::Save(Player& player,bool forceSave,std::string& errMsg)
+bool PlayerDataSaveService::SavePlayerData(const PlayerSaveData& saveData, std::string& errMsg)
 {
     errMsg.clear();
-
-    if (!forceSave && !player.IsSaveNeeded())
-    {
-        return true;
-    }
-
-    PlayerSaveData saveData = player.MakeSaveData();
 
     if (saveData.characterId <= 0)
     {
@@ -20,22 +13,43 @@ bool PlayerDataSaveService::Save(Player& player,bool forceSave,std::string& errM
 
     if (!m_repository.Save(saveData, errMsg))
     {
-        // 실패 시 저장 버전을 지우지 않는다.
         return false;
     }
 
     if (!InvalidatePlayerCache(saveData.characterId,errMsg))
     {
         // DB 저장은 성공했지만 Redis 캐시가 남아 있으므로
-        // 저장 완료 상태로 바꾸지 않고 다음 주기에 재시도한다.
+        // 호출자가 저장 성공으로 처리하지 않는다.
         return false;
     }
-    // 저장 도중 상태가 바뀌지 않았을 때만 저장 완료 상태로 변경된다.
-    // 상태가 변경됐다면 CAS가 실패하고 다음 주기에 다시 저장된다.
+
+    return true;
+}
+
+bool PlayerDataSaveService::Save(Player& player, const bool forceSave, std::string& errMsg)
+{
+    errMsg.clear();
+
+    if (!forceSave && !player.IsSaveNeeded())
+    {
+        return true;
+    }
+
+    const PlayerSaveData saveData = player.MakeSaveData();
+
+    if (!SavePlayerData(saveData, errMsg))
+    {
+        // 실패하면 저장 버전을 유지하여 재시도할 수 있게 한다.
+        return false;
+    }
+
+    // 저장하는 동안 상태가 다시 변경되지 않은 경우에만
+    // 저장 대기 상태를 해제한다.
     player.TryMarkSaved(saveData.saveVersion);
 
     return true;
 }
+
  // 변경된 플레이어만 주기적으로 저장
 bool PlayerDataSaveService::SaveIfNeeded(Player& player,std::string& errMsg)
 {

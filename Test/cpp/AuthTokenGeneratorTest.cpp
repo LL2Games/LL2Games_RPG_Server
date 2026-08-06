@@ -69,12 +69,12 @@ int main()
         return EXIT_FAILURE;
     }
 
-    std::cout << "[PASS] token length is 64 characters\n";
-    std::cout << "[PASS] token contains lowercase hex characters only\n";
-    std::cout << "[PASS] generated "
+    std::cout << "[PASS] 토큰 길이가 64자임\n";
+    std::cout << "[PASS] 토큰이 소문자 16진수 문자로만 구성됨\n";
+    std::cout << "[PASS] 중복 없이 토큰 "
               << kTestCount
-              << " unique tokens\n";
-    std::cout << "All auth token generator tests passed\n";
+              << " 개 생성\n";
+    std::cout << "인증 토큰 생성 테스트 전체 통과\n";
 
     return EXIT_SUCCESS;
 }

@@ -93,8 +93,15 @@ void ChannelAuthTask::Execute()
             return;
         }
 
-        const int characterId =claims->characterId;
+        const int characterId = claims->characterId;
         result.characterId = characterId;
+
+        if (m_server->IsFinalPlayerDataSavePending(characterId))
+        {
+            result.error = "final player data save is in progress";
+            m_server->PushAuthResult(std::move(result));
+            return;
+        }
 
         std::unique_ptr<Player> player = m_server->GetPlayerService()->LoadPlayer(characterId,redisGuard.Get());
 

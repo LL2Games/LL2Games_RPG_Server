@@ -256,7 +256,7 @@ bool VerifySavedState(MYSQL* connection)
             "AND ABS(`pos.x` - 123.5) < 0.001 "
             "AND ABS(`pos.y` - 456.25) < 0.001",
             1,
-            "character map, position and level saved") &&
+            "캐릭터 맵·좌표·레벨 저장 확인") &&
 
         CheckRowCount(
             connection,
@@ -274,7 +274,7 @@ bool VerifySavedState(MYSQL* connection)
             "AND exp = 7654321 "
             "AND level = 17",
             1,
-            "character stats saved") &&
+            "캐릭터 스탯 저장 확인") &&
 
         CheckRowCount(
             connection,
@@ -288,7 +288,7 @@ bool VerifySavedState(MYSQL* connection)
             "AND current_slot_count = 1)"
             ")",
             2,
-            "inventory metadata replaced") &&
+            "인벤토리 메타데이터 교체 확인") &&
 
         CheckRowCount(
             connection,
@@ -302,7 +302,7 @@ bool VerifySavedState(MYSQL* connection)
             "AND item_Id = 2000001 AND item_count = 37)"
             ")",
             2,
-            "inventory items replaced") &&
+            "인벤토리 아이템 교체 확인") &&
 
         CheckRowCount(
             connection,
@@ -320,7 +320,7 @@ bool VerifySavedState(MYSQL* connection)
             "AND inventory_slot_pos = 5)"
             ")",
             2,
-            "quickslots replaced");
+            "퀵슬롯 교체 확인");
 }
 
 PlayerSaveData MakeRollbackFailureData()
@@ -331,15 +331,7 @@ PlayerSaveData MakeRollbackFailureData()
         999999999,
         Vec2{-500.0F, -600.0F},
 
-        CharacterStat{
-            BaseStat{99, 98, 97, 96},
-            DerivedStat{9999, 8888},
-            ExpStat{99, 99999999, 100000000},
-            7777,
-            6666,
-            55
-        },
-
+        CharacterStat{BaseStat{99, 98, 97, 96},DerivedStat{9999, 8888},ExpStat{99, 99999999, 100000000},7777,6666,55},
         {
             InventoryMetaInfo{4, 99, 1}
         },
@@ -350,22 +342,8 @@ PlayerSaveData MakeRollbackFailureData()
 
         {
             // 동일한 slot_index를 두 번 넣어 PK 중복을 발생시킨다.
-            QuickSlotData{
-                7,
-                QuickSlotType::Skill,
-                3001,
-                0,
-                0,
-                0
-            },
-            QuickSlotData{
-                7,
-                QuickSlotType::Item,
-                4001,
-                1,
-                2,
-                1
-            }
+            QuickSlotData{7, QuickSlotType::Skill,3001,0,0,0},
+            QuickSlotData{7,QuickSlotType::Item,4001,1,2,1}
         }
     };
 }
@@ -417,25 +395,25 @@ int main()
 
     MySqlConnectionPool* pool = MySqlConnectionPool::GetInstance();
 
-    if (!Check(pool != nullptr, "MySQL connection pool initialized"))
+    if (!Check(pool != nullptr, "MySQL 연결 풀 초기화 성공"))
     {
         return EXIT_FAILURE;
     }
 
     MYSQL* connection = pool->GetConnection();
 
-    if (!Check(connection != nullptr, "connected to test MySQL"))
+    if (!Check(connection != nullptr, "테스트 MySQL 연결 성공"))
     {
         return EXIT_FAILURE;
     }
 
-    if (!Check(CreateTemporaryTables(connection),"temporary persistence tables created"))
+    if (!Check(CreateTemporaryTables(connection),"임시 저장 테이블 생성 성공"))
     {
         pool->ReleaseConnection(connection);
         return EXIT_FAILURE;
     }
 
-    if (!Check(InsertInitialData(connection),"initial player state inserted"))
+    if (!Check(InsertInitialData(connection),"초기 플레이어 상태 등록 성공"))
     {
         pool->ReleaseConnection(connection);
         return EXIT_FAILURE;
@@ -455,14 +433,14 @@ int main()
         std::cerr << "[DETAIL] Player state save error: " << saveError<< '\n';
     }
 
-    if (!Check(saveSucceeded,"player state transaction committed"))
+    if (!Check(saveSucceeded,"플레이어 상태 트랜잭션 커밋 성공"))
     {
         return EXIT_FAILURE;
     }
 
     connection = pool->GetConnection();
 
-    if (!Check(connection != nullptr,"reconnected for saved state verification"))
+    if (!Check(connection != nullptr,"저장 상태 검증을 위한 MySQL 재연결 성공"))
     {
         return EXIT_FAILURE;
     }
@@ -486,15 +464,15 @@ int main()
 
     if (!invalidSaveSucceeded)
     {
-        std::cout << "[INFO] expected save failure: "<< rollbackError<< '\n';
+        std::cout << "[INFO] 예상된 저장 실패: "<< rollbackError<< '\n';
     }
 
-    if (!Check(!invalidSaveSucceeded,"duplicate quickslot transaction rejected"))
+    if (!Check(!invalidSaveSucceeded,"중복 퀵슬롯 트랜잭션 거부"))
     {
         return EXIT_FAILURE;
     }
 
-    if (!Check(!rollbackError.empty(),"repository reported transaction failure reason"))
+    if (!Check(!rollbackError.empty(),"저장소의 트랜잭션 실패 사유 반환 확인"))
     {
         return EXIT_FAILURE;
     }
@@ -503,7 +481,7 @@ int main()
     // 3. 실패 전 정상 데이터가 유지됐는지 확인
     connection = pool->GetConnection();
 
-    if (!Check(connection != nullptr, "reconnected for rollback verification"))
+    if (!Check(connection != nullptr, "롤백 검증을 위한 MySQL 재연결 성공"))
     {
         return EXIT_FAILURE;
     }
@@ -512,12 +490,12 @@ int main()
 
     pool->ReleaseConnection(connection);
 
-    if (!Check(rollbackPreservedState,"rollback preserved previously committed state"))
+    if (!Check(rollbackPreservedState,"롤백 후 이전 커밋 상태 보존 확인"))
     {
         return EXIT_FAILURE;
     }
 
-    std::cout << "All player state repository integration tests passed\n";
+    std::cout << "플레이어 상태 저장소 통합 테스트 전체 통과\n";
 
     return EXIT_SUCCESS;
 }
