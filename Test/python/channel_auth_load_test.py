@@ -67,8 +67,75 @@ def percentile(values, p):
     index = int((len(sorted_values) - 1) * p)
     return sorted_values[index]
 
-def auth_once(host, port, character_id, timeout, hold_seconds):
-    packet = make_packet(PKT_CHANNEL_AUTH, make_body(str(character_id)))
+def load_ticket_entries(file_path):
+    entries = []
+    character_ids = set()
+    tickets = set()
+
+    with open(file_path, "r", encoding="utf-8") as ticket_file:
+        for line_number, line in enumerate(ticket_file, start=1):
+            stripped_line = line.strip()
+
+            if not stripped_line:
+                continue
+
+            parts = stripped_line.split()
+
+            if len(parts) != 2:
+                raise ValueError(
+                    f"{line_number}번째 줄 형식 오류: "
+                    "character_id ticket 형식이어야 함"
+                )
+
+            character_id_text, ticket = parts
+
+            try:
+                character_id = int(character_id_text)
+            except ValueError as exception:
+                raise ValueError(
+                    f"{line_number}번째 줄의 캐릭터 ID가 올바르지 않음"
+                ) from exception
+
+            if character_id <= 0:
+                raise ValueError(
+                    f"{line_number}번째 줄의 캐릭터 ID가 양수가 아님"
+                )
+
+            is_valid_ticket = (
+                len(ticket) == 64
+                and all(
+                    character in "0123456789abcdef"
+                    for character in ticket
+                )
+            )
+
+            if not is_valid_ticket:
+                raise ValueError(
+                    f"{line_number}번째 줄의 입장권 형식이 올바르지 않음"
+                )
+
+            if character_id in character_ids:
+                raise ValueError(
+                    f"중복 캐릭터 ID 발견: {character_id}"
+                )
+
+            if ticket in tickets:
+                raise ValueError(
+                    f"중복 입장권 발견: {ticket}"
+                )
+
+            character_ids.add(character_id)
+            tickets.add(ticket)
+            entries.append((character_id, ticket))
+
+    if not entries:
+        raise ValueError("입장권 파일이 비어 있음")
+
+    return entries
+
+
+def auth_once(host,port,character_id,ticket,timeout,hold_seconds):
+    packet = make_packet(PKT_CHANNEL_AUTH,make_body(ticket))
     received = b""
 
     start = time.perf_counter()
@@ -148,8 +215,13 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=9001)
-    parser.add_argument("--start-character-id", type=int, default=900000)
-    parser.add_argument("--clients", type=int, default=10)
+    parser.add_argument("--tickets-file", required=True)
+    parser.add_argument(
+        "--clients",
+        type=int,
+        default=0,
+        help="0이면 입장권 파일의 모든 항목 사용"
+    )
     parser.add_argument("--timeout", type=float, default=3.0)
     parser.add_argument("--hold-seconds", type=float, default=0.0)
     parser.add_argument("--workers", type=int, default=0)
@@ -157,18 +229,42 @@ def main():
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
 
-    worker_count = args.workers if args.workers > 0 else args.clients
-    worker_count = max(1, min(worker_count, args.clients))
+    try:
+        ticket_entries = load_ticket_entries(args.tickets_file)
+    except (OSError, ValueError) as exception:
+        print(f"[FAIL] 입장권 파일 로딩 실패: {exception}")
+        raise SystemExit(1)
 
-    character_ids = [
-        args.start_character_id + i
-        for i in range(args.clients)
-    ]
+    if args.clients < 0:
+        print("[FAIL] clients는 0 이상의 값이어야 함")
+        raise SystemExit(1)
+
+    if args.clients > len(ticket_entries):
+        print(
+            f"[FAIL] 요청 클라이언트 수({args.clients})가 "
+            f"입장권 수({len(ticket_entries)})보다 많음"
+        )
+        raise SystemExit(1)
+
+    if args.clients > 0:
+        ticket_entries = ticket_entries[:args.clients]
+
+    client_count = len(ticket_entries)
+
+    worker_count = (
+        args.workers
+        if args.workers > 0
+        else client_count
+    )
+    worker_count = max(
+        1,
+        min(worker_count, client_count)
+    )
 
     print(f"target={args.host}:{args.port}")
+    print(f"tickets_file={args.tickets_file}")
     print(
-        f"start_character_id={args.start_character_id}, "
-        f"clients={args.clients}, "
+        f"clients={client_count}, "
         f"workers={worker_count}, "
         f"timeout={args.timeout}, "
         f"hold_seconds={args.hold_seconds}, "
@@ -181,18 +277,25 @@ def main():
     with ThreadPoolExecutor(max_workers=worker_count) as executor:
         futures = []
         ramp_delay = 0.0
-        if args.ramp_seconds > 0 and args.clients > 1:
-            ramp_delay = args.ramp_seconds / (args.clients - 1)
 
-        for character_id in character_ids:
-            futures.append(executor.submit(
-                auth_once,
-                args.host,
-                args.port,
-                character_id,
-                args.timeout,
-                args.hold_seconds,
-            ))
+        if args.ramp_seconds > 0 and client_count > 1:
+            ramp_delay = (
+                args.ramp_seconds /
+                (client_count - 1)
+            )
+
+        for character_id, ticket in ticket_entries:
+            futures.append(
+                executor.submit(
+                    auth_once,
+                    args.host,
+                    args.port,
+                    character_id,
+                    ticket,
+                    args.timeout,
+                    args.hold_seconds,
+                )
+            )
 
             if ramp_delay > 0:
                 time.sleep(ramp_delay)

@@ -30,6 +30,7 @@ LDFLAGS      := -pthread \
 INCLUDES := \
     -I$(INC_DIR) \
     -I$(INC_DIR)/COMMON \
+    -I$(INC_DIR)/COMMON/auth \
     -I$(INC_DIR)/COMMON/packet \
 	-I$(INC_DIR)/COMMON/slog \
     -I$(INC_DIR)/COMMON/config \

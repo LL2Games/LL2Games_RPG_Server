@@ -5,6 +5,8 @@
 #include <sys/socket.h>
 #include "K_slog.h"
 #include "PacketParser.h"
+#include "AuthTicketService.h"
+#include "RedisConnectionPool.h"
 
 void LoginHandler::Execute(PacketContext* ctx)
 {
@@ -14,13 +16,26 @@ void LoginHandler::Execute(PacketContext* ctx)
     Client* client = nullptr;
     std::string id;
     std::string pw;
+    std::string worldTicket;
+
+    if (ctx == nullptr)
+    {   
+        K_LOG_ERROR("LoginHandler failed: context is null");
+        return;
+    }
 
     client = ctx->client;
+
     if (client == nullptr)
     {
         K_LOG_ERROR( "client is nullptr\n");
+        return;
+    }
+
+    if (ctx->redis_pool == nullptr)
+    {
         rc = EXIT_FAILURE;
-        errMsg = "[" + std::to_string(rc) + "]client is nullptr";
+        errMsg = "Redis pool is null";
         goto err;
     }
 
@@ -49,14 +64,35 @@ void LoginHandler::Execute(PacketContext* ctx)
         goto err;
     }
     
-    K_LOG_DEBUG( "id=%s pw=%s\n", id.c_str(), pw.c_str());
-
     if (!MySQLManager::GetInstance()->Login(id, pw))
     {
         K_LOG_ERROR( "Login fail invalid ID/PW\n");
         rc = EXIT_FAILURE;
         errMsg = "[" + std::to_string(rc) + "]Login fail invalid ID/PW";
         goto err;
+    }
+
+    //로그인 이후 티켓을 생성 및 저장 
+    {
+        RedisConnectionGuard redisGuard(ctx->redis_pool);
+
+        if (!redisGuard)
+        {
+            rc = EXIT_FAILURE;
+            errMsg = "Redis connection acquire failed";
+            goto err;
+        }
+
+        const auto issuedTicket = AuthTicketService::IssueWorldTicket(*redisGuard.Get(), id);
+
+        if (!issuedTicket.has_value())
+        {
+            rc = EXIT_FAILURE;
+            errMsg = "World ticket creation failed";
+            goto err;
+        }
+
+        worldTicket = *issuedTicket;
     }
 
 err:
@@ -67,7 +103,7 @@ err:
     }
     else
     {
-        K_LOG_TRACE( "Login SUCCESS ID=%s", id.c_str());
-        client->SendOk(PKT_LOGIN);
+        K_LOG_TRACE( "Login SUCCESS accountId=%s", id.c_str());
+        client->SendOk(PKT_LOGIN, {worldTicket});
     }
 }

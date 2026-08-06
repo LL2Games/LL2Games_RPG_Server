@@ -2,19 +2,24 @@
 #include "common.h"
 #include "Slot_Info.h"
 
+#include <mutex>
+#include <optional>
+
 class QuickSlotManager
 {
 public:
     void Init();        
     std::vector<QuickSlotData> SetSlot(const QuickSlotData& data);  
     void RemoveSlot(int slotIndex);
-
-    bool IsSameTarget(const QuickSlotData& a, const QuickSlotData& b);
     void ClearSlot(int slotIndex);
 public:
-    const QuickSlotData* GetSlot(int slotIndex) const;
-    const std::vector<QuickSlotData> GetSlotList() const;
+    std::optional<QuickSlotData> GetSlot(int slotIndex) const;
+    std::vector<QuickSlotData> GetSlotList() const;
 private:
+     static bool IsSameTarget(const QuickSlotData& a,const QuickSlotData& b);
+private:
+    mutable std::mutex m_quickSlotMutex;
+    
     std::unordered_map<int, QuickSlotData> m_quickSlots;
     static constexpr int m_maxSlotCount = 32;
 };

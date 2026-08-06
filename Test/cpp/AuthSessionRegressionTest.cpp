@@ -68,7 +68,7 @@ void TestStaleAuthResultIsRejectedAfterFdReuse()
     ChannelServerTestAccess::EraseSession(server, reusedFd);
 
     std::cout
-        << "[PASS] stale auth result rejected after fd reuse\n";
+        << "[PASS] fd 재사용 후 오래된 인증 결과 거부\n";
 }
 
 void TestCurrentSessionIdentityAndClosingState()
@@ -103,7 +103,7 @@ void TestCurrentSessionIdentityAndClosingState()
     ChannelServerTestAccess::EraseSession(server, fd);
 
     std::cout
-        << "[PASS] current session accepted and closing session rejected\n";
+        << "[PASS] 현재 세션 승인 및 종료 중 세션 거부\n";
 }
 }
 

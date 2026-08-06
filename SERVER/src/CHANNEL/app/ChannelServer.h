@@ -23,11 +23,15 @@
 #include "TradeService.h"
 #include "LevelManager.h"
 #include "ChannelAuthResult.h"
+#include "PlayerDataSaveService.h"
+#include "PlayerSaveTask.h"
 
 #include <atomic>
 #include <queue>
 #include <mutex>
 #include <cstdint>
+#include <chrono>
+#include <unordered_set>
 
 class ChannelServerTestAccess;
 
@@ -50,6 +54,9 @@ public:
     ChannelSession* BeginValidSessionTask(int fd, uint64_t sessionId, uint64_t generation);
     void EndSessionTask(ChannelSession* session);
 
+    bool SubmitFinalPlayerDataSave(PlayerSaveData saveData);
+    bool IsFinalPlayerDataSavePending(int characterId) const;
+    void CompleteFinalPlayerDataSave(int characterId,bool saveSucceeded,const std::string& errMsg);
 public:
     PlayerManager* GetPlayerManager() { return &m_player_mamager; }
     MapService* GetMapService() {return &m_map_service;}
@@ -62,6 +69,9 @@ public:
     ThreadPool* GetAuthThreadPool() { return &m_authPool; }
     std::mutex& GetAuthLoadMutex() { return m_authLoadMutex; }
     RedisConnectionPool* GetRedisConnectionPool() { return &m_redisPool; }
+    PlayerDataSaveService* GetPlayerDataSaveService(){return &m_playerDataSaveService;}
+
+    int GetChannelId() const {return m_channel_id;}
     void UpdateChannelState(const int interval, const int ttl);
     void UpdateChannelStateToRedis(const int ttl);
 private:
@@ -77,6 +87,7 @@ private:
     void OnSend(int fd);
     void ProcessAuthResults();
 
+    void SchedulePlayerSaves();
 private:
     int m_channel_id;
     int m_listen_fd;
@@ -102,6 +113,9 @@ private:
     ThreadPool m_pool;
     // ChannelAuth 전용 쓰레드
     ThreadPool m_authPool;
+    // 최종 DB 저장 전용 스레드 풀
+    // 동시 DB 저장 수를 제한하여 인증과 게임 작업을 보호한다.
+    ThreadPool m_savePool;
     RedisConnectionPool m_redisPool;
     CommandReceiver m_cmd_receiver;
 
@@ -109,11 +123,15 @@ private:
 
     LevelManager* m_level_manager;
 
+    PlayerDataSaveService m_playerDataSaveService;
+
     std::queue<ChannelAuthResult> m_authResults;
     std::atomic<uint64_t> m_nextSessionId{1};
     std::mutex m_authResultMutex;
     std::mutex m_authLoadMutex;
     std::mutex m_sessionMutex;
     std::atomic<unsigned int> m_current_user_count;
+    mutable std::mutex m_finalPlayerDataSaveMutex;
     unsigned int m_max_user_count;
+    std::unordered_set<int> m_finalPlayerDataSavePending;
 };

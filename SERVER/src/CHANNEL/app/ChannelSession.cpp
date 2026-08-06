@@ -82,34 +82,43 @@ bool ChannelSession::OnBytes(const uint8_t* data, size_t len)
 
 void ChannelSession::Dispatch(const ParsedPacket &pkt)
 {
-    if (pkt.type == PKT_CHANNEL_AUTH && m_server)
+     if (m_server == nullptr)
     {
-        auto task = std::make_unique<ChannelAuthTask>(
-            m_server,
-            m_fd,
-            m_sessionId,
-            m_generation,
-            pkt.payload
-        );
+        return;
+    }
 
+    if (pkt.type == PKT_CHANNEL_AUTH)
+    {
+        if (!TryBeginAuthentication())
+        {
+            SendNok(PKT_CHANNEL_AUTH,"Channel authentication is already in progress or completed");
+            return;
+        }
+
+        auto task = std::make_unique<ChannelAuthTask>(m_server, m_fd, m_sessionId, m_generation, pkt.payload);
         m_server->GetAuthThreadPool()->Submit(std::move(task));
         return;
     }
 
-    if (m_server == nullptr)
+    if (!IsAuthenticated())
+    {
+        K_LOG_ERROR("Unauthenticated channel packet rejected. fd:%d type:%u",m_fd, static_cast<unsigned int>(pkt.type));
+
+        SendNok(pkt.type,"Channel authentication required");
         return;
+    }
 
     auto task = std::make_unique<PacketProcessTask>(
-        m_server,
-        this,
-        m_fd,
-        m_sessionId,
-        m_generation,
-        pkt.type,
-        pkt.payload
-    );
+            m_server,
+            this,
+            m_fd,
+            m_sessionId,
+            m_generation,
+            pkt.type,
+            pkt.payload
+        );
 
-    m_server->GetThreadPool()->SubmitByKey(m_sessionId, std::move(task));
+    m_server->GetThreadPool()->SubmitByKey(m_sessionId,std::move(task));
 }
 // 지금 방식은 클라이언트 하나에 해당해서 Send를 하는 방식인데 Player 클래스를 vector로 가지고 있고
 // 같은 맵, 시야 범위 등등 환경요소들을 확인해서 보내는 방식으로 변경 필요
@@ -117,19 +126,10 @@ void ChannelSession::Dispatch(const ParsedPacket &pkt)
 //[L][V] [L][V] [L][V]
 
 //클라입력 $  [L][V]
-#define __DEBUG_PACKET
+
 int ChannelSession::Send(int type, const std::vector<std::string>& payload)
 {
-#ifdef __DEBUG_PACKET
 
-K_LOG_DEBUG("SEND=====TYPE[%d]======", type);
-for (const auto &p : payload)
-{
-    K_LOG_DEBUG("%s", p.c_str());
-}
-K_LOG_DEBUG("SEND=====TYPE[%d]======\n\n", type);
-    
-#endif
     std::string body = PacketParser::MakeBody(payload);
     std::string packet = PacketParser::MakePacket(type, body);
     
@@ -276,4 +276,69 @@ void ChannelSession::WaitForNoTasks()
     m_taskCv.wait(lock, [this]() {
         return m_inFlightTasks == 0;
     });
+}
+
+bool ChannelSession::TryBeginAuthentication()
+{
+    ChannelAuthenticationState expected = ChannelAuthenticationState::Unauthenticated;
+    return m_authenticationState.compare_exchange_strong(expected,ChannelAuthenticationState::Authenticating);
+}
+
+void ChannelSession::MarkAuthenticated()
+{
+     m_authenticationState.store(ChannelAuthenticationState::Authenticated);
+}
+
+void ChannelSession::ResetAuthentication()
+{
+     m_authenticationState.store(ChannelAuthenticationState::Unauthenticated);
+}
+
+bool ChannelSession::IsAuthenticated() const
+{
+    return m_authenticationState.load() == ChannelAuthenticationState::Authenticated;
+}
+
+void ChannelSession::FinalizePlayer()
+{
+    if (m_player == nullptr)
+    {
+        return;
+    }
+
+    Player* player = m_player;
+    player->SetSession(nullptr);
+
+    MapInstance* map = player->GetCurrentMap();
+
+    if (map != nullptr)
+    {
+        map->OnLeave(player->GetId());
+        K_LOG_DEBUG("map->OnLeave(Id:%d)",player->GetId());
+    }
+
+    if (m_server != nullptr && player->IsSaveNeeded())
+    {
+        PlayerSaveData saveData = player->MakeSaveData();
+
+        if (!m_server->SubmitFinalPlayerDataSave(std::move(saveData)))
+        {
+            K_LOG_ERROR("Final player data save submission failed. playerId[%d]",player->GetId());
+        }
+    }
+
+    const int playerId = player->GetId();
+
+    // RemovePlayer에서 Player 객체가 삭제될 수 있으므로 이후 player를 사용하면 안 된다.
+    m_player = nullptr;
+
+    if (m_playerManager != nullptr)
+    {
+        m_playerManager->RemovePlayer(playerId);
+        K_LOG_TRACE("[ChannelSession Finalize] RemovePlayer id:%d",playerId);
+    }
+    else
+    {
+        K_LOG_ERROR("[ChannelSession Finalize] playerManager is null. player id:%d",playerId);
+    }
 }

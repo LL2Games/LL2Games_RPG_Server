@@ -41,42 +41,43 @@ std::optional<ParsedPacket> PacketParser::Parse(std::vector<char>& buf)
 
 ParseResult PacketParser::TryParse(std::vector<char> &buf)
 {
-        ParsedPacket parsedPacket;
-
     if (buf.size() < sizeof(PacketHeader))
     {
         return { ParseStatus::NeedMoreData, {} };
     }
 
-    PacketHeader* hdr = reinterpret_cast<PacketHeader*>(buf.data());
-    uint16_t pktLen = hdr->length;
+    PacketHeader header{};
 
-    if (pktLen < sizeof(PacketHeader))
+    std::memcpy(&header, buf.data(), sizeof(header));
+
+    const uint16_t packetLength = header.length;
+    
+    if (packetLength < sizeof(PacketHeader))
     {
         return { ParseStatus::InvalidPacket, {} };
     }
 
-    if (pktLen > BUFFER_SIZE)
+    if (packetLength > PacketLimits::kMaxPacketSize)
     {
         return { ParseStatus::InvalidPacket, {} };
     }
 
-    if (buf.size() < pktLen)
+    if (buf.size() < packetLength)
     {
         return { ParseStatus::NeedMoreData, {} };
     }
 
-    uint16_t type = hdr->type;
+    ParsedPacket parsedPacket;
+    parsedPacket.type = header.type;
+   
+    const char* payload = buf.data() + sizeof(PacketHeader);
+    const std::size_t payloadLength = packetLength - sizeof(PacketHeader);
 
-    const char* payload = reinterpret_cast<const char*>(buf.data() + sizeof(PacketHeader));
-    int payloadLen = pktLen - sizeof(PacketHeader);
+    parsedPacket.payload.assign(payload, payloadLength);
 
-    parsedPacket.type = type;
-    parsedPacket.payload = std::string(payload, payloadLen);
+    buf.erase(buf.begin(), buf.begin() + packetLength);
 
-    buf.erase(buf.begin(), buf.begin() + pktLen);
-
-    return { ParseStatus::Complete, parsedPacket };
+    return { ParseStatus::Complete, std::move(parsedPacket)};
 }
 
 bool PacketParser::ParseLengthPrefixedString(
@@ -181,18 +182,22 @@ std::string PacketParser::MakeBody(const std::vector<std::string>& datas)
 
 std::string PacketParser::MakePacket(uint16_t type, const std::string &body)
 {
-   const size_t maximumPacketSize = std::min(
-        static_cast<size_t>(BUFFER_SIZE),
-        static_cast<size_t>(std::numeric_limits<uint16_t>::max())
-    );
 
-    if (maximumPacketSize < sizeof(PacketHeader) || body.size() > maximumPacketSize - sizeof(PacketHeader))
+    // 미리 정해놓은 최대 패킷 사이즈를 가져온다
+    constexpr std::size_t maxPacketSize = PacketLimits::kMaxPacketSize;
+
+    // 최대 패킷 크기가 패킷 헤더보다 작은 설정을 컴파일 단계에서 방지한다.
+    static_assert(maxPacketSize >= sizeof(PacketHeader), "Maximum  packet size is smaller than packet header");
+    
+    const std::size_t maxBodySize = maxPacketSize - sizeof(PacketHeader);
+
+    if(body.size() > maxBodySize)
     {
         throw std::length_error("packet is too large");
     }
 
-    const size_t packetLength = sizeof(PacketHeader) + body.size();
-
+    const std::size_t packetLength = sizeof(PacketHeader) + body.size();
+   
     PacketHeader hdr{};
     hdr.type = type;
     hdr.length = static_cast<uint16_t>(packetLength);

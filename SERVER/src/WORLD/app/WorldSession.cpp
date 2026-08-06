@@ -5,7 +5,7 @@
 #include "K_slog.h"
 
 
-WorldSession::WorldSession(const int fd) : m_fd(fd)
+WorldSession::WorldSession(const int fd) : m_fd(fd), m_authenticated(false)
 {
     //redis/db연결
     //redis/db연결
@@ -53,4 +53,14 @@ int WorldSession::Close()
         m_fd = 0;
     }
     return 0;
-} 
+}
+
+bool WorldSession::IsAuthenticated() const
+{
+    return m_authenticated;
+}
+
+void WorldSession::SetAuthenticated(bool authenticated)
+{
+    m_authenticated = authenticated;
+}

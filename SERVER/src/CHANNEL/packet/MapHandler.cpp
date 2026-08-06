@@ -4,109 +4,66 @@
 #include "PacketParser.h"
 #include "K_slog.h"
 #include "utility.h"
+#include "Player.h"
+
 #include <sstream>
 #include <stdexcept>
 
 
 void MapHandler::Execute(PacketContext * ctx)
 {
-    ChannelSession *session = nullptr;
-    int rc = EXIT_SUCCESS;
-    int mapId = 0;
-    int playerid = 0;
-
-    size_t offset = 0;
-    std::string errMsg;
-    std::string player_id;
-    std::string map_id;
-
-
-    if(ctx == nullptr)
+   if (ctx == nullptr)
     {
-        K_LOG_ERROR( "ctx is nullptr\n");
-        rc = EXIT_FAILURE;
-        errMsg = "[" + std::to_string(rc) + "]ctx is nullptr";
-        goto err;
+        K_LOG_ERROR("MapHandler: context is nullptr");
+        return;
     }
 
-    session = ctx->channel_session;
-    if(session == nullptr)
+    ChannelSession* session = ctx->channel_session;
+
+    if (session == nullptr)
     {
-        K_LOG_ERROR( "session is nullptr\n");
-        rc = EXIT_FAILURE;
-        errMsg = "[" + std::to_string(rc) + "]session is nullptr";
-        goto err;
+        K_LOG_ERROR("MapHandler: session is nullptr");
+        return;
     }
 
-    
-   // playerID 
-    if(!PacketParser::ParseLengthPrefixedString(
-        ctx->payload,
-        ctx->payload_len,
-        offset,
-        player_id,
-        errMsg
-    ))
+    Player* player = session->GetPlayer();
+
+    if (player == nullptr)
     {
-        rc = EXIT_FAILURE;
-        K_LOG_ERROR( "ParseLengthPrefixedString fail");
-        goto err;
+        session->SendNok(PKT_ENTER_MAP,"Authenticated player is not available");
+        return;
     }
 
-    K_LOG_TRACE( "PlayerID [%s]", player_id.c_str());
-
-    // mapID 
-     if(!PacketParser::ParseLengthPrefixedString(
-        ctx->payload,
-        ctx->payload_len,
-        offset,
-        map_id,
-        errMsg
-    ))
+    if (ctx->map_service == nullptr)
     {
-        rc = EXIT_FAILURE;
-        K_LOG_ERROR( "ParseLengthPrefixedString fail");
-        goto err;
+        session->SendNok(PKT_ENTER_MAP,"Map service is not available");
+        return;
     }
 
-    if(!utility::StringToInt(player_id, playerid))
+    // 클라이언트가 보낸 ID가 아니라 인증된 세션의 플레이어 정보를 사용한다.
+    const int playerId = player->GetId();
+    const int mapId = player->GetMapId();
+
+    if (mapId <= 0)
     {
-        rc = EXIT_FAILURE;
-        K_LOG_ERROR( "playerid String To Int Fail");
-        goto err;
+        session->SendNok(PKT_ENTER_MAP,"Saved map ID is invalid");
+        return;
     }
 
-    if(!utility::StringToInt(map_id, mapId))
+    if (ctx->map_service->EnterMap(playerId,mapId) != EXIT_SUCCESS)
     {
-        rc = EXIT_FAILURE;
-        K_LOG_ERROR( "mapId String To Int Fail");
-        goto err;
+        session->SendNok(PKT_ENTER_MAP,"EnterMap failed");
+        return;
     }
 
-    if(!ctx->map_service)
-    {
-        rc = EXIT_FAILURE;
-        K_LOG_ERROR( "map_service is fail");
-        errMsg = "map_service is NULL";
-        goto err;
-    }
+    const Vec2 position = player->GetPos();
 
-    rc = ctx->map_service->EnterMap(playerid, mapId);
+    session->SendOk(PKT_ENTER_MAP,{std::to_string(mapId),std::to_string(position.xPos),std::to_string(position.yPos)});
 
-    if(rc != EXIT_SUCCESS)
-    {
-        rc = EXIT_FAILURE;
-        K_LOG_ERROR( "EnterMap fail");
-        errMsg = "EnterMap Failed";
-        goto err;
-    }
-   
-err:
-    if (rc != EXIT_SUCCESS) {
-        session->SendNok(PKT_ENTER_MAP, errMsg);
-    } else {
-        K_LOG_TRACE( "MAP HANDLER END");
-        session->SendOk(PKT_ENTER_MAP);
-    }
+    K_LOG_TRACE(
+        "Player entered saved map. playerId[%d] mapId[%d]",
+        playerId,
+        mapId
+    );
 }
 

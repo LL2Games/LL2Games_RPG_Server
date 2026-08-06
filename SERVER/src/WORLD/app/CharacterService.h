@@ -22,6 +22,8 @@ public:
     int LoadCharacterSummary(const std::string& char_id);
     int CacheCharacterSummary(const std::string& char_id);
     int CheckDupNick(const std::string& nick);
+
+    bool OwnsCharacter(const std::string& account_id, int char_id);
 private:
     MySqlConnectionPool* m_db = nullptr;
     // RedisClient& m_redis;

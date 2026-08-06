@@ -8,8 +8,6 @@
 #include <unistd.h>
 #include <cstring>
 
-#define BUFFER_SIZE 1024
-
 #define MSG_KEY 1234
 #define MSG_COMMAND_SEND 1
 #define MSG_COMMAND_RECV 2
@@ -109,8 +107,8 @@ void Server::AcceptNewClient()
 
 void Server::ProcessClient(Client *cli)
 {
-    char temp[BUFFER_SIZE];
-    int tempLen = 0;
+    char temp[PacketLimits::kReceiveChunkSize];
+    ssize_t tempLen = 0;
     std::string buf;
 
     do
@@ -134,7 +132,7 @@ void Server::ProcessClient(Client *cli)
             return;
         }
         buf.append(temp, tempLen);
-    } while (tempLen == BUFFER_SIZE);
+    } while (tempLen == static_cast<ssize_t>(PacketLimits::kReceiveChunkSize));
 
     cli->m_recvBuffer.insert(cli->m_recvBuffer.end(), buf.begin(), buf.end());
 

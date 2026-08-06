@@ -13,11 +13,15 @@ StatService::~StatService()
 
 int StatService::UpStat(Player &player, const std::string &statType, std::string &errMsg)
 {
-    int result = m_repo.Update(std::to_string(player.GetId()), statType, errMsg);
-    if (result != 0)
-        return result;
+    // //db 업
+    // result = m_repo.Update(std::to_string(player.GetId()), statType, errMsg);
+    // if (result != 0)
+    //     goto err;
 
+    (void)errMsg;
+    //객체 업
     player.UpStat(statType);
+  
     return 0;
 }
 

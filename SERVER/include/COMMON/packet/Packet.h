@@ -3,6 +3,7 @@
 #include <vector>
 #include <functional>
 #include <string>
+#include <limits>
 
 class Client;
 
@@ -29,8 +30,14 @@ class PortalService;
 
 class CommandDispatcher;
 
+namespace PacketLimits
+{
+    inline constexpr std::size_t kReceiveChunkSize = 4 * 1024;
+    inline constexpr std::size_t kMaxPacketSize = 16 * 1024;
 
-#define BUFFER_SIZE 1024
+    static_assert(kMaxPacketSize <= std::numeric_limits<uint16_t>::max(), "Packet length must fit in uint16_t");
+
+}
 
 #pragma pack(push, 1)
 struct PacketHeader

@@ -37,7 +37,7 @@ void PlayerPacketSender::SendPlayerStat(Player* player)
 
     if(!session) 
     {
-        K_LOG_ERROR( "session이 nullptr입니다.");
+        K_LOG_ERROR("session이 nullptr입니다.");
         return;
     }
 
@@ -88,9 +88,7 @@ void PlayerPacketSender::SendPlayerSkillList(Player* player)
         payload.push_back(std::to_string(skill.skill_id));
         payload.push_back(std::to_string(skill.skill_level));
     }
- 
     session->Send(PKT_PLAYER_SKILLLIST, payload);
-  
     K_LOG_TRACE( "SendPlayerSkillList Send Success.");
 }
 

@@ -162,4 +162,74 @@ void InventoryManager::Clear()
     m_inventories.clear();
 }
 
+InventorySaveData InventoryManager::MakeSaveInventoryData() const
+{
+    std::lock_guard<std::mutex> lock(m_inventoryMutex);
 
+    InventorySaveData saveData{};
+    saveData.metaInfos.reserve(m_inventories.size());
+
+    for (const auto& [inventoryType, inventory] : m_inventories)
+    {
+        InventoryMetaInfo metaInfo{};
+        metaInfo.inventoryType = inventory.GetInventoryType();
+        metaInfo.max_slots = inventory.GetMaxSlotSize();
+        metaInfo.currnet_slots_size = inventory.GetCurrentSlotSize();
+
+        saveData.metaInfos.push_back(metaInfo);
+
+        const std::vector<InventoryItemInfo> itemInfos = inventory.MakeItemInfos();
+
+        saveData.itemInfos.insert(saveData.itemInfos.end(),itemInfos.begin(),itemInfos.end());
+
+        (void)inventoryType;
+    }
+
+    return saveData;
+}
+
+
+bool InventoryManager::HasItemBySlot(int inventoryType, int slotPos, int itemId, int count) const
+{
+    std::lock_guard<std::mutex> lock(m_inventoryMutex);
+
+    const auto inventory = m_inventories.find(inventoryType);
+
+    if (inventory == m_inventories.end())
+    {
+        return false;
+    }
+
+    return inventory->second.HasItemBySlot(slotPos,itemId,count);
+}
+bool InventoryManager::RemoveItemBySlot(int inventoryType, int slotPos, int itemId, int count)
+{
+    if (count <= 0)
+    {
+        return false;
+    }
+
+    std::lock_guard<std::mutex> lock(m_inventoryMutex);
+
+    auto inventory = m_inventories.find(inventoryType);
+
+    if (inventory == m_inventories.end())
+    {
+        return false;
+    }
+
+    return inventory->second.RemoveItemBySlot(slotPos,itemId,count);
+}
+int InventoryManager::GetItemCount(int inventoryType, int slotPos, int itemId) const
+{
+    std::lock_guard<std::mutex> lock(m_inventoryMutex);
+
+    const auto inventory = m_inventories.find(inventoryType);
+
+    if (inventory == m_inventories.end())
+    {
+        return 0;
+    }
+
+    return inventory->second.GetItemCount(slotPos,itemId);
+}

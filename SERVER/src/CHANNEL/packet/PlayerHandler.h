@@ -13,7 +13,7 @@ public:
     void Execute(PacketContext * ctx) override;
 
     //stat
-    void HandleStatView(PacketContext* ctx);
+    //void HandleStatView(PacketContext* ctx);
     void HandleStatUp(PacketContext* ctx);
 
     void MovePacket(PacketContext* ctx);

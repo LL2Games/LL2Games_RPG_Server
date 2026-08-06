@@ -112,12 +112,22 @@ void QuickSlotPacketHandler::HandleSetQuickSlot(PacketContext* ctx)
     
     result = quickSlotManager->SetSlot(quickSlotData);
 
+    K_LOG_ERROR(
+        "[QuickSlotDebug] index[%d] rawType[%d] mappedType[%d] "
+        "refId[%d] resultSize[%zu]",
+        quickSlotData.slot_index,
+        type,
+        static_cast<int>(quickSlotData.type),
+        quickSlotData.ref_id,
+        result.size()
+    );
     if (result.empty())
     {
         rc = EXIT_FAILURE;
         errMsg = "SetSlot failed";
         goto err;
     }
+    player->MarkSaveNeeded();
 err:
     if (rc != EXIT_SUCCESS) {
         session->SendNok(PKT_QUICKSLOT_SET, errMsg);
