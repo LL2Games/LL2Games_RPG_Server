@@ -38,6 +38,7 @@ LDFLAGS      	:= -pthread \
 INCLUDES := \
 	-I$(INC_DIR) \
 	-I$(INC_DIR)/COMMON \
+	-I$(INC_DIR)/COMMON/auth \
 	-I$(INC_DIR)/COMMON/db \
 	-I$(INC_DIR)/COMMON/packet \
 	-I$(INC_DIR)/COMMON/slog \
@@ -56,6 +57,9 @@ LIB_PATH := \
 # Sources
 # ==================================
 SRCS := \
+	auth/AuthTokenGenerator.cpp \
+	auth/AuthTicketService.cpp\
+	\
 	config/ConfigLoader.cpp \
 	\
 	db/MySqlConnectionPool.cpp \

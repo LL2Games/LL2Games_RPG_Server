@@ -708,6 +708,7 @@ bool MapInstance::PickupDropItem(Player *player, int dropItemId, std::vector<Add
     	m_dropItems[dropItem.dropId] = dropItem;
 		return false;
 	}
+	player->MarkSaveNeeded();
     	
 	std::unordered_map<int, Player*> playerSnapshot;
     {

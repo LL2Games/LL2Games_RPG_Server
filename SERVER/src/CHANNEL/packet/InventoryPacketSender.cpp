@@ -40,19 +40,28 @@ void InventoryPacketSender::SendInventoryItems(Player* player)
         return;
     }
 
-    std::vector<std::string> payload;
+    auto inventoryManager = player->GetInventoryManager();
 
-    auto inventory = player->GetInventoryManager();
-    
-    // 아이템 개수 처음에 넣어줌 클라이언트에서 받을 때 검증과 정확한 개수의 아이템을 받기 위해서
-    payload.push_back(std::to_string(inventory->GetAllItemInfos().size()));
-
-    for(auto itemInfos : inventory->GetAllItemInfos())
+    if(inventoryManager == nullptr)
     {
-        payload.push_back(std::to_string(itemInfos.inventoryType));
-        payload.push_back(std::to_string(itemInfos.itemId));
-        payload.push_back(std::to_string(itemInfos.itemCount));
-        payload.push_back(std::to_string(itemInfos.slotPos));
+        K_LOG_ERROR( "inventoryManager이 nullptr입니다.");
+        return;
+    }
+
+    const auto itemInfos = inventoryManager->GetAllItemInfos();
+
+    std::vector<std::string> payload;
+    payload.reserve(1 + itemInfos.size() * 4);
+
+    // 아이템 개수 처음에 넣어줌 클라이언트에서 받을 때 검증과 정확한 개수의 아이템을 받기 위해서
+    payload.push_back(std::to_string(itemInfos.size()));
+
+    for(auto itemInfo : itemInfos)
+    {
+        payload.push_back(std::to_string(itemInfo.inventoryType));
+        payload.push_back(std::to_string(itemInfo.itemId));
+        payload.push_back(std::to_string(itemInfo.itemCount));
+        payload.push_back(std::to_string(itemInfo.slotPos));
     }
 
     session->Send(PKT_INVENTORY_ITEM_INFO, payload);

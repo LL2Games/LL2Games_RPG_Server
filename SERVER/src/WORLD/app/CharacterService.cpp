@@ -4,6 +4,7 @@
 #include "MySqlConnectionPool.h"
 #include "RedisClient.h"
 #include <string.h>
+#include <cstring>
 
 enum TTL {
     E_TTL_CHARLIST = 300,
@@ -176,4 +177,90 @@ std::vector<std::string> CharacterService::GetCharacterList(const std::string& a
     }
 
     return char_list;
+}
+
+bool CharacterService::OwnsCharacter(const std::string& account_id, int char_id)
+{
+     if (account_id.empty() || char_id <= 0)
+    {
+        return false;
+    }
+
+    MYSQL* connection = m_db->GetConnection();
+
+    if (connection == nullptr)
+    {
+        K_LOG_ERROR("OwnsCharacter failed: database connection acquire failed");
+        return false;
+    }
+
+    MYSQL_STMT* statement =mysql_stmt_init(connection);
+
+    if (statement == nullptr)
+    {
+        K_LOG_ERROR("OwnsCharacter failed: statement initialization failed");
+        m_db->ReleaseConnection(connection);
+        return false;
+    }
+
+    const char* query ="SELECT 1 FROM `character` WHERE account_id = ? AND char_id = ? LIMIT 1";
+
+    if (mysql_stmt_prepare(statement, query, static_cast<unsigned long>(std::strlen(query))) != 0)
+    {
+        K_LOG_ERROR("OwnsCharacter failed: statement prepare failed [%s]",mysql_stmt_error(statement));
+        mysql_stmt_close(statement);
+        m_db->ReleaseConnection(connection);
+        return false;
+    }
+
+    unsigned long accountIdLength = static_cast<unsigned long>(account_id.size());
+
+    long long characterIdValue = static_cast<long long>(char_id);
+
+    MYSQL_BIND parameters[2]{};
+
+    parameters[0].buffer_type = MYSQL_TYPE_STRING;
+    parameters[0].buffer = const_cast<char*>(account_id.data());
+    parameters[0].buffer_length = accountIdLength;
+    parameters[0].length = &accountIdLength;
+
+    parameters[1].buffer_type = MYSQL_TYPE_LONGLONG;
+    parameters[1].buffer = &characterIdValue;
+
+    if (mysql_stmt_bind_param(statement, parameters) != 0)
+    {
+        K_LOG_ERROR("OwnsCharacter failed: parameter binding failed [%s]",mysql_stmt_error(statement));
+        mysql_stmt_close(statement);
+        m_db->ReleaseConnection(connection);
+        return false;
+    }
+
+    if (mysql_stmt_execute(statement) != 0)
+    {
+        K_LOG_ERROR("OwnsCharacter failed: execution failed [%s]",mysql_stmt_error(statement));
+        mysql_stmt_close(statement);
+        m_db->ReleaseConnection(connection);
+        return false;
+    }
+
+    int ownershipResult = 0;
+    MYSQL_BIND result[1]{};
+
+    result[0].buffer_type = MYSQL_TYPE_LONG;
+    result[0].buffer = &ownershipResult;
+
+    if (mysql_stmt_bind_result(statement, result) != 0)
+    {
+        K_LOG_ERROR("OwnsCharacter failed: result binding failed [%s]", mysql_stmt_error(statement));
+        mysql_stmt_close(statement);
+        m_db->ReleaseConnection(connection);
+        return false;
+    }
+
+    const int fetchResult = mysql_stmt_fetch(statement);
+    const bool ownsCharacter = fetchResult == 0 && ownershipResult == 1;
+    mysql_stmt_close(statement);
+    m_db->ReleaseConnection(connection);
+
+    return ownsCharacter;
 }

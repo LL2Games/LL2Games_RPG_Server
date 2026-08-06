@@ -11,6 +11,13 @@
 
 class ChannelServer;
 
+enum class ChannelAuthenticationState : std::uint8_t
+{   
+    Unauthenticated,
+    Authenticating,
+    Authenticated
+};
+
 class ChannelSession
 {
    
@@ -32,6 +39,14 @@ public:
     int EnqueueSend(std::string packet);
     bool FlushSend();
     bool HasPendingSend() const;
+
+    bool TryBeginAuthentication();
+    void MarkAuthenticated();
+    void ResetAuthentication();
+    bool IsAuthenticated() const;
+
+    // 세션 종료 시 플레이어 정리 절차 수행 함수
+    void FinalizePlayer();
 public: 
     void SetPlayer(Player* player) {m_player = player;}
     Player* GetPlayer() const {return m_player;}
@@ -47,6 +62,7 @@ public:
     void MarkClosing();
     void WaitForNoTasks();
     bool IsClosing() const { return m_closing.load(); }
+
 private:
     int m_fd = -1;
     ChannelServer* m_server = nullptr;
@@ -67,4 +83,6 @@ private:
     std::mutex m_taskMutex;
     std::condition_variable m_taskCv;
     int m_inFlightTasks = 0;
+
+    std::atomic<ChannelAuthenticationState> m_authenticationState{ChannelAuthenticationState::Unauthenticated};
 };

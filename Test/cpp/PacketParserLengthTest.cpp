@@ -7,6 +7,7 @@
 #include <string>
 #include <algorithm>
 #include <limits>
+#include <vector>
 
 namespace
 {
@@ -175,19 +176,15 @@ void TestMakePacketRoundTrip()
 
 void TestMaximumPacketSizeAccepted()
 {
-    const size_t maximumPacketSize = std::min(
-        static_cast<size_t>(BUFFER_SIZE),
-        static_cast<size_t>(
-            std::numeric_limits<uint16_t>::max()
-        )
-    );
+      constexpr std::size_t maximumPacketSize =
+        PacketLimits::kMaxPacketSize;
 
-    Require(
+    static_assert(
         maximumPacketSize >= sizeof(PacketHeader),
-        "maximum packet size is smaller than header"
+        "Maximum packet size is smaller than packet header"
     );
 
-    const size_t maximumBodySize =
+    const std::size_t maximumBodySize =
         maximumPacketSize - sizeof(PacketHeader);
 
     const std::string body(maximumBodySize, 'A');
@@ -215,14 +212,10 @@ void TestMaximumPacketSizeAccepted()
 
 void TestPacketSizeOverflowRejected()
 {
-    const size_t maximumPacketSize = std::min(
-        static_cast<size_t>(BUFFER_SIZE),
-        static_cast<size_t>(
-            std::numeric_limits<uint16_t>::max()
-        )
-    );
+    constexpr std::size_t maximumPacketSize =
+        PacketLimits::kMaxPacketSize;
 
-    const size_t overflowBodySize =
+    const std::size_t overflowBodySize =
         maximumPacketSize - sizeof(PacketHeader) + 1;
 
     const std::string body(overflowBodySize, 'A');
@@ -232,7 +225,7 @@ void TestPacketSizeOverflowRejected()
         {
             PacketParser::MakePacket(123, body);
         },
-        "oversized packet was accepted"
+        "packet larger than maximum size was accepted"
     );
 }
 
@@ -255,6 +248,158 @@ void TestUint16PacketLengthOverflowRejected()
         "uint16 packet length overflow was accepted"
     );
 }
+
+void TestTryParseMaximumPacketSizeAccepted()
+{
+    constexpr std::size_t maximumPacketSize =
+        PacketLimits::kMaxPacketSize;
+
+    const std::size_t maximumBodySize =
+        maximumPacketSize - sizeof(PacketHeader);
+
+    const std::string expectedBody(
+        maximumBodySize,
+        'A'
+    );
+
+    const std::string packet =
+        PacketParser::MakePacket(123, expectedBody);
+
+    std::vector<char> buffer(
+        packet.begin(),
+        packet.end()
+    );
+
+    ParseResult result =
+        PacketParser::TryParse(buffer);
+
+    Require(
+        result.status == ParseStatus::Complete,
+        "maximum-size packet was not parsed"
+    );
+
+    Require(
+        result.packet.type == 123,
+        "maximum-size packet type is incorrect"
+    );
+
+    Require(
+        result.packet.payload == expectedBody,
+        "maximum-size packet payload is incorrect"
+    );
+
+    Require(
+        buffer.empty(),
+        "maximum-size packet was not fully consumed"
+    );
+}
+
+void TestTryParseOversizedPacketRejected()
+{
+    constexpr std::size_t oversizedPacketSize =
+        PacketLimits::kMaxPacketSize + 1;
+
+    static_assert(
+        oversizedPacketSize <=
+            std::numeric_limits<uint16_t>::max(),
+        "test packet length does not fit in uint16_t"
+    );
+
+    PacketHeader header{};
+    header.type = 123;
+    header.length =
+        static_cast<uint16_t>(oversizedPacketSize);
+
+    std::vector<char> buffer(sizeof(PacketHeader));
+
+    std::memcpy(
+        buffer.data(),
+        &header,
+        sizeof(header)
+    );
+
+    const std::size_t originalBufferSize =
+        buffer.size();
+
+    ParseResult result =
+        PacketParser::TryParse(buffer);
+
+    Require(
+        result.status == ParseStatus::InvalidPacket,
+        "oversized receive packet was accepted"
+    );
+
+    Require(
+        buffer.size() == originalBufferSize,
+        "invalid packet unexpectedly modified the receive buffer"
+    );
+}
+
+void TestTryParseCoalescedPackets()
+{
+    const std::string firstPacket =
+        PacketParser::MakePacket(101, "first");
+
+    const std::string secondPacket =
+        PacketParser::MakePacket(102, "second");
+
+    std::vector<char> buffer(
+        firstPacket.begin(),
+        firstPacket.end()
+    );
+
+    buffer.insert(
+        buffer.end(),
+        secondPacket.begin(),
+        secondPacket.end()
+    );
+
+    ParseResult firstResult =
+        PacketParser::TryParse(buffer);
+
+    Require(
+        firstResult.status == ParseStatus::Complete,
+        "first coalesced packet was not parsed"
+    );
+
+    Require(
+        firstResult.packet.type == 101,
+        "first coalesced packet type is incorrect"
+    );
+
+    Require(
+        firstResult.packet.payload == "first",
+        "first coalesced packet payload is incorrect"
+    );
+
+    Require(
+        !buffer.empty(),
+        "second coalesced packet was consumed too early"
+    );
+
+    ParseResult secondResult =
+        PacketParser::TryParse(buffer);
+
+    Require(
+        secondResult.status == ParseStatus::Complete,
+        "second coalesced packet was not parsed"
+    );
+
+    Require(
+        secondResult.packet.type == 102,
+        "second coalesced packet type is incorrect"
+    );
+
+    Require(
+        secondResult.packet.payload == "second",
+        "second coalesced packet payload is incorrect"
+    );
+
+    Require(
+        buffer.empty(),
+        "coalesced packet buffer was not fully consumed"
+    );
+}
 }
 
 int main()
@@ -269,6 +414,10 @@ int main()
         TestMaximumPacketSizeAccepted();
         TestPacketSizeOverflowRejected();
         TestUint16PacketLengthOverflowRejected();
+
+        TestTryParseMaximumPacketSizeAccepted();
+        TestTryParseOversizedPacketRejected();
+        TestTryParseCoalescedPackets();
     }
     catch (const std::exception& error)
     {
@@ -276,6 +425,6 @@ int main()
         return 1;
     }
 
-    std::cout << "[PASS] PacketParser length-prefix tests\n";
+    std::cout << "[PASS] 패킷 파서 길이 접두사 테스트 통과\n";
     return 0;
 }

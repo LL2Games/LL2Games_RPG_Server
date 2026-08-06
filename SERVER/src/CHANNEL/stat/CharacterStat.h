@@ -76,7 +76,7 @@ inline int GetStatValue(const BaseStat& s, e_BaseStat t)
 class CharacterStat {
 
 public:
-    CharacterStat(){}
+    CharacterStat();
     CharacterStat(const BaseStat& base, const DerivedStat& derived, const ExpStat& expStat, int curHp, int curMp, int remainAp)
     :m_base(base), m_derived(derived), m_expStat(expStat), m_cur_hp(curHp), m_cur_mp(curMp), m_remain_ap(remainAp)
     {}

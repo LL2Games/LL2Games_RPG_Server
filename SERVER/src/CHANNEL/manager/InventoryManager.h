@@ -3,6 +3,12 @@
 #include "Inventory.h"
 #include <mutex>
 
+struct InventorySaveData
+{
+    std::vector<InventoryMetaInfo> metaInfos;
+    std::vector<InventoryItemInfo> itemInfos;
+};
+
 class InventoryManager
 {
 public:
@@ -12,6 +18,10 @@ public:
 	bool MoveItemSlots(const MoveItem& moveData,std::vector<InventorySlotUpdate>& updatedSlots,std::string& errMsg);
 
 	bool AddItem(int itemId, int count, std::vector<AddItemResult>& addItemResults);
+
+	bool HasItemBySlot(int inventoryType, int slotPos, int itemId, int count) const;
+	bool RemoveItemBySlot(int inventoryType, int slotPos, int itemId, int count);
+	int GetItemCount(int inventoryType, int slotPos, int itemId) const;
 public:
 	Inventory* GetInventory(int inventoryType);
 	const Inventory* GetInventory(int inventoryType) const;
@@ -21,6 +31,8 @@ public:
 
 	std::vector<InventoryMetaInfo> GetAllMetaInfos() const;
 	std::vector<InventoryItemInfo> GetAllItemInfos() const;
+
+	InventorySaveData MakeSaveInventoryData() const;
 
 	void Clear();
 private:

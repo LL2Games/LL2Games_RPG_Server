@@ -6,4 +6,5 @@ class WorldInitHandler : public IPacketHandler
 {
 public:
     void Execute(PacketContext *ctx) override;
+    
 };

@@ -480,7 +480,7 @@ bool PlayerService::LoadSlotSetting(Player* player)
     int inventory_type;
     int inventory_slotPos;
     */
-    std::string query = "SELECT slot_index, slot_type, ref_id, inventory_type, inventory_slotPos FROM character_skill_slot WHERE char_id = " + std::to_string(player->GetId());
+    std::string query ="SELECT slot_index, quickslot_type, skill_id, inventory_type, inventory_slot_pos FROM character_quickslot WHERE char_id = " + std::to_string(player->GetId());
     result = mysql_query(conn, query.c_str());
     if(result != 0)
     {
@@ -509,12 +509,16 @@ bool PlayerService::LoadSlotSetting(Player* player)
     // 퀵슬롯 정보 저장
     while((row = mysql_fetch_row(res)) != nullptr)
     {
-        QuickSlotData quickSlot;
+        QuickSlotData quickSlot{};
         quickSlot.slot_index = std::atoi(row[0]);
         quickSlot.type = QuickSlot::SetSlotType(std::atoi(row[1]));
         quickSlot.ref_id = std::atoi(row[2]);
         quickSlot.inventory_type = std::stoi(row[3]);
         quickSlot.inventory_slotPos = std::stoi(row[4]);
+        if (quickSlot.type == QuickSlotType::Item)
+        {
+            quickSlot.count = player->GetItemCount(quickSlot.inventory_type,quickSlot.inventory_slotPos,quickSlot.ref_id);
+        }
         quickSlotManager->SetSlot(quickSlot);
     }
 
@@ -541,7 +545,7 @@ bool PlayerService::LoadPlayerInfo(int characterId, PlayerInitData &playerInit)
     }
 
     const char* query =
-        "SELECT char_id, account_id, name, level, job, root_job, `pos.x`, `pos.y`"
+        "SELECT char_id, account_id, name, level, job, root_job, map_id, `pos.x`, `pos.y`"
         "FROM `character` WHERE char_id = ?";
 
     if (mysql_stmt_prepare(stmt, query, strlen(query)) != 0)
@@ -582,7 +586,7 @@ bool PlayerService::LoadPlayerInfo(int characterId, PlayerInitData &playerInit)
     char accountIdBuffer[64]{};
     unsigned long accountIdLength = 0;
     bool accountIdIsNull = false;
-    MYSQL_BIND resultBind[8]{};
+    MYSQL_BIND resultBind[9]{};
 
     resultBind[0].buffer_type = MYSQL_TYPE_LONG;
     resultBind[0].buffer = &playerInit.char_id;
@@ -608,12 +612,14 @@ bool PlayerService::LoadPlayerInfo(int characterId, PlayerInitData &playerInit)
     resultBind[5].buffer_type = MYSQL_TYPE_LONG;
     resultBind[5].buffer = &playerInit.root_job;
 
-
-    resultBind[6].buffer_type = MYSQL_TYPE_FLOAT;
-    resultBind[6].buffer = &playerInit.xPos;
+    resultBind[6].buffer_type = MYSQL_TYPE_LONG;
+    resultBind[6].buffer = &playerInit.map_id;
 
     resultBind[7].buffer_type = MYSQL_TYPE_FLOAT;
-    resultBind[7].buffer = &playerInit.yPos;
+    resultBind[7].buffer = &playerInit.xPos;
+
+    resultBind[8].buffer_type = MYSQL_TYPE_FLOAT;
+    resultBind[8].buffer = &playerInit.yPos;
 
     if (mysql_stmt_bind_result(stmt, resultBind) != 0)
     {

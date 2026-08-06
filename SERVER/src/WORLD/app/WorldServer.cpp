@@ -133,8 +133,8 @@ int WorldServer::OnAccept()
 
 int WorldServer::OnReceive(int fd)
 {
-    char temp[BUFFER_SIZE];
-    int tempLen = 0;
+    char temp[PacketLimits::kReceiveChunkSize];
+    ssize_t tempLen = 0;
     std::string buf;
     WorldSession *session = m_sessions[fd];
 
@@ -154,7 +154,7 @@ int WorldServer::OnReceive(int fd)
             return 1;
         }
         buf.append(temp, tempLen);
-    } while (tempLen == BUFFER_SIZE);
+    } while (tempLen == static_cast<ssize_t>(PacketLimits::kReceiveChunkSize));
 
     session->m_recvBuffer.insert(session->m_recvBuffer.end(), buf.begin(), buf.end());
 
@@ -166,6 +166,12 @@ int WorldServer::OnReceive(int fd)
         return -1;
     }
     
+    if (!session->IsAuthenticated() && pkt->type != PKT_INIT_WORLD)
+    {
+        K_LOG_ERROR("Unauthenticated world packet rejected. fd:%d type:%u",fd,static_cast<unsigned int>(pkt->type));
+        session->SendNok(pkt->type,"World authentication required");
+        return 0;
+    }
 
     auto handler = m_factory.Create(pkt->type);
     PacketContext ctx;

@@ -5,7 +5,7 @@ import time
 
 
 HEADER_SIZE = 4
-BUFFER_SIZE = 1024
+MAX_PACKET_SIZE = 16 * 1024
 UNKNOWN_PACKET_TYPE = 0xFFFF
 
 CASES = {}
@@ -119,7 +119,7 @@ def invalid_short_length_case(host, port, timeout, delay):
 def invalid_large_length_case(host, port, timeout, delay):
     sock = connect(host, port, timeout)
     try:
-        sock.sendall(make_header(BUFFER_SIZE + 1))
+        sock.sendall(make_header(MAX_PACKET_SIZE  + 1))
         time.sleep(delay)
         return connection_is_open(sock)
     finally:

@@ -26,9 +26,9 @@ public:
     void Clear();
 
 public:
-    int GetInventoryType() {return m_inventoryType;}
-    int GetMaxSlotSize()   {return m_maxSlot;}
-    int GetCurrentSlotSize() {return m_current_slot_size;}
+    int GetInventoryType() const {return m_inventoryType;}
+    int GetMaxSlotSize() const {return m_maxSlot;}
+    int GetCurrentSlotSize() const {return m_current_slot_size;}
 
     std::vector<InventoryItemInfo> MakeItemInfos() const;
 

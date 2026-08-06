@@ -90,8 +90,8 @@ void Server::AcceptNewClient()
 void Server::ProcessClient(Client *cli)
 {
     int fd = cli->GetFD();
-    char temp[BUFFER_SIZE];
-    int tempLen = 0;
+    char temp[PacketLimits::kReceiveChunkSize];
+    ssize_t tempLen = 0;
     std::string buf;
     do
     {
@@ -116,7 +116,7 @@ void Server::ProcessClient(Client *cli)
             return;
         }
         buf.append(temp, tempLen);
-    } while (tempLen == BUFFER_SIZE);
+    } while (tempLen == static_cast<ssize_t>(PacketLimits::kReceiveChunkSize));
 
     // 버퍼 누적
     cli->m_recvBuffer.insert(cli->m_recvBuffer.end(), buf.begin(), buf.end());

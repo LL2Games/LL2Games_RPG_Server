@@ -4,95 +4,131 @@
 #include "K_slog.h"
 #include "PacketParser.h"
 #include "RedisConnectionPool.h"
+#include "AuthTicketService.h"
+#include "CharacterService.h"
+#include "RedisCommonEnum.h"
 
 void ChannelSelectHandler::Execute(PacketContext* ctx)
 {
-    WorldSession *session = nullptr;
-    ChannelManager *channel_manager = nullptr;
-    int rc = EXIT_SUCCESS;
-    std::string errMsg;
-    size_t offset = 0;
-    std::string channel_id;
-
     if (ctx == nullptr)
     {
-        K_LOG_ERROR( "ctx is nullptr\n");
-        rc = EXIT_FAILURE;
-        errMsg = "[" + std::to_string(rc) + "]ctx is nullptr";
-        goto err;
+        K_LOG_ERROR("ChannelSelectHandler failed: context is null");
+        return;
     }
-    session = ctx->world_session;
+
+    WorldSession* session = ctx->world_session;
+
     if (session == nullptr)
     {
-        K_LOG_ERROR( "session is nullptr\n");
-        rc = EXIT_FAILURE;
-        errMsg = "[" + std::to_string(rc) + "]session is nullptr";
-        goto err;
+        K_LOG_ERROR("ChannelSelectHandler failed: session is null");
+        return;
     }
-    channel_manager = ctx->channel_manager;
-    if (channel_manager == nullptr)
+
+    if (!session->IsAuthenticated())
     {
-        K_LOG_ERROR( "channel_manager is nullptr\n");
-        rc = EXIT_FAILURE;
-        errMsg = "[" + std::to_string(rc) + "]channel_manager is nullptr";
-        goto err;
+        session->SendNok(PKT_SELECT_CHANNEL,"World authentication required");
+        return;
     }
-    
-    if (!PacketParser::ParseLengthPrefixedString(
+
+    CharacterService* characterService = ctx->char_service;
+
+    ChannelManager* channelManager = ctx->channel_manager;
+
+    if (characterService == nullptr ||channelManager == nullptr || ctx->redis_pool == nullptr)
+    {
+        K_LOG_ERROR("ChannelSelectHandler failed: service is null");
+        session->SendNok(PKT_SELECT_CHANNEL,"Channel selection failed");
+        return;
+    }
+
+    std::size_t offset = 0;
+    std::string parseError;
+    int characterId = 0;
+    int channelId = 0;
+
+    if (!PacketParser::ParseNextIntField(
             ctx->payload,
-            ctx->payload_len,
+            static_cast<std::size_t>(ctx->payload_len),
             offset,
-            channel_id,
-            errMsg))
+            characterId,
+            parseError))
     {
-        rc = EXIT_FAILURE;
-        K_LOG_ERROR( "ParseLengthPrefixedString fail");
-        goto err;
+        session->SendNok(PKT_SELECT_CHANNEL,"Invalid character ID");
+        return;
     }
 
-    K_LOG_DEBUG( "client(%d) channel_id=[%s]", session->GetFD(), channel_id.c_str());
-
-err:
-    if (rc != EXIT_SUCCESS)
+    if (!PacketParser::ParseNextIntField(
+            ctx->payload,
+            static_cast<std::size_t>(ctx->payload_len),
+            offset,
+            channelId,
+            parseError))
     {
-        session->SendNok(PKT_SELECT_CHANNEL, errMsg);
+        session->SendNok(PKT_SELECT_CHANNEL,"Invalid channel ID");
+        return;
     }
-    else
+
+    if (offset != static_cast<std::size_t>(ctx->payload_len))
     {
-        auto opt = channel_manager->SelectChannel(channel_id);
-        if (!opt)
+        session->SendNok(PKT_SELECT_CHANNEL,"Invalid channel selection payload");
+        return;
+    }
+
+    const std::string accountId = session->GetID();
+
+    if (!characterService->OwnsCharacter(accountId,characterId))
+    {
+        K_LOG_ERROR("ChannelSelectHandler failed: character ownership rejected");
+        session->SendNok(PKT_SELECT_CHANNEL,"Character ownership verification failed");
+        return;
+    }
+    const std::string channelIdString = std::to_string(channelId);
+    const auto selectedChannel = channelManager->SelectChannel(channelIdString);
+
+    if (!selectedChannel.has_value())
+    {
+        session->SendNok(PKT_SELECT_CHANNEL,"Invalid channel");
+        return;
+    }
+
+    RedisConnectionGuard redisGuard(ctx->redis_pool);
+
+    if (!redisGuard)
+    {
+        session->SendNok(PKT_SELECT_CHANNEL,"Redis connection acquire failed");
+        return;
+    }
+
+    const int channelState = channelManager->CanEnterChannel(channelIdString,*redisGuard.Get());
+
+    if (channelState == static_cast<int>(E_ChannelState::Full) ||
+        channelState == static_cast<int>(E_ChannelState::Die))
+    {
+        session->SendNok(PKT_SELECT_CHANNEL,"Channel is not available");
+        return;
+    }
+
+    ChannelTicketClaims claims;
+    claims.accountId = accountId;
+    claims.characterId = characterId;
+    claims.channelId = channelId;
+
+    const auto channelTicket = AuthTicketService::IssueChannelTicket(*redisGuard.Get(),claims);
+
+    if (!channelTicket.has_value())
+    {
+        session->SendNok(PKT_SELECT_CHANNEL,"Channel ticket creation failed");
+        return;
+    }
+
+    const ChannelInfo& channelInfo = *selectedChannel;
+
+    session->SendOk(PKT_SELECT_CHANNEL,
         {
-            errMsg = std::string("channel(" + channel_id + ") is invalid");
-            session->SendNok(PKT_SELECT_CHANNEL, errMsg);
+            channelInfo.ip,
+            std::to_string(channelInfo.port),
+            std::to_string(channelState),
+            *channelTicket
         }
-        else
-        {
-            ChannelInfo info = *opt;
-            RedisConnectionGuard redisGuard(ctx->redis_pool);
-            if (!redisGuard)
-            {
-                session->SendNok(PKT_SELECT_CHANNEL, "redis connection acquire failed");
-                return;
-            }
-            
-            int channel_state = channel_manager->CanEnterChannel(channel_id, *redisGuard.Get());
-            // switch (channel_state)
-            // {
-            // case ChannelState::E_Normal: //정상
-            //     break;
-            // case ChannelState::E_Busy: //혼잡
-            //     break;
-            // case ChannelState::E_Full:  //만원
-            //     break;
-            // case ChannelState::E_Die:   //죽음
-            //     break;
-            // }
-
-            std::vector<std::string> channel_info;
-            channel_info.push_back(info.ip);
-            channel_info.push_back(std::to_string(info.port));
-            channel_info.push_back(std::to_string(channel_state)); //상태에 따른 클라이언트 처리 가능
-            session->SendOk(PKT_SELECT_CHANNEL, channel_info);
-        }
-    }
+    );
 }
