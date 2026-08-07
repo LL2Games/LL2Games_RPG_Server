@@ -84,7 +84,6 @@
 - [프로젝트 구조](#-프로젝트-구조)
 - [빌드 및 실행](#-빌드-및-실행)
 - [시퀀스 다이어그램](#-시퀀스-다이어그램)
-- [클래스 다이어그램](#-클래스-다이어그램)
 - [코드 구성 및 구현 기준](#-코드-구성-및-구현-기준)
 - [문서](#-문서)
 ---
@@ -569,7 +568,7 @@ sequenceDiagram
 ---
 
 ## 📄 문서
-- [서버 안정성 개선 상세](SERVER/docs/Portfolio/server_stability_improvements_2026-08.md)
+- [서버 안정성 개선 상세](SERVER/docs/Improvements/server_stability_improvements_2026-08.md)
 - [ChannelServer 통합·부하 테스트 결과](SERVER/docs/Tests/channel_server_validation_2026-08-06.md)
 - [채널 서버 성능/수신 경계 테스트 기준 측정](SERVER/docs/Tests/channel_server_performance_baseline_2026-06-30.md)
 - [패킷 프로토콜 명세서](https://bottlenose-error-361.notion.site/LL2Games_PRG-3a7c0b1b991d803199c1cec7e7c7de70)
