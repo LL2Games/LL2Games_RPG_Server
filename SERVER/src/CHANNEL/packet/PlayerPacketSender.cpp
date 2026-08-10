@@ -194,6 +194,30 @@ void PlayerPacketSender::SendPlayerEnter(Player *player, std::unordered_map<int,
     }
 }
 
+void PlayerPacketSender::SendPlayerLeave(const int playerId, const std::unordered_map<int, Player*>& playerList)
+{
+    const std::vector<std::string> payload = {std::to_string(playerId)};
+
+    for (const auto& [id, otherPlayer] : playerList)
+    {
+        if (id == playerId || otherPlayer == nullptr)
+        {
+            continue;
+        }
+
+        ChannelSession* session = otherPlayer->GetSession();
+
+        if (session == nullptr)
+        {
+            continue;
+        }
+
+        session->Send(PKT_OTHERPLAYER_LEAVE,payload);
+    }
+
+    K_LOG_TRACE("Player leave notification sent. playerId[%d]",playerId);
+}
+
 void PlayerPacketSender::SendPlayerAttack(Player *attacker, int skillId, int attackDir, std::unordered_map<int, Player *> &playerList)
 {
     std::vector<std::string> payload;

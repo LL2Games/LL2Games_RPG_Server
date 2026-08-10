@@ -44,7 +44,7 @@ public:
 	
 	// 플레이어 들어왔을 때 처리 함수
 	void OnEnter(int PlayerID, Player* player);
-
+    void SendEnterPackets(Player* player);
 	// 플레이어 나갔을 때 처리 함수
 	void OnLeave(int PlayerID);
 
@@ -66,6 +66,7 @@ private:
     void SendMonsterSnapshot(Player* Enter_player);  
     void SendMonsterMove(Player* player);
     void SendProjectileMove(Player* player);
+    
     //void BroadcastProjectileMove(std::vector<Player*> players);
 
     // 몬스터와 플레이어의 접촉 시 

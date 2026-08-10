@@ -220,58 +220,60 @@ int MapInstance::SpawnMonster()
 
 void MapInstance::OnEnter(int PlayerID, Player* player)
 {
-	{
-		std::lock_guard<std::mutex> lock(m_playerMutex);
-		auto it = m_playerList.find(PlayerID);
+	 if (player == nullptr)
+    {
+        return;
+    }
 
-		if(it != m_playerList.end()) return;
+    {
+        std::lock_guard<std::mutex> lock(m_playerMutex);
 
-		m_playerList[PlayerID] = player;
+        const auto it = m_playerList.find(PlayerID);
 
-		m_playerCount = static_cast<int>(m_playerList.size());
-
-		if (m_playerCount > 0)
+        if (it != m_playerList.end())
         {
-            m_has_player = true;
-            m_destroyRequested = false;
-            m_emptyTime = {};
+            return;
         }
-	}
-	
-	// DB 또는 맵 이동으로 설정된 현재 좌표부터 검증 시작
-	player->ResetMoveValidation();
-	// 들어온 플레이어 한테 몬스터 정보 전달
-	PlayerPacketSender::SendExistingPlayersToNewPlayer(player, m_playerList);
-	PlayerPacketSender::SendPlayerEnter(player, m_playerList);
-	SendMonsterSnapshot(player);
+
+        m_playerList[PlayerID] = player;
+        m_playerCount = static_cast<int>(m_playerList.size());
+
+        m_has_player = true;
+        m_destroyRequested = false;
+        m_emptyTime = {};
+    }
+
+    // DB 또는 맵 이동으로 설정된 현재 좌표부터 검증 시작
+    player->ResetMoveValidation();
 }
 
 void MapInstance::OnLeave(int PlayerID)
 {
-    int playerCount = 0;
+    std::unordered_map<int, Player*> remainingPlayers;
+
     {
         std::lock_guard<std::mutex> lock(m_playerMutex);
 
-        auto it = m_playerList.find(PlayerID);
+        const auto it = m_playerList.find(PlayerID);
+
         if (it == m_playerList.end())
+        {
             return;
+        }
 
         m_playerList.erase(it);
-
         m_playerCount = static_cast<int>(m_playerList.size());
+
+        remainingPlayers = m_playerList;
 
         if (m_playerCount == 0)
         {
-            m_emptyTime = std::chrono::steady_clock::now();
             m_has_player = false;
-            m_destroyRequested = false;
+            m_emptyTime = std::chrono::steady_clock::now();
         }
-
-        playerCount = m_playerCount;
     }
 
-	K_LOG_DEBUG( "PlayerID(%d)", PlayerID);
-    K_LOG_DEBUG( "m_playerCount(%d)", playerCount);
+    PlayerPacketSender::SendPlayerLeave(PlayerID,remainingPlayers);
 }
 
 void MapInstance::GiveExp(int playerID, float exp)
@@ -425,6 +427,33 @@ void MapInstance::SendMonsterSnapshot(Player* player)
 
 	//MonsterPacketSender::SendMonsterMove(player, aliveMonsters);
  }
+
+void MapInstance::SendEnterPackets(Player* player)
+{
+	 if (player == nullptr)
+    {
+        return;
+    }
+
+    std::unordered_map<int, Player*> playerSnapshot;
+
+    {
+        std::lock_guard<std::mutex> lock(m_playerMutex);
+        playerSnapshot = m_playerList;
+    }
+
+    PlayerPacketSender::SendExistingPlayersToNewPlayer(
+        player,
+        playerSnapshot
+    );
+
+    PlayerPacketSender::SendPlayerEnter(
+        player,
+        playerSnapshot
+    );
+
+    SendMonsterSnapshot(player);
+} 
 
 // 맵이 사라지는 경우 호출
 void MapInstance::RemoveMap()

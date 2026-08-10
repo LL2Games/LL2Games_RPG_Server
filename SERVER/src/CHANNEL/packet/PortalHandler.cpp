@@ -7,6 +7,7 @@
 #include "MapService.h"
 #include "MapData.h"
 #include "PortalPacketSender.h"
+#include "MapInstance.h"
 
 
 
@@ -87,8 +88,22 @@ err:
         const std::string responseError = !MoveResult.error.empty()? MoveResult.error : errMsg;
         session->SendNok(PKT_PORTAL_ENTER, MoveResult.error);
     } else {
-        K_LOG_TRACE( "MAP HANDLER END");
-        PortalPacketSender::SendMoveSuccess(session, MoveResult.destinationMapId, MoveResult.spawnPosition);
+        MapInstance* destinationMap = player->GetCurrentMap();
+
+        if (destinationMap == nullptr)
+        {
+            K_LOG_ERROR("Destination map is nullptr after portal movement. playerId[%d]", player->GetId());
+            session->SendNok(PKT_PORTAL_ENTER, "Destination map is not available");
+            return;
+        }
+
+        // 클라이언트가 목적지 씬으로 먼저 전환하도록 성공 응답을 전송한다.
+        PortalPacketSender::SendMoveSuccess(session, MoveResult.destinationMapId,MoveResult.spawnPosition);
+
+        // 씬 전환 응답 뒤 목적지 맵의 플레이어·몬스터 정보를 전송한다.
+        destinationMap->SendEnterPackets(player);
+
+        K_LOG_TRACE("Portal movement completed. playerId[%d] destinationMapId[%d]",player->GetId(),MoveResult.destinationMapId);
     }
 }
 
