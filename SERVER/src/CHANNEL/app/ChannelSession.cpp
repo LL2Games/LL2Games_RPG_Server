@@ -152,12 +152,11 @@ int ChannelSession::SendOk(int type, std::vector<std::string> payload)
    return EnqueueSend(std::move(packet));
 }
 
-int ChannelSession::SendNok(int type, const std::string &errMsg)
+int ChannelSession::SendNok(int type, const std::string &errMsg, std::vector<std::string> payload)
 {
-    std::vector<std::string> msg;
-    msg.push_back("nok");
-    msg.push_back(errMsg);
-    std::string body = PacketParser::MakeBody(msg);
+    payload.insert(payload.begin(),errMsg);
+    payload.insert(payload.begin(),"nok");
+    std::string body = PacketParser::MakeBody(payload);
     std::string packet = PacketParser::MakePacket(type, body);
 
     return EnqueueSend(std::move(packet));

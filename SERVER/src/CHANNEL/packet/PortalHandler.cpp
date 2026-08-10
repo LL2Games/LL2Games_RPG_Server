@@ -84,6 +84,7 @@ void PortalHandler::Execute(PacketContext * ctx)
     
 err:
     if (rc != EXIT_SUCCESS) {
+        const std::string responseError = !MoveResult.error.empty()? MoveResult.error : errMsg;
         session->SendNok(PKT_PORTAL_ENTER, MoveResult.error);
     } else {
         K_LOG_TRACE( "MAP HANDLER END");

@@ -33,7 +33,7 @@ public:
     int Send(int type, const std::vector<std::string>& payload);
     //int Send(int type, std::vector<std::string> payload={});
     int SendOk(int type, std::vector<std::string> payload={});
-    int SendNok(int type, const std::string &errMsg);
+    int SendNok(int type, const std::string &errMsg, std::vector<std::string> payload = {});
     int SendPacket(const std::string& packet);
 
     int EnqueueSend(std::string packet);

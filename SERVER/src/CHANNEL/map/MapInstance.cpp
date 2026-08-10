@@ -220,15 +220,14 @@ int MapInstance::SpawnMonster()
 
 void MapInstance::OnEnter(int PlayerID, Player* player)
 {
-	//int playerCount = 0;
 	{
 		std::lock_guard<std::mutex> lock(m_playerMutex);
 		auto it = m_playerList.find(PlayerID);
 
 		if(it != m_playerList.end()) return;
-	
 
 		m_playerList[PlayerID] = player;
+
 		m_playerCount = static_cast<int>(m_playerList.size());
 
 		if (m_playerCount > 0)
@@ -237,10 +236,10 @@ void MapInstance::OnEnter(int PlayerID, Player* player)
             m_destroyRequested = false;
             m_emptyTime = {};
         }
-		//playerCount = m_playerCount;
 	}
-	//K_LOG_DEBUG( "PlayerID(%d)", PlayerID);
-	//K_LOG_DEBUG( "m_playerCount(%d)", playerCount);
+	
+	// DB 또는 맵 이동으로 설정된 현재 좌표부터 검증 시작
+	player->ResetMoveValidation();
 	// 들어온 플레이어 한테 몬스터 정보 전달
 	PlayerPacketSender::SendExistingPlayersToNewPlayer(player, m_playerList);
 	PlayerPacketSender::SendPlayerEnter(player, m_playerList);
@@ -281,9 +280,12 @@ void MapInstance::GiveExp(int playerID, float exp)
 	(void)exp;
 }
 
-void MapInstance::HandleMove(Player* sender, Vec2 pos, float speed, int dir)
+void MapInstance::HandleMove(Player* sender, Vec2& pos, float speed, int dir)
 {
-	if(!sender) return;
+	if (sender == nullptr)
+    {
+        return;
+    }
 
 	//K_LOG_TRACE( "플레이어 ID [%d]", sender->GetId());
 	std::unordered_map<int, Player*> playerSnapshot;
@@ -296,12 +298,8 @@ void MapInstance::HandleMove(Player* sender, Vec2 pos, float speed, int dir)
 			K_LOG_ERROR( "[%d]해당 맵에 존재하지 않은 플레이어 입니다.", m_mapID);
 			return;
 		}
-		sender->SetPos(pos);
 		playerSnapshot = m_playerList;
 	}
-
-	
-
 	PlayerPacketSender::SendPlayersMove(sender, pos, speed, dir, playerSnapshot);
 }
 

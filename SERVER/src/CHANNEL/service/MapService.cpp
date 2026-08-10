@@ -58,11 +58,28 @@ PortalMoveResult MapService::MoveByPortal(Player* player, const std::string& por
         return moveResult;
     }
 
-    if(!portal->IsInInteractionRange(player->GetPos()))
+    const Vec2 playerPosition = player->GetPos();
+
+    if (!portal->IsInInteractionRange(playerPosition))
     {
+        const float differenceX = playerPosition.xPos - portal->position.xPos;
+        const float differenceY = playerPosition.yPos - portal->position.yPos;
+        const float distanceSquared = differenceX * differenceX + differenceY * differenceY;
+
+        K_LOG_ERROR("Portal range check failed. playerId[%d] portalId[%s] playerPos[%.3f, %.3f] portalPos[%.3f, %.3f] range[%.3f] distanceSquared[%.3f]",
+            player->GetId(),
+            portalId.c_str(),
+            playerPosition.xPos,
+            playerPosition.yPos,
+            portal->position.xPos,
+            portal->position.yPos,
+            portal->interactionRange,
+            distanceSquared
+        );
+
         moveResult.error = "portal is out of range";
         return moveResult;
-    }
+    }   
 
     if(portal->destinationMapId <= 0)
     {

@@ -154,26 +154,25 @@ PLAYER_SAVE_FLOW_TEST_TARGET := $(BIN_DIR)/player_save_flow_test
 PLAYER_SAVE_FLOW_TEST_SOURCE := $(CHANNEL_TEST_DIR)/PlayerSaveFlowTest.cpp
 PLAYER_SAVE_FLOW_TEST_OBJECT := $(OBJ_DIR)/test/PlayerSaveFlowTest.o
 
-CHANNEL_TEST_TARGETS := \
-	$(AUTH_TEST_TARGET) \
-	$(PLAYER_SAVE_FLOW_TEST_TARGET)
+PLAYER_MOVEMENT_VALIDATION_TEST_TARGET := $(BIN_DIR)/player_movement_validation_test
+PLAYER_MOVEMENT_VALIDATION_TEST_SOURCE := $(CHANNEL_TEST_DIR)/PlayerMovementValidationTest.cpp
+PLAYER_MOVEMENT_VALIDATION_TEST_OBJECT := $(OBJ_DIR)/test/PlayerMovementValidationTest.o
 
-CHANNEL_TEST_OBJECTS := \
-	$(AUTH_TEST_OBJECT) \
-	$(PLAYER_SAVE_FLOW_TEST_OBJECT)
+CHANNEL_TEST_TARGETS := $(AUTH_TEST_TARGET) $(PLAYER_SAVE_FLOW_TEST_TARGET) $(PLAYER_MOVEMENT_VALIDATION_TEST_TARGET)
+CHANNEL_TEST_OBJECTS := $(AUTH_TEST_OBJECT) \$(PLAYER_SAVE_FLOW_TEST_OBJECT) $(PLAYER_MOVEMENT_VALIDATION_TEST_OBJECT)
 
 CHANNEL_TEST_DEPS := $(CHANNEL_TEST_OBJECTS:.o=.d)
 
 # ==================================
 # Build Rules
 # ==================================
-.PHONY: all build-tests test test-auth-session test-player-save-flow clean fclean re
+.PHONY: all build-tests test test-auth-session test-player-save-flow test-player-movement-validation clean fclean re
 
 all: $(TARGET)
 
 build-tests: $(CHANNEL_TEST_TARGETS)
 
-test: test-auth-session test-player-save-flow
+test: test-auth-session test-player-save-flow test-player-movement-validation
 
 test-auth-session: $(AUTH_TEST_TARGET)
 	$(AUTH_TEST_TARGET)
@@ -181,7 +180,8 @@ test-auth-session: $(AUTH_TEST_TARGET)
 test-player-save-flow: $(PLAYER_SAVE_FLOW_TEST_TARGET)
 	$(PLAYER_SAVE_FLOW_TEST_TARGET)
 
-
+test-player-movement-validation: $(PLAYER_MOVEMENT_VALIDATION_TEST_TARGET)
+	$(PLAYER_MOVEMENT_VALIDATION_TEST_TARGET)
 
 $(TARGET): $(OBJS) | $(BIN_DIR) $(LOG_DIR)
 	@echo " [LD] $@"
@@ -192,6 +192,10 @@ $(AUTH_TEST_TARGET): $(CHANNEL_LINK_OBJS) $(AUTH_TEST_OBJECT) | $(BIN_DIR) $(LOG
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LFLAGS) $(LDFLAGS)
 	
 $(PLAYER_SAVE_FLOW_TEST_TARGET): $(CHANNEL_LINK_OBJS) $(PLAYER_SAVE_FLOW_TEST_OBJECT) | $(BIN_DIR) $(LOG_DIR)
+	@echo " [LD] $@"
+	$(CXX) -o $@ $^ $(LIB_PATH) $(LFLAGS) $(LDFLAGS)
+
+$(PLAYER_MOVEMENT_VALIDATION_TEST_TARGET): $(CHANNEL_LINK_OBJS) $(PLAYER_MOVEMENT_VALIDATION_TEST_OBJECT) | $(BIN_DIR) $(LOG_DIR)
 	@echo " [LD] $@"
 	$(CXX) -o $@ $^ $(LIB_PATH) $(LFLAGS) $(LDFLAGS)
 
@@ -210,6 +214,10 @@ $(PLAYER_SAVE_FLOW_TEST_OBJECT): $(PLAYER_SAVE_FLOW_TEST_SOURCE)
 	@echo " [CXX] $<"
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -DGLOBAL -c $< -o $@
 
+$(PLAYER_MOVEMENT_VALIDATION_TEST_OBJECT): $(PLAYER_MOVEMENT_VALIDATION_TEST_SOURCE)
+	@mkdir -p $(dir $@)
+	@echo " [CXX] $<"
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -DGLOBAL -c $< -o $@
 # ==================================
 # Directories
 # ==================================

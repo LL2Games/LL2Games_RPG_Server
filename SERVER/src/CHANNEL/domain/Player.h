@@ -14,10 +14,17 @@
 #include "Weapon_Info.h"
 #include "StatInfoPacket.h"
 #include "PlayerSaveData.h"
+#include "Math.h"
 
 #include <mutex>
 #include <atomic>
 #include <cstdint>
+#include <chrono>
+
+namespace MovementLimits
+{
+    inline constexpr float kDefaultMoveSpeed = 200.0f;
+}
 
 class ChannelSession;
 class MapInstance;
@@ -114,14 +121,13 @@ public:
     int GetMapId() const;
     int GetLevel() const {return m_level;}
     int GetSkillLevel(int skill_id) const;
+    float GetMoveSpeed() const {return m_moveSpeed;}
     WeaponType GetWeaponType() const {return m_weaponType;}
     
 
     InventoryManager* GetInventoryManager() {return &m_inventoryManager;}
     SkillManager* GetSkillManager() {return m_skillManager;}
     QuickSlotManager* GetQuickSlotManager() {return &m_quickSlotManager;}
-
-    
 
     std::string GetName() {return m_name;}
 
@@ -174,6 +180,9 @@ public:
     // 저장 중 추가 변경이 없었을 때만 저장 완료 처리
     bool TryMarkSaved(std::uint64_t saveVersion);
 
+    bool TryApplyMove(const Vec2& requestedPosition, std::string& errMsg);
+    void ResetMoveValidation();
+
 private:
     int m_char_id;
     std::string m_account_id;
@@ -222,4 +231,9 @@ private:
 
     std::atomic<std::uint64_t> m_saveVersion{0};
     mutable std::mutex m_positionMutex;
+
+    std::chrono::steady_clock::time_point m_lastAcceptedMoveTime{};
+    bool m_moveValidationInitialized = false;
+    float m_availableMoveDistance = 0.0F;
+    float m_moveSpeed = MovementLimits::kDefaultMoveSpeed;
 };

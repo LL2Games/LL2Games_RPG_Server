@@ -49,8 +49,8 @@ public:
 	void OnLeave(int PlayerID);
 
     void GiveExp(int platerID, float exp);
-    void HandleMove(Player* sender, Vec2 pos, float speed);
-    void HandleMove(Player* sender, Vec2 pos, float speed, int dir);
+    void HandleMove(Player* sender, Vec2& pos, float speed);
+    void HandleMove(Player* sender, Vec2& pos, float speed, int dir);
     void ResolveSkillHit(Player* Attacker, SkillDef& skillDef, std::vector<std::pair<Monster*, int>>& hits);
     void SetPlayerHitResult(Player* player, int monster_instanceId, PlayerHitResult& result);
     bool PickupDropItem(Player* player, int dropItemId, std::vector<AddItemResult>& addItemResults);
