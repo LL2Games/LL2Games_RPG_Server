@@ -5,7 +5,6 @@
 #include "ChannelServer.h"
 
 #define MAP_PATH "../src/CHANNEL/data/Maps/"
-#define UPDATE_INTERVAL 2000 //2초
 namespace fs = std::filesystem;
 
 MapManager::MapManager(ChannelServer *server) : m_server(server)
@@ -14,6 +13,7 @@ MapManager::MapManager(ChannelServer *server) : m_server(server)
 
 MapManager::~MapManager()
 {
+    Stop();
 }
 
 bool MapManager::Init()
@@ -25,24 +25,51 @@ bool MapManager::Init()
 
 void MapManager::Start()
 {
-    m_running = true;
-    m_thread = std::thread(&MapManager::Update, this);
-    K_LOG_DEBUG( "MapManager Update Start");
+    bool expected = false;
+
+    if (!m_running.compare_exchange_strong(expected, true))
+    {
+        K_LOG_ERROR("[MapManager] Already started");
+        return;
+    }
+
+    try
+    {
+        m_thread = std::thread(&MapManager::Update, this);
+    }
+    catch (...)
+    {
+        m_running.store(false);
+        throw;
+    }
+
+    K_LOG_DEBUG("MapManager Update Start");
 }
 
 void MapManager::Stop()
 {
-    m_running = false;
+    {
+        std::lock_guard<std::mutex> lock(m_updateWaitMutex);
+        m_running.store(false, std::memory_order_release);
+    }
+
+    m_updateWaitCv.notify_all();
+
     if (m_thread.joinable())
         m_thread.join();
 }
 
 void MapManager::Update()
 {
-    while (m_running)
+    constexpr auto updateInterval = std::chrono::milliseconds(2000);
+
+    while (m_running.load(std::memory_order_acquire))
     {
         for (auto iter = m_maps.begin(); iter != m_maps.end(); ++iter)
         {
+            if (!m_running.load(std::memory_order_acquire))
+                break;
+
             if (iter->second != nullptr)
             {
                 MapInstance *map = iter->second;
@@ -52,8 +79,12 @@ void MapManager::Update()
             }
         }
         RemoveMap();
-        std::this_thread::sleep_for(std::chrono::milliseconds(UPDATE_INTERVAL)); // 간격
+        std::unique_lock<std::mutex> lock(m_updateWaitMutex);
+        m_updateWaitCv.wait_for(lock,updateInterval,[this] { return !m_running.load(std::memory_order_acquire); });
     }
+
+    K_LOG_DEBUG("MapManager Update Stop");
+
 }
 
 MapInstance *MapManager::GetOrCreate(int mapId)

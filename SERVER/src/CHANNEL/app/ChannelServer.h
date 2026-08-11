@@ -32,6 +32,8 @@
 #include <cstdint>
 #include <chrono>
 #include <unordered_set>
+#include <thread>
+#include <condition_variable>
 
 class ChannelServerTestAccess;
 
@@ -57,6 +59,8 @@ public:
     bool SubmitFinalPlayerDataSave(PlayerSaveData saveData);
     bool IsFinalPlayerDataSavePending(int characterId) const;
     void CompleteFinalPlayerDataSave(int characterId,bool saveSucceeded,const std::string& errMsg);
+
+    void RequestStop() noexcept;
 public:
     PlayerManager* GetPlayerManager() { return &m_player_mamager; }
     MapService* GetMapService() {return &m_map_service;}
@@ -88,11 +92,13 @@ private:
     void ProcessAuthResults();
 
     void SchedulePlayerSaves();
+
+    void StartWorkers();
+    void StopWorkers() noexcept;
 private:
     int m_channel_id;
     int m_listen_fd;
     int m_epfd;
-    bool m_running;
 
     std::vector<epoll_event> m_events;
     std::unordered_map<int,ChannelSession*> m_sessions;
@@ -109,6 +115,10 @@ private:
     StatService m_stat_service;
     ItemService m_item_service;
     CombatService m_combat_service;
+    TradeService m_trade_service;
+    LevelManager* m_level_manager;
+    PlayerDataSaveService m_playerDataSaveService;
+
 
     ThreadPool m_pool;
     // ChannelAuth 전용 쓰레드
@@ -118,20 +128,23 @@ private:
     ThreadPool m_savePool;
     RedisConnectionPool m_redisPool;
     CommandReceiver m_cmd_receiver;
+    std::thread m_stateUpdateThread;
+    std::mutex m_stateUpdateWaitMutex;
+    std::condition_variable m_stateUpdateCv;
 
-    TradeService m_trade_service;
-
-    LevelManager* m_level_manager;
-
-    PlayerDataSaveService m_playerDataSaveService;
+   
 
     std::queue<ChannelAuthResult> m_authResults;
     std::atomic<uint64_t> m_nextSessionId{1};
     std::mutex m_authResultMutex;
     std::mutex m_authLoadMutex;
     std::mutex m_sessionMutex;
-    std::atomic<unsigned int> m_current_user_count;
     mutable std::mutex m_finalPlayerDataSaveMutex;
+
+    std::atomic<bool> m_workersStarted{false};
+    std::atomic<bool> m_running{false};
+    std::atomic<unsigned int> m_current_user_count;
+    
     unsigned int m_max_user_count;
     std::unordered_set<int> m_finalPlayerDataSavePending;
 };
