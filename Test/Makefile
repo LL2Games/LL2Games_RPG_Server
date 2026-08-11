@@ -97,7 +97,7 @@ INCLUDES := \
 # Main Targets
 # ==================================
 
-.PHONY: all common tools channel-tests run clean
+.PHONY: all common tools channel-tests packet-test run clean
 
 all: $(STANDALONE_TEST_TARGETS) channel-tests
 
@@ -178,6 +178,8 @@ $(CHANNEL_TICKET_MAKER_TARGET): \
 # ==================================
 # Run
 # ==================================
+packet-test: $(PACKET_TEST_TARGET)
+	$(PACKET_TEST_TARGET)
 
 run: all
 	$(PACKET_TEST_TARGET)
