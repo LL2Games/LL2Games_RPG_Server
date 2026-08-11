@@ -27,7 +27,7 @@ bool Server::Init(const int port, const RedisConfig& redisConfig)
     m_listenFd = socket(AF_INET, SOCK_STREAM, 0);
     if (m_listenFd < 0)
     {
-        K_LOG_ERROR( "[%s] socket", CHAT_DAEMON_NAME);
+        K_LOG_ERROR( "[CHAT] socket");
         return false;
     }
 
@@ -41,16 +41,16 @@ bool Server::Init(const int port, const RedisConfig& redisConfig)
 
     if (bind(m_listenFd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
     {
-        K_LOG_ERROR( "[%s] bind [port=%d]", CHAT_DAEMON_NAME, port);
+        K_LOG_ERROR( "[CHAT] bind [port=%d]", port);
         return false;
     }
     if (listen(m_listenFd, 10) < 0)
     {
-        K_LOG_ERROR( "[%s] listen", CHAT_DAEMON_NAME);
+        K_LOG_ERROR( "[CHAT] listen");
         return false;
     }
 
-    K_LOG_TRACE( "[%s] Listening on %d", CHAT_DAEMON_NAME, port);
+    K_LOG_TRACE( "[CHAT] Listening on %d", port);
 
     return true;
 }
@@ -79,7 +79,7 @@ void Server::Run()
             if (errno == EINTR)
                 continue;
 
-            K_LOG_ERROR("[%s] select failed errno:%d",CHAT_DAEMON_NAME,errno);
+            K_LOG_ERROR("[CHAT] select failed errno:%d",errno);
             break;
         }
 
@@ -97,10 +97,9 @@ void Server::Run()
         if (FD_ISSET(m_listenFd, &reads))
             AcceptNewClient();
 
-        for (auto cli : m_clients)
+        for (Client* client : readableClients)
         {
-            if (FD_ISSET(cli->GetFD(), &reads))
-                ProcessClient(cli);
+            ProcessClient(client);
         }
     }
 }
@@ -117,7 +116,7 @@ void Server::AcceptNewClient()
     Client *cli = new Client(client_fd);
 
     m_clients.push_back(cli);
-    K_LOG_TRACE( "[%s] Client[fd=%d][id=%s][nick=%s] connected\n", "LOGIN", client_fd, cli->GetId().c_str(), cli->GetNick().c_str());
+    K_LOG_TRACE( "[CHAT] Client[fd=%d][id=%s][nick=%s] connected\n",client_fd, cli->GetId().c_str(), cli->GetNick().c_str());
 }
 
 void Server::ProcessClient(Client *cli)
@@ -144,7 +143,7 @@ void Server::ProcessClient(Client *cli)
     if (receivedSize < 0)
     {
         const int recvError = errno;
-        K_LOG_ERROR("[%s] recv failed fd:%d errno:%d", CHAT_DAEMON_NAME, fd, recvError);
+        K_LOG_ERROR("[CHAT] recv failed fd:%d errno:%d", fd, recvError);
         DisconnectClient(cli);
         return;
     }
