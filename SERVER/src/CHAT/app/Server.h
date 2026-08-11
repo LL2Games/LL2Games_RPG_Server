@@ -13,13 +13,18 @@ public:
     void Run();
     
 private:
+
+    void AcceptNewClient();
+    void ProcessClient(Client* cli);
+    void DisconnectClient(Client* client);
+    void BroadCast(const std::string& nick, const std::string& msg, const int exceptFd = -1);
+
+private:
     int m_listenFd;
     std::vector<Client *> m_clients;
     ChatPacketFactory m_factory;
     CommandDispatcher m_dispatcher;
 
-    void AcceptNewClient();
-    void ProcessClient(Client* cli);
-    void BroadCast(const std::string& nick, const std::string& msg, const int exceptFd = -1);
+    
     RedisConnectionPool m_redisPool;
 };

@@ -3,7 +3,7 @@
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <arpa/inet.h>
-#include <string.h>
+#include <cerrno>
 #include <unistd.h>
 #include "PacketParser.h"
 
@@ -90,7 +90,10 @@ int WorldServer::Run()
         int ret = select(fd_max + 1, &reads, nullptr, nullptr, nullptr);
         if (ret < 0)
         {
-            K_LOG_ERROR( "select() error");
+            if (errno == EINTR)
+                continue;
+
+            K_LOG_ERROR("[WORLD] select failed errno:%d", errno);
             break;
         }
 
@@ -133,62 +136,97 @@ int WorldServer::OnAccept()
 
 int WorldServer::OnReceive(int fd)
 {
-    char temp[PacketLimits::kReceiveChunkSize];
-    ssize_t tempLen = 0;
-    std::string buf;
-    WorldSession *session = m_sessions[fd];
+     auto sessionIt = m_sessions.find(fd);
 
-    if (session == nullptr)
+    if (sessionIt == m_sessions.end() || sessionIt->second == nullptr)
     {
-        K_LOG_ERROR( "session error");
+        K_LOG_ERROR("[WORLD] session not found fd:%d", fd);
         return -1;
     }
 
+    WorldSession* session = sessionIt->second;
+
+    char receiveBuffer[PacketLimits::kReceiveChunkSize];
+    ssize_t receivedSize = 0;
+
+    // 시그널로 recv()가 중단된 경우에만 재시도한다.
     do
     {
-        memset(temp, 0x00, sizeof(temp));
-        tempLen = recv(fd, temp, sizeof(temp), 0);
-        if (tempLen <= 0)
-        {
-            OnDisconnect(fd);    
-            return 1;
-        }
-        buf.append(temp, tempLen);
-    } while (tempLen == static_cast<ssize_t>(PacketLimits::kReceiveChunkSize));
+        receivedSize = recv(fd, receiveBuffer, sizeof(receiveBuffer),0);
+    }
+    while (receivedSize < 0 && errno == EINTR);
 
-    session->m_recvBuffer.insert(session->m_recvBuffer.end(), buf.begin(), buf.end());
-
-    K_LOG_DEBUG( "recv from fd=%d, len=%d", fd, buf.size());
-    auto pkt = PacketParser::Parse(session->m_recvBuffer);
-    if (!pkt.has_value())
+    if (receivedSize == 0)
     {
-        K_LOG_ERROR( "Packet Parse failed");
+        OnDisconnect(fd);
+        return 1;
+    }
+
+    if (receivedSize < 0)
+    {
+        const int recvError = errno;
+
+        K_LOG_ERROR("[WORLD] recv failed fd:%d errno:%d", fd, recvError);
+        OnDisconnect(fd);
         return -1;
     }
+
+    session->m_recvBuffer.insert(session->m_recvBuffer.end(), receiveBuffer, receiveBuffer + receivedSize);
+
+    K_LOG_DEBUG("[WORLD] recv fd:%d size:%zd buffered:%zu", fd, receivedSize,session->m_recvBuffer.size());
+
+    while (true)
+    {
+        ParseResult result = PacketParser::TryParse(session->m_recvBuffer);
+
+        if (result.status == ParseStatus::NeedMoreData)
+        {
+            return 0;
+        }
+
+        if (result.status == ParseStatus::InvalidPacket)
+        {
+            K_LOG_ERROR("[WORLD] invalid packet fd:%d buffered:%zu",fd, session->m_recvBuffer.size() );
+            OnDisconnect(fd);
+            return -1;
+        }
+
+        ParsedPacket& packet = result.packet;
+        K_LOG_DEBUG("[WORLD] packet parsed fd:%d type:%u payloadSize:%zu",fd,static_cast<unsigned int>(packet.type),packet.payload.size());
+
+        if (!session->IsAuthenticated() &&
+            packet.type != PKT_INIT_WORLD)
+        {
+            K_LOG_ERROR("[WORLD] unauthenticated packet rejected fd:%d type:%u",fd,static_cast<unsigned int>(packet.type));
+            session->SendNok(packet.type,"World authentication required");
+
+            // 거부된 패킷은 이미 버퍼에서 제거됐다.
+            // 뒤에 이어진 패킷을 처리한다.
+            continue;
+        }
+
+        auto handler = m_factory.Create(packet.type);
+
+        if (!handler)
+        {
+            K_LOG_ERROR("[WORLD] handler not found fd:%d type:%u",fd, static_cast<unsigned int>(packet.type));
     
-    if (!session->IsAuthenticated() && pkt->type != PKT_INIT_WORLD)
-    {
-        K_LOG_ERROR("Unauthenticated world packet rejected. fd:%d type:%u",fd,static_cast<unsigned int>(pkt->type));
-        session->SendNok(pkt->type,"World authentication required");
-        return 0;
-    }
+            continue;
+        }
 
-    auto handler = m_factory.Create(pkt->type);
-    PacketContext ctx;
-    ctx.world_session = m_sessions[fd];
-    ctx.char_service = &m_char_service;
-    ctx.channel_manager = &m_channel_manager;
-    ctx.redis_pool = &m_redisPool;
-    ctx.fd = fd;
-    ctx.payload = (char *)pkt->payload.c_str();
-    ctx.payload_len = pkt->payload.size();
-    if (handler)
-    {
-        handler->Execute(&ctx);
-    }
-    K_LOG_DEBUG( "ProcessClient fd=%d done", fd);
+        PacketContext context{};
+        context.world_session = session;
+        context.char_service = &m_char_service;
+        context.channel_manager = &m_channel_manager;
+        context.redis_pool = &m_redisPool;
+        context.fd = fd;
+        context.type = packet.type;
+        context.payload = packet.payload.empty() ? nullptr : packet.payload.data();
+        context.payload_len = static_cast<int>(packet.payload.size());
 
-    return 0;
+        handler->Execute(&context);
+        K_LOG_DEBUG("[WORLD] OnReceive fd:%d packet done",fd);
+    }
 }
 
 int WorldServer::OnDisconnect(int fd)

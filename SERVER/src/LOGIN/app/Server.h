@@ -4,7 +4,7 @@
 #include "Client.h"
 #include "LoginPacketFactory.h"
 #include "RedisConnectionPool.h"
-
+#include "Packet.h"
 // Reactor
 
 class Server
@@ -14,12 +14,15 @@ public:
     void Run();
 
 private:
+    void AcceptNewClient();
+    void ProcessClient(Client* cli);
+    void DisconnectClient(Client* client);
+private:
     int m_listen_fd;
     std::vector<Client*> m_clients;
     LoginPacketFactory m_factory;
 
-    void AcceptNewClient();
-    void ProcessClient(Client* cli);
+
 
     RedisConnectionPool m_redisPool;
 };

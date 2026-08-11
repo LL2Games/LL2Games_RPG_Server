@@ -7,37 +7,6 @@
 #include <limits>
 #include <stdexcept>
 
-std::optional<ParsedPacket> PacketParser::Parse(std::vector<char>& buf)
-{
-    ParsedPacket parsedPacket;
-    if (buf.size() < sizeof(PacketHeader))
-    {
-        K_LOG_ERROR( "buf.size() < sizeof(PacketHeader)");
-        K_LOG_ERROR( "sizeof(PacketHeader)[%d]", sizeof(PacketHeader));
-        K_LOG_ERROR( "buf.size[%d]", buf.size());
-        return std::nullopt;
-    }
-
-    PacketHeader *hdr = reinterpret_cast<PacketHeader *>(buf.data());
-    uint16_t pktLen = hdr->length;
-
-    if (buf.size() < pktLen)
-    {
-        K_LOG_ERROR( "buf.size small pktLen");
-        return std::nullopt;
-    }
-    uint16_t type = hdr->type;
-
-    const char *payload = reinterpret_cast<const char *>(buf.data() + sizeof(PacketHeader));
-    int payloadLen = pktLen - sizeof(PacketHeader);
-    
-    parsedPacket.type = type;
-    parsedPacket.payload = std::string(payload, payloadLen);
-
-    buf.erase(buf.begin(), buf.begin() + pktLen);
-
-    return parsedPacket;
-}
 
 ParseResult PacketParser::TryParse(std::vector<char> &buf)
 {

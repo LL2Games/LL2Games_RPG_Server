@@ -7,6 +7,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <cstring>
+#include <cerrno>
 
 #define MSG_KEY 1234
 #define MSG_COMMAND_SEND 1
@@ -72,11 +73,25 @@ void Server::Run()
                 fd_max = c->GetFD();
         }
 
-        int ret = select(fd_max + 1, &reads, nullptr, nullptr, nullptr);
+        const int ret = select(fd_max + 1, &reads, nullptr, nullptr, nullptr);
         if (ret < 0)
         {
-            K_LOG_ERROR( "select() error");
+            if (errno == EINTR)
+                continue;
+
+            K_LOG_ERROR("[%s] select failed errno:%d",CHAT_DAEMON_NAME,errno);
             break;
+        }
+
+        // ProcessClient에서 m_clients가 변경될 수 있으므로
+        // 읽기 가능한 클라이언트를 먼저 복사한다.
+        std::vector<Client*> readableClients;
+        readableClients.reserve(m_clients.size());
+
+        for (Client* client : m_clients)
+        {
+            if (FD_ISSET(client->GetFD(), &reads))
+                readableClients.push_back(client);
         }
 
         if (FD_ISSET(m_listenFd, &reads))
@@ -107,63 +122,110 @@ void Server::AcceptNewClient()
 
 void Server::ProcessClient(Client *cli)
 {
-    char temp[PacketLimits::kReceiveChunkSize];
-    ssize_t tempLen = 0;
-    std::string buf;
+     if (cli == nullptr)
+        return;
 
-    do
+    const int fd = cli->GetFD();
+    char receiveBuffer[PacketLimits::kReceiveChunkSize];
+    ssize_t receivedSize = 0;
+
+   do
     {
-        memset(temp, 0x00, sizeof(temp));
-        tempLen = recv(cli->GetFD(), temp, sizeof(temp), 0);
-        if (tempLen <= 0)
-        {
-            // disconnect
-            K_LOG_TRACE( "[%s] Client %d disconnected", CHAT_DAEMON_NAME, cli->GetFD());
-            close(cli->GetFD());
-            for (auto it = m_clients.begin(); it != m_clients.end(); it++)
-            {
-                if (*it == cli)
-                {
-                    delete cli;
-                    m_clients.erase(it);
-                    break;
-                }
-            }
-            return;
-        }
-        buf.append(temp, tempLen);
-    } while (tempLen == static_cast<ssize_t>(PacketLimits::kReceiveChunkSize));
+        receivedSize = recv(fd, receiveBuffer, sizeof(receiveBuffer),0);
+    }
+    while (receivedSize < 0 && errno == EINTR);
 
-    cli->m_recvBuffer.insert(cli->m_recvBuffer.end(), buf.begin(), buf.end());
-
-    K_LOG_DEBUG( "recv from fd=%d, len=%d", cli->GetFD(), buf.size());
-    auto pkt = PacketParser::Parse(cli->m_recvBuffer);
-    if (!pkt.has_value())
+   if (receivedSize == 0)
     {
-        K_LOG_ERROR( "Packet Parse failed");
+        DisconnectClient(cli);
         return;
     }
-    
 
-    auto handler = m_factory.Create(pkt->type);
-    PacketContext ctx;
-    ctx.redis_pool = &m_redisPool;
-    ctx.dispatcher = &m_dispatcher;
-    ctx.client = cli;
-    ctx.clients = &m_clients;
-    ctx.payload = (char *)pkt->payload.c_str();
-    ctx.payload_len = pkt->payload.size(); 
-    ctx.broadcast = [&](const std::string &nick,
+    if (receivedSize < 0)
+    {
+        const int recvError = errno;
+        K_LOG_ERROR("[%s] recv failed fd:%d errno:%d", CHAT_DAEMON_NAME, fd, recvError);
+        DisconnectClient(cli);
+        return;
+    }
+
+    cli->m_recvBuffer.insert(cli->m_recvBuffer.end(), receiveBuffer, receiveBuffer + receivedSize);
+    K_LOG_DEBUG("[CHAT] recv fd:%d size:%zd buffered:%zu", fd, receivedSize, cli->m_recvBuffer.size());
+
+    while (true)
+    {
+        ParseResult result = PacketParser::TryParse(cli->m_recvBuffer);
+
+        if (result.status == ParseStatus::NeedMoreData)
+        {
+            // 현재 버퍼를 유지하고 다음 recv를 기다린다.
+            return;
+        }
+
+        if (result.status == ParseStatus::InvalidPacket)
+        {
+            // TryParse는 잘못된 패킷을 버퍼에서 제거하지 않는다.
+            // 동일 패킷을 반복해서 처리하지 않도록 연결을 종료한다.
+            K_LOG_ERROR("[CHAT] Invalid packet fd:%d buffered:%zu", fd, cli->m_recvBuffer.size());
+            DisconnectClient(cli);
+            return;
+        }
+
+        ParsedPacket& packet = result.packet;
+        K_LOG_DEBUG("[CHAT] Packet parsed fd:%d type:%u payloadSize:%zu",fd, static_cast<unsigned int>(packet.type), packet.payload.size());
+        auto handler = m_factory.Create(packet.type);
+
+        if (!handler)
+        {
+            K_LOG_ERROR("[CHAT] Handler not found fd:%d type:%u", fd, static_cast<unsigned int>(packet.type));
+            // 해당 패킷은 이미 버퍼에서 제거됐다.
+            // 연결은 유지하고 다음 패킷을 처리한다.
+            continue;
+        }
+
+        PacketContext context{};
+        context.redis_pool = &m_redisPool;
+        context.dispatcher = &m_dispatcher;
+        context.client = cli;
+        context.clients = &m_clients;
+        context.type = packet.type;
+        context.payload = packet.payload.empty() ? nullptr : packet.payload.data();
+        context.payload_len = static_cast<int>(packet.payload.size());
+
+        context.broadcast = [this](
+                        const std::string &nick,
                         const std::string &msg,
                         const int execptFD)
+        {
+            BroadCast(nick, msg, execptFD);
+        };
+
+        // Execute가 동기적으로 실행되므로 packet.payload의 포인터가
+        // handler 실행 중에는 유효하다.
+        handler->Execute(&context);
+         K_LOG_DEBUG("[%s] ProcessClient fd:%d packet done", CHAT_DAEMON_NAME,fd);
+    }   
+}
+
+void Server::DisconnectClient(Client* client)
+{
+     if (client == nullptr)
+        return;
+
+    for (auto it = m_clients.begin(); it != m_clients.end(); ++it)
     {
-        this->BroadCast(nick, msg, execptFD);
-    };
-    if (handler)
-    {
-        handler->Execute(&ctx);
+        if (*it != client)
+            continue;
+
+        const int fd = client->GetFD();
+
+        K_LOG_TRACE("[CHAT] Client %d disconnected",fd);
+
+        close(fd);
+        delete client;
+        m_clients.erase(it);
+        return;
     }
-    K_LOG_DEBUG( "ProcessClient fd=%d done", cli->GetFD());
 }
 
 void Server::BroadCast(const std::string &nick, const std::string &msg, const int exceptFd)
