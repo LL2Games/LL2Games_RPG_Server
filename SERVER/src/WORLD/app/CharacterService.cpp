@@ -183,6 +183,76 @@ std::vector<std::string> CharacterService::GetCharacterList(const std::string& a
     return char_list;
 }
 
+
+static int CheckExceedMaxCharNum(MYSQL_STMT* stmt, const std::string& account_id)
+{
+    const int MAX_CHARACTERS = 3; //최대 캐릭터 수
+    const char* query = "SELECT COUNT(*)"
+    "FROM `character` "
+    "WHERE `account_id` = ?";
+    
+    if(mysql_stmt_prepare(stmt, query, strlen(query)) != 0)
+    {
+        K_LOG_ERROR( "mysql_stmt_prepare Error [%s]", mysql_stmt_error(stmt));
+        return EXIT_FAILURE;
+    }
+
+    unsigned long accountIdLength = static_cast<unsigned long>(account_id.size());
+
+    MYSQL_BIND param[1]{};
+
+    param[0].buffer_type = MYSQL_TYPE_STRING;
+    param[0].buffer = const_cast<char*>(account_id.c_str());
+    param[0].buffer_length = accountIdLength;
+    param[0].length = &accountIdLength;
+
+    if(mysql_stmt_bind_param(stmt, param) != 0)
+    {
+        K_LOG_ERROR( "mysql_stmt_bind_param Error [%s]", mysql_stmt_error(stmt));
+        return EXIT_FAILURE;
+    }
+
+    if(mysql_stmt_execute(stmt) != 0)
+    {
+        K_LOG_ERROR( "mysql_stmt_execute Error [%s]", mysql_stmt_error(stmt));
+        return EXIT_FAILURE;
+    }
+
+    // SELECT COUNT(*) 결과를 받을 변수
+    long long charCount = 0;
+
+    MYSQL_BIND result[1]{};
+
+    result[0].buffer_type = MYSQL_TYPE_LONGLONG;
+    result[0].buffer = &charCount;
+    result[0].is_unsigned = true;
+
+    if (mysql_stmt_bind_result(stmt, result) != 0)
+    {
+        K_LOG_ERROR("mysql_stmt_bind_result Error [%s]",
+                    mysql_stmt_error(stmt));
+        return -1;
+    }
+
+    int fetchResult = mysql_stmt_fetch(stmt);
+
+    if (fetchResult != 0 && fetchResult != MYSQL_DATA_TRUNCATED)
+    {
+        K_LOG_ERROR("mysql_stmt_fetch Error [%s]",
+                    mysql_stmt_error(stmt));
+        return -1;
+    }
+
+    K_LOG_TRACE("account_id [%s] character count [%lld]",
+                account_id.c_str(),
+                charCount);
+
+    if (static_cast<int>(charCount) >= MAX_CHARACTERS)
+        return EXIT_FAILURE;
+
+    return EXIT_SUCCESS;
+}
+
 static int InsertCharacter(MYSQL_STMT* stmt, const std::string& account_id, const std::string& nick, int job, int root_job)
 {
     const char* query = "INSERT INTO `character` "
@@ -347,9 +417,6 @@ static int InsertCharacterInventoryMeta(MYSQL_STMT* stmt, unsigned long long cha
 
 int CharacterService::CreateCharacter(const std::string& account_id, const std::string& nick, int job)
 {
-    //TODO
-    //캐릭터 최대 갯수 예외처리 필요
-
     int rc = EXIT_FAILURE;
 
     MYSQL* conn = nullptr; 
@@ -374,14 +441,21 @@ int CharacterService::CreateCharacter(const std::string& account_id, const std::
         goto cleanup;
     }
 
-    //3. 'character' 테이블 INSERT
+    //3. 캐릭터 최대 갯수 초과 확인
+    if (CheckExceedMaxCharNum(stmt, account_id) != EXIT_SUCCESS)
+    {
+        K_LOG_ERROR( "CheckExceedMaxCharNum failed");
+        goto cleanup;
+    }
+
+    //4. 'character' 테이블 INSERT
     if (InsertCharacter(stmt, account_id, nick, job, root_job) != EXIT_SUCCESS)
     {
         K_LOG_ERROR( "InsertCharacter failed");
         goto cleanup;
     }
 
-    //3-2 INSERT 성공 시, 생성된 char_id를 가져온다.
+    //4-2 INSERT 성공 시, 생성된 char_id를 가져온다.
      {
         charId = mysql_stmt_insert_id(stmt);
 
@@ -394,14 +468,14 @@ int CharacterService::CreateCharacter(const std::string& account_id, const std::
             job);
     }
 
-    //4. 'character_stat' 테이블 INSERT
+    //5. 'character_stat' 테이블 INSERT
     if (InsertCharacterStat(stmt, charId) != EXIT_SUCCESS)
     {
         K_LOG_ERROR( "InsertCharacterStat failed");
         goto cleanup;
     }
     
-    //5. 'character_inventory_meta' 테이블 INSERT
+    //7. 'character_inventory_meta' 테이블 INSERT
     if (InsertCharacterInventoryMeta(stmt, charId) != EXIT_SUCCESS)
     {
         K_LOG_ERROR( "InsertCharacterInventoryMeta failed");
@@ -410,7 +484,108 @@ int CharacterService::CreateCharacter(const std::string& account_id, const std::
     
     rc = EXIT_SUCCESS;
     
-    //7. 자원 정리
+    //8. 자원 정리
+cleanup:
+    if (stmt)
+    {
+        mysql_stmt_free_result(stmt);
+        mysql_stmt_close(stmt);
+        stmt = nullptr;
+    }
+
+    if (conn)
+    {
+        m_db->ReleaseConnection(conn);
+        conn = nullptr;
+    }
+
+    return rc;
+}
+
+
+int CharacterService::DeleteCharacter(const std::string& char_id)
+{
+    int rc = EXIT_FAILURE;
+
+    MYSQL* conn = nullptr; 
+    MYSQL_STMT* stmt = nullptr;
+    std::string query;
+    
+    unsigned long charIdLength;
+    MYSQL_BIND param[1]{};
+    my_ulonglong affectedRows;
+
+    //1. MySQL 연결 가져오기
+    conn = m_db->GetConnection();
+    if (!conn)
+    {
+        K_LOG_ERROR( "MYSQL GetConnection failed");
+        goto cleanup;
+    }
+
+    //2. Prepared Statement 생성
+    stmt = mysql_stmt_init(conn);
+    if(!stmt)
+    {
+        K_LOG_ERROR( "mysql_stmt_prepare Error [%s]", mysql_error(conn));
+        goto cleanup;
+    }
+
+    //3. 쿼리문 수행
+    query =
+        "DELETE FROM `character` "
+        "WHERE `char_id` = ? ";
+
+    if (mysql_stmt_prepare(stmt, query.c_str(), query.size()) != 0)
+    {
+        K_LOG_ERROR("mysql_stmt_prepare Error [%s]", mysql_stmt_error(stmt));
+        goto cleanup;
+    }
+
+
+    charIdLength = static_cast<unsigned long>(char_id.size());
+
+    
+
+    param[0].buffer_type = MYSQL_TYPE_STRING;
+    param[0].buffer = const_cast<char*>(char_id.c_str());
+    param[0].buffer_length = charIdLength;
+    param[0].length = &charIdLength;
+
+    if (mysql_stmt_bind_param(stmt, param) != 0)
+    {
+        K_LOG_ERROR("mysql_stmt_bind_param Error [%s]", mysql_stmt_error(stmt));
+        goto cleanup;
+    }
+
+    if (mysql_stmt_execute(stmt) != 0)
+    {
+        K_LOG_ERROR("mysql_stmt_execute Error [%s]", mysql_stmt_error(stmt));
+        goto cleanup;
+    }
+
+    affectedRows = mysql_stmt_affected_rows(stmt);
+
+    if (affectedRows == 0)
+    {
+        K_LOG_ERROR(
+            "DeleteCharacter Fail - Character Not Found "
+            "[char_id:%s]",
+            char_id.c_str());
+
+        goto cleanup;
+    }
+
+    K_LOG_TRACE(
+        "DeleteCharacter Success "
+        "[char_id:%s]",
+        char_id.c_str());
+    
+
+    
+    rc = EXIT_SUCCESS;
+    
+    //자원 정리
 cleanup:
     if (stmt)
     {

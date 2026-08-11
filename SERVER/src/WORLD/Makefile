@@ -65,6 +65,7 @@ SRCS := \
     packet/ChannelSelectHandler.cpp \
     packet/CharacterNewHandler.cpp \
     packet/CheckDupNickHandler.cpp \
+    packet/CharacterDelHandler.cpp \
     \
     main.cpp
 
