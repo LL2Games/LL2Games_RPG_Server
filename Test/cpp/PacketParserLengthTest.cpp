@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <limits>
 #include <vector>
+#include <arpa/inet.h>
 
 namespace
 {
@@ -46,8 +47,10 @@ void TestThreeHundredByteRoundTrip()
         "300-byte field has an invalid encoded size"
     );
 
-    uint16_t encodedLength = 0;
-    std::memcpy(&encodedLength, body.data(), sizeof(encodedLength));
+    uint16_t networkEncodedLength = 0;
+
+    std::memcpy(&networkEncodedLength, body.data(),sizeof(networkEncodedLength));
+    const uint16_t encodedLength = ntohs(networkEncodedLength);
     Require(encodedLength == expected.size(), "length prefix is not 300");
 
     size_t offset = 0;
@@ -109,7 +112,7 @@ void TestTruncatedLengthHeader()
 
 void TestDeclaredLengthOverflow()
 {
-    const uint16_t declaredLength = 300;
+    const uint16_t declaredLength = htons(300);
     std::string body;
     body.append(
         reinterpret_cast<const char*>(&declaredLength),
@@ -145,8 +148,8 @@ void TestMakePacketRoundTrip()
     PacketHeader header{};
     std::memcpy(&header,packet.data(),sizeof(header));
 
-    Require(header.type == expectedType,"packet type is incorrect");
-    Require(header.length == packet.size(),"packet header length is incorrect");
+    Require(ntohs(header.type) == expectedType,"packet type is incorrect");
+    Require(ntohs(header.length) == packet.size(),"packet header length is incorrect");
 
     const std::string parsedBody(packet.data() + sizeof(PacketHeader),body.size());
 
@@ -166,7 +169,7 @@ void TestMaximumPacketSizeAccepted()
     PacketHeader header{};
     std::memcpy(&header,packet.data(),sizeof(header));
 
-    Require(header.length == maximumPacketSize,"maximum-size packet length is incorrect");
+    Require(ntohs(header.length) == maximumPacketSize,"maximum-size packet length is incorrect");
 }
 
 void TestPacketSizeOverflowRejected()
@@ -222,8 +225,8 @@ void TestTryParseOversizedPacketRejected()
     static_assert(oversizedPacketSize <= std::numeric_limits<uint16_t>::max(),"test packet length does not fit in uint16_t");
 
     PacketHeader header{};
-    header.type = 123;
-    header.length = static_cast<uint16_t>(oversizedPacketSize);
+    header.type = htons(123);
+    header.length = htons(static_cast<uint16_t>(oversizedPacketSize));
     std::vector<char> buffer(sizeof(PacketHeader));
 
     std::memcpy(buffer.data(),&header,sizeof(header));
@@ -284,8 +287,8 @@ void TestTryParseCoalescedPackets()
     void TestTryParseTooSmallPacketRejected()
     {
         PacketHeader header{};
-        header.type = 103;
-        header.length = static_cast<uint16_t>(sizeof(PacketHeader) - 1);
+        header.type = htons(103);
+        header.length = htons(static_cast<uint16_t>(sizeof(PacketHeader) - 1));
         std::vector<char> buffer(sizeof(PacketHeader));
 
         std::memcpy(buffer.data(), &header, sizeof(header));
@@ -308,12 +311,54 @@ void TestTryParseCoalescedPackets()
         Require(result.packet.payload.empty(),"empty payload packet produced payload data");
         Require(buffer.empty(), "empty payload packet was not consumed");
     }
+
+    void TestNetworkByteOrder()
+    {
+        const std::string packet = PacketParser::MakePacket(0x1234, "");
+
+        Require(packet.size() == sizeof(PacketHeader),"empty packet size is incorrect");
+
+        Require(
+            static_cast<unsigned char>(packet[0]) == 0x00 &&
+            static_cast<unsigned char>(packet[1]) == 0x04 &&
+            static_cast<unsigned char>(packet[2]) == 0x12 &&
+            static_cast<unsigned char>(packet[3]) == 0x34,
+            "packet header is not encoded in network byte order"
+        );
+
+        const std::string body = PacketParser::MakeBody({std::string(300, 'A')});
+
+        Require(body.size() >= sizeof(uint16_t), "encoded body is too small");
+
+        Require(
+            static_cast<unsigned char>(body[0]) == 0x01 &&
+            static_cast<unsigned char>(body[1]) == 0x2C,
+            "field length is not encoded in network byte order"
+        );
+
+        std::vector<char> receivedPacket{
+            static_cast<char>(0x00),
+            static_cast<char>(0x04),
+            static_cast<char>(0x12),
+            static_cast<char>(0x34)
+        };
+
+        const ParseResult result = PacketParser::TryParse(receivedPacket);
+
+        Require(result.status == ParseStatus::Complete, "network byte order packet was not parsed");
+
+        Require(result.packet.type == 0x1234, "network byte order packet type is incorrect");
+
+        Require(receivedPacket.empty(), "parsed network byte order packet remained in buffer");
+    }
+
 }
 
 int main()
 {
     try
     {
+        TestNetworkByteOrder();
         TestThreeHundredByteRoundTrip();
         TestEmptyFieldRoundTrip();
         TestTruncatedLengthHeader();

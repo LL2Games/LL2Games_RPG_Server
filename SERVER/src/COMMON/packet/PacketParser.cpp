@@ -6,7 +6,7 @@
 #include "utility.h"
 #include <limits>
 #include <stdexcept>
-
+#include <arpa/inet.h>
 
 ParseResult PacketParser::TryParse(std::vector<char> &buf)
 {
@@ -19,7 +19,7 @@ ParseResult PacketParser::TryParse(std::vector<char> &buf)
 
     std::memcpy(&header, buf.data(), sizeof(header));
 
-    const uint16_t packetLength = header.length;
+    const uint16_t packetLength = ntohs(header.length);
     
     if (packetLength < sizeof(PacketHeader))
     {
@@ -37,7 +37,7 @@ ParseResult PacketParser::TryParse(std::vector<char> &buf)
     }
 
     ParsedPacket parsedPacket;
-    parsedPacket.type = header.type;
+    parsedPacket.type = ntohs(header.type);
    
     const char* payload = buf.data() + sizeof(PacketHeader);
     const std::size_t payloadLength = packetLength - sizeof(PacketHeader);
@@ -69,9 +69,11 @@ bool PacketParser::ParseLengthPrefixedString(
     }
 
     // Length prefix: uint16_t (2 bytes)
-    uint16_t value_len = 0;
-    std::memcpy(&value_len, payload + offset, sizeof(value_len));
-    offset += sizeof(value_len);
+    uint16_t networkValueLength = 0;
+    std::memcpy(&networkValueLength, payload + offset, sizeof(networkValueLength));
+    offset += sizeof(networkValueLength);
+
+    const uint16_t value_len = ntohs(networkValueLength);
 
     if(payload_len - offset < value_len)
     {
@@ -143,7 +145,8 @@ std::string PacketParser::MakeBody(const std::vector<std::string>& datas)
             throw std::length_error("packet field is too larger");
         }
         uint16_t dataLen = static_cast<uint16_t>(data.size());
-        body.append(reinterpret_cast<const char*>(&dataLen), sizeof(dataLen));
+        const uint16_t networkDataLength = htons(dataLen);
+        body.append(reinterpret_cast<const char*>(&networkDataLength), sizeof(networkDataLength));
         body.append(data);
     }
     return body;
@@ -168,8 +171,8 @@ std::string PacketParser::MakePacket(uint16_t type, const std::string &body)
     const std::size_t packetLength = sizeof(PacketHeader) + body.size();
    
     PacketHeader hdr{};
-    hdr.type = type;
-    hdr.length = static_cast<uint16_t>(packetLength);
+    hdr.type = htons(type);
+    hdr.length =  htons(static_cast<uint16_t>(packetLength));
 
     std::string packet;
     packet.reserve(packetLength);
