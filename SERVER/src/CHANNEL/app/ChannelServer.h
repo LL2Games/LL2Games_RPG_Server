@@ -95,6 +95,7 @@ private:
 
     void StartWorkers();
     void StopWorkers() noexcept;
+    bool TryBeginRun() noexcept;
 private:
     int m_channel_id;
     int m_listen_fd;

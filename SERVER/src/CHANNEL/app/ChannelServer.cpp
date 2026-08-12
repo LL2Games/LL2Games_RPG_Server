@@ -260,14 +260,9 @@ void ChannelServer::Run()
         return;
     }
 
-    if (m_running.exchange(true))
-        return;
-
-    // Run 실행 전에 종료 신호를 받은 경우 실행하지 않는다.
-    if (m_stopRequested.load(std::memory_order_acquire))
+    if (!TryBeginRun())
     {
-        m_running.store(false, std::memory_order_release);
-        K_LOG_TRACE("ChannelServer start skipped because stop was already requested");
+        K_LOG_TRACE("ChannelServer start skipped because running or stop was already requested");
         return;
     }
 
@@ -908,4 +903,18 @@ void ChannelServer::RequestStop() noexcept
     }
 
     m_stateUpdateCv.notify_all();
+}
+
+bool ChannelServer::TryBeginRun() noexcept
+{
+    if (m_running.exchange(true))
+        return false;
+
+    if (m_stopRequested.load(std::memory_order_acquire))
+    {
+        m_running.store(false, std::memory_order_release);
+        return false;
+    }
+
+    return true;
 }
