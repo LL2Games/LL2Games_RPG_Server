@@ -1,0 +1,27 @@
+target=127.0.0.1:9001
+tickets_file=/tmp/soak_50_tickets.txt
+clients=50, workers=50, duration=90.0, moves_per_sec=1.0, timeout=30.0
+success=50
+failed=0
+auth_success=50
+enter_success=50
+elapsed_sec=91.049
+auth_ms_min=242.595
+auth_ms_avg=574.937
+auth_ms_p50=605.119
+auth_ms_p95=857.615
+auth_ms_p99=893.540
+auth_ms_max=1015.130
+enter_ms_min=0.468
+enter_ms_avg=4.037
+enter_ms_p50=3.799
+enter_ms_p95=7.809
+enter_ms_p99=9.167
+enter_ms_max=9.777
+move_sent_total=4500
+move_sent_per_sec=49.424
+move_broadcast_recv_total=223782
+move_broadcast_recv_per_sec=2457.822
+packets_recv_total=227722
+bytes_recv_total=11141045
+bytes_recv_per_sec=122363.312

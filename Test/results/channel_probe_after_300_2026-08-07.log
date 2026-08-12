@@ -1,0 +1,17 @@
+target=127.0.0.1:9001
+tickets_file=/tmp/probe_300_ticket.txt
+clients=1, workers=1, timeout=90.0, hold_seconds=0.0, ramp_seconds=0.0
+success=1
+failed=0
+elapsed_sec=5.186
+auth_ms_min=5184.686
+auth_ms_avg=5184.686
+auth_ms_p50=5184.686
+auth_ms_p95=5184.686
+auth_ms_p99=5184.686
+auth_ms_max=5184.686
+received_packets_avg=6.000
+received_packets_max=6
+received_bytes_avg=209.000
+received_bytes_max=209
+[PASS] character_id=900400 result=ok name=PerfTest0400 elapsed_ms=5184.686 packets=6 bytes=209 error=

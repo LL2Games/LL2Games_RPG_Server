@@ -1,0 +1,27 @@
+target=127.0.0.1:9001
+tickets_file=/tmp/save_verify_ticket.txt
+clients=1, workers=1, duration=90.0, moves_per_sec=1.0, timeout=30.0
+success=1
+failed=0
+auth_success=1
+enter_success=1
+elapsed_sec=90.226
+auth_ms_min=223.910
+auth_ms_avg=223.910
+auth_ms_p50=223.910
+auth_ms_p95=223.910
+auth_ms_p99=223.910
+auth_ms_max=223.910
+enter_ms_min=0.881
+enter_ms_avg=0.881
+enter_ms_p50=0.881
+enter_ms_p95=0.881
+enter_ms_p99=0.881
+enter_ms_max=0.881
+move_sent_total=90
+move_sent_per_sec=0.997
+move_broadcast_recv_total=90
+move_broadcast_recv_per_sec=0.997
+packets_recv_total=145
+bytes_recv_total=7942
+bytes_recv_per_sec=88.023

@@ -1,0 +1,5 @@
+Linux 6.6.114.1-microsoft-standard-WSL2 (WIN-K51PAA55GQM) 	08/07/26 	_x86_64_	(16 CPU)
+
+13:58:38      UID       PID    %usr %system  %guest   %wait    %CPU   CPU  Command
+
+13:58:38      UID       PID  minflt/s  majflt/s     VSZ     RSS   %MEM  Command

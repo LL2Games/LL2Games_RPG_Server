@@ -1,0 +1,27 @@
+target=127.0.0.1:9001
+tickets_file=/tmp/move_300_tickets.txt
+clients=300, workers=300, duration=15.0, moves_per_sec=1.0, timeout=90.0
+success=300
+failed=0
+auth_success=300
+enter_success=300
+elapsed_sec=22.096
+auth_ms_min=269.922
+auth_ms_avg=3451.386
+auth_ms_p50=3462.733
+auth_ms_p95=6163.652
+auth_ms_p99=6378.645
+auth_ms_max=6480.953
+enter_ms_min=0.415
+enter_ms_avg=69.501
+enter_ms_p50=42.455
+enter_ms_p95=176.114
+enter_ms_p99=559.047
+enter_ms_max=865.401
+move_sent_total=4500
+move_sent_per_sec=203.656
+move_broadcast_recv_total=1013300
+move_broadcast_recv_per_sec=45858.915
+packets_recv_total=1063914
+bytes_recv_total=61992860
+bytes_recv_per_sec=2805610.652
