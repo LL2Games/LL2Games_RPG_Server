@@ -142,6 +142,7 @@ private:
     mutable std::mutex m_finalPlayerDataSaveMutex;
 
     std::atomic<bool> m_workersStarted{false};
+    std::atomic<bool> m_stopRequested{false};
     std::atomic<bool> m_running{false};
     std::atomic<unsigned int> m_current_user_count;
     

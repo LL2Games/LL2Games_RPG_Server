@@ -263,6 +263,14 @@ void ChannelServer::Run()
     if (m_running.exchange(true))
         return;
 
+    // Run 실행 전에 종료 신호를 받은 경우 실행하지 않는다.
+    if (m_stopRequested.load(std::memory_order_acquire))
+    {
+        m_running.store(false, std::memory_order_release);
+        K_LOG_TRACE("ChannelServer start skipped because stop was already requested");
+        return;
+    }
+
     try
     {
         StartWorkers();
@@ -894,6 +902,8 @@ void ChannelServer::RequestStop() noexcept
 {
     {
         std::lock_guard<std::mutex> lock(m_stateUpdateWaitMutex);
+        // 종료 요청이 들어왔다는 사실은 다시 false로 변경하지 않는다.
+        m_stopRequested.store(true, std::memory_order_release);
         m_running.store(false, std::memory_order_release);
     }
 
