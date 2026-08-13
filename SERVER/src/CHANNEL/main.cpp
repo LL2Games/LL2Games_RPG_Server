@@ -143,7 +143,7 @@ int main(int ac, char **av)
                     if (errno == EAGAIN || errno == EINTR)
                     {
                         continue;
-                    }
+                    }   
                     K_LOG_ERROR("Failed to wait for termination signal. errno[%d]",errno);
                     channelServer.RequestStop();
                     return;

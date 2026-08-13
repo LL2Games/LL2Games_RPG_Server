@@ -127,10 +127,9 @@ private:
     // 최종 DB 저장 전용 스레드 풀
     // 동시 DB 저장 수를 제한하여 인증과 게임 작업을 보호한다.
     ThreadPool m_savePool;
+    std::thread m_stateUpdateThread;
     RedisConnectionPool m_redisPool;
     CommandReceiver m_cmd_receiver;
-    std::thread m_stateUpdateThread;
-    std::mutex m_stateUpdateWaitMutex;
     std::condition_variable m_stateUpdateCv;
 
    
@@ -140,10 +139,14 @@ private:
     std::mutex m_authResultMutex;
     std::mutex m_authLoadMutex;
     std::mutex m_sessionMutex;
+    std::mutex m_stateUpdateWaitMutex;
     mutable std::mutex m_finalPlayerDataSaveMutex;
 
+    // 백그라운드 스레드가 시작됐는지
     std::atomic<bool> m_workersStarted{false};
+    // 종료 요청이 들어왔는지
     std::atomic<bool> m_stopRequested{false};
+    // 게임 루프 실행 여부
     std::atomic<bool> m_running{false};
     std::atomic<unsigned int> m_current_user_count;
     
