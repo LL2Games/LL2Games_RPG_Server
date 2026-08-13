@@ -121,8 +121,7 @@ err:
     if (rc != EXIT_SUCCESS) { 
         session->SendNok(PKT_PLAYER_SKILL_ATTACK, errMsg);
     } else {
-        session->SendOk(PKT_PLAYER_SKILL_ATTACK, {std::to_string(skill_id)});
-
+        session->SendOk(PKT_PLAYER_SKILL_ATTACK, {std::to_string(skill_id), std::to_string(player->GetCurMP())});
         K_LOG_TRACE( "Player Attack End");
         PlayerPacketSender::SendPlayerAttack(player,skill_id,attack_dir,player->GetCurrentMap()->GetPlayerList());
     }

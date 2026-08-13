@@ -297,7 +297,6 @@ void Player::AddHP(int HP)
     K_LOG_TRACE( "추가 체력 [%d].\n", HP);
     m_stat.GetCurHp() += HP;
     if (m_stat.GetCurHp() > m_stat.GetMaxHp()) m_stat.GetCurHp() = m_stat.GetMaxHp();
-    // if (m_stat.GetCurHp() < 0) m_stat.GetCurHp() = 0; //체력깎일때 조건사용 ex)OnDamage에서 HP 감소할 때
     m_statDirty = true;
     MarkSaveNeeded();
 }
@@ -307,7 +306,6 @@ void Player::AddMP(int MP)
     std::lock_guard<std::mutex> lock(m_statMutex);
     m_stat.GetCurMp() += MP;
     if (m_stat.GetCurMp() > m_stat.GetMaxMp()) m_stat.GetCurMp() = m_stat.GetMaxMp();
-    // if (m_stat.GetCurMp() < 0) m_stat.GetCurMp() = 0; //Mp깎일때 조건사용 ex)스킬 사용시 MP 감소할때
     m_statDirty = true;
     MarkSaveNeeded();
 }
