@@ -3,6 +3,18 @@
 #include "ItemManager.h"
 
 
+namespace
+{
+    // 속도 허용 여유
+    constexpr float kSpeedMargin = 1.1f;
+    // 거리 계산 오차 
+    constexpr float kDistanceError = 0.01f;
+    // 이동 검증에 사용할 최대 시간
+    constexpr float kMaxCheckTime = 0.25f;
+
+    
+}
+
 Player::Player() : m_char_id(0), 
                    m_name(""), 
                    m_current_map(nullptr), 
@@ -386,6 +398,106 @@ bool Player::TryMarkSaved(const std::uint64_t saveVersion)
     return m_saveVersion.compare_exchange_strong(expectedVersion,0);
 }
 
+bool Player::TryApplyMove(const Vec2& requestedPosition, std::string& errMsg)
+{
+    errMsg.clear();
+
+    if (!std::isfinite(requestedPosition.xPos) || !std::isfinite(requestedPosition.yPos))
+    {
+        errMsg = "movement position contains NaN or infinity";
+        return false;
+    }
+
+    const auto now = std::chrono::steady_clock::now();
+
+    std::lock_guard<std::mutex> lock(m_positionMutex);
+
+    if (!m_moveValidationInitialized)
+    {
+        m_lastAcceptedMoveTime = now;
+        m_availableMoveDistance = 0.0F;
+        m_moveValidationInitialized = true;
+
+        errMsg = "movement validation is not initialized";
+        return false;
+    }
+
+    if (!std::isfinite(m_moveSpeed) || m_moveSpeed <= 0.0F)
+    {
+        errMsg = "maximum movement speed is not configured";
+        return false;
+    }
+
+    float passedSeconds = std::chrono::duration<float>(now - m_lastAcceptedMoveTime).count();
+
+    passedSeconds = std::clamp(passedSeconds,0.0F, kMaxCheckTime);
+
+    // 경과 시간만큼 이동 가능 거리를 충전한다.
+    const float addedDistance = m_moveSpeed * passedSeconds * kSpeedMargin;
+
+    // 오랫동안 멈춰 있다가 한 번에 너무 멀리 이동하는 것은 막는다.
+    const float maximumSavedDistance = m_moveSpeed * kMaxCheckTime * kSpeedMargin;
+
+    m_availableMoveDistance = std::min(maximumSavedDistance,m_availableMoveDistance + addedDistance);
+
+    // 성공과 실패에 관계없이 거리 충전 기준 시간을 갱신한다.
+    m_lastAcceptedMoveTime = now;
+
+    const float differenceX = requestedPosition.xPos - m_xPos;
+    const float differenceY = requestedPosition.yPos - m_yPos;
+    const float movedDistanceSquared = differenceX * differenceX + differenceY * differenceY;
+    const float allowedDistance = m_availableMoveDistance + kDistanceError;
+    const float allowedDistanceSquared = allowedDistance * allowedDistance;
+
+    const float movedDistance = std::sqrt(movedDistanceSquared);
+
+    if (movedDistanceSquared > allowedDistanceSquared)
+    {
+        K_LOG_ERROR(
+        "Movement validation failed. "
+        "current[%.3f, %.3f] "
+        "requested[%.3f, %.3f] "
+        "movedDistance[%.3f] "
+        "allowedDistance[%.3f] "
+        "availableDistance[%.3f] "
+        "passedSeconds[%.6f] "
+        "moveSpeed[%.3f]",
+        m_xPos,
+        m_yPos,
+        requestedPosition.xPos,
+        requestedPosition.yPos,
+        movedDistance,
+        allowedDistance,
+        m_availableMoveDistance,
+        passedSeconds,
+        m_moveSpeed
+        );
+
+        errMsg = "movement distance exceeds allowed range";
+        return false;
+    }
+
+    
+
+    // 실제 이동한 거리만큼 보관된 거리를 차감한다.
+    m_availableMoveDistance = std::max(0.0F,m_availableMoveDistance - movedDistance);
+
+    m_xPos = requestedPosition.xPos;
+    m_yPos = requestedPosition.yPos;
+
+    MarkSaveNeeded();
+
+    return true;
+}
+
+void Player::ResetMoveValidation()
+{
+    std::lock_guard<std::mutex> lock(m_positionMutex);
+
+    m_lastAcceptedMoveTime = std::chrono::steady_clock::now();
+    m_availableMoveDistance = 0.0F;
+    m_moveValidationInitialized = true;
+}
 
 void Player::SetMapId(int map_id)
 {
