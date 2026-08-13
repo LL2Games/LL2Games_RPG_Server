@@ -1,9 +1,12 @@
 #include "Server.h"
 #include "PacketParser.h"
+#include "K_slog.h"
+
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <cstring>
-#include "K_slog.h"
+#include <cerrno>
+
 
 bool Server::Init(int port, const RedisConfig& redisConfig)
 {
@@ -55,7 +58,11 @@ void Server::Run()
         int ret = select(fd_max + 1, &reads, nullptr, nullptr, nullptr);
         if (ret < 0)
         {
-            K_LOG_TRACE( "select error\n");
+            if (errno == EINTR)
+            {
+                continue;
+            }
+            K_LOG_ERROR("[LOGIN] select failed errno:%d",errno);
             break;
         }
 
@@ -63,13 +70,40 @@ void Server::Run()
         if (FD_ISSET(m_listen_fd, &reads))
             AcceptNewClient();
 
-        // 기존 클라이언트 처리
-        for (int i = 0; i < (int)m_clients.size(); i++)
+        std::vector<Client*> readableClients;
+        readableClients.reserve(m_clients.size());
+
+        for (Client* client : m_clients)
         {
-            Client *cli = m_clients[i];
-            if (FD_ISSET(cli->GetFD(), &reads))
-                ProcessClient(cli);
+            if (FD_ISSET(client->GetFD(), &reads))
+            readableClients.push_back(client);
         }
+
+        for (Client* client : readableClients)
+        {       
+            ProcessClient(client);
+        }
+    }
+}
+
+void Server::DisconnectClient(Client* client)
+{
+    if (client == nullptr)
+        return;
+
+    for (auto it = m_clients.begin(); it != m_clients.end(); ++it)
+    {
+        if (*it != client)
+            continue;
+
+        const int fd = client->GetFD();
+
+        K_LOG_TRACE("[LOGIN] Client %d disconnected",fd);
+
+        close(fd);
+        delete client;
+        m_clients.erase(it);
+        return;
     }
 }
 
@@ -89,63 +123,80 @@ void Server::AcceptNewClient()
 
 void Server::ProcessClient(Client *cli)
 {
-    int fd = cli->GetFD();
-    char temp[PacketLimits::kReceiveChunkSize];
-    ssize_t tempLen = 0;
-    std::string buf;
+    if (cli == nullptr)
+        return;
+
+    const int fd = cli->GetFD();
+    char receiveBuffer[PacketLimits::kReceiveChunkSize];
+    ssize_t receivedSize = 0;
+
+    // recv가 시그널로 중단된 경우에만 재시도
     do
     {
-        memset(temp, 0x00, sizeof(temp));
-        tempLen = recv(fd, temp, sizeof(temp), 0);
-        if (tempLen <= 0)
-        {
-            // disconnect
-            K_LOG_TRACE( "Client %d disconnected\n", cli->GetFD());
-            close(cli->GetFD());
+        receivedSize = recv(fd, receiveBuffer, sizeof(receiveBuffer),0);
+    }
+    while (receivedSize < 0 && errno == EINTR);
 
-            // 제거
-            for (auto it = m_clients.begin(); it != m_clients.end(); ++it)
-            {
-                if (*it == cli)
-                {
-                    delete cli;
-                    m_clients.erase(it);
-                    break;
-                }
-            }
+    if (receivedSize == 0)
+    {
+        DisconnectClient(cli);
+        return;
+    }
+
+    if (receivedSize < 0)
+    {
+        K_LOG_ERROR("[LOGIN] recv failed fd:%d errno:%d",fd,errno);
+        DisconnectClient(cli);
+        return;
+    }
+    cli->m_recvBuffer.insert(cli->m_recvBuffer.end(), receiveBuffer, receiveBuffer + receivedSize);
+    K_LOG_DEBUG("[LOGIN] recv fd:%d size:%zd buffered:%zu", fd, receivedSize, cli->m_recvBuffer.size());
+
+    while (true)
+    {
+        ParseResult result = PacketParser::TryParse(cli->m_recvBuffer);
+
+        if (result.status == ParseStatus::NeedMoreData)
+        {
+            // 현재 버퍼를 유지하고 다음 recv를 기다린다.
             return;
         }
-        buf.append(temp, tempLen);
-    } while (tempLen == static_cast<ssize_t>(PacketLimits::kReceiveChunkSize));
 
-    // 버퍼 누적
-    cli->m_recvBuffer.insert(cli->m_recvBuffer.end(), buf.begin(), buf.end());
+        if (result.status == ParseStatus::InvalidPacket)
+        {
+            // TryParse는 잘못된 패킷을 버퍼에서 제거하지 않는다.
+            // 동일 패킷을 반복해서 처리하지 않도록 연결을 종료한다.
+            K_LOG_ERROR("[LOGIN] Invalid packet fd:%d buffered:%zu", fd, cli->m_recvBuffer.size());
+            DisconnectClient(cli);
+            return;
+        }
 
-    // 패킷 파싱
-    K_LOG_DEBUG( "recv from fd=%d, len=%d", fd, buf.size());
-    auto pkt = PacketParser::Parse(cli->m_recvBuffer);
-    if (!pkt.has_value())
-    {
-        K_LOG_ERROR( "Packet Parse failed");
-        return ;
-    }
-    
+        ParsedPacket& packet = result.packet;
+        K_LOG_DEBUG("[LOGIN] Packet parsed fd:%d type:%u payloadSize:%zu",fd, static_cast<unsigned int>(packet.type), packet.payload.size());
+        auto handler = m_factory.Create(packet.type);
 
-    auto handler = m_factory.Create(pkt->type);
-    PacketContext ctx;
-    ctx.redis_pool = &m_redisPool;
-    ctx.client = cli;
-    ctx.payload = (char *)pkt->payload.c_str();
-    ctx.payload_len = pkt->payload.size(); 
-    if (handler)
-    {
-        handler->Execute(&ctx);
+        if (!handler)
+        {
+            K_LOG_ERROR("[LOGIN] Handler not found fd:%d type:%u", fd, static_cast<unsigned int>(packet.type));
+            // 해당 패킷은 이미 버퍼에서 제거됐다.
+            // 연결은 유지하고 다음 패킷을 처리한다.
+            continue;
+        }
+
+        PacketContext context{};
+        context.redis_pool = &m_redisPool;
+        context.client = cli;
+        context.type = packet.type;
+
+        context.payload = packet.payload.empty() ? nullptr : packet.payload.data();
+        context.payload_len = static_cast<int>(packet.payload.size());
+
+        // Execute가 동기적으로 실행되므로 packet.payload의 포인터가
+        // handler 실행 중에는 유효하다.
+        handler->Execute(&context);
+
+        // 버퍼에 다음 완성 패킷이 남아 있을 수 있으므로
+        // TryParse를 다시 호출한다.
     }
-    else
-    {
-        K_LOG_ERROR( "handler Not created [type=%d]", pkt->type);
-        return ;
-    }
-    K_LOG_DEBUG( "ProcessClient fd=%d done", fd);
 
 }

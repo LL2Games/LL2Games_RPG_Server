@@ -1,0 +1,33 @@
+name: Server CI ## Workflow 이름
+
+on:
+  push:
+  pull_request: ## 실행 조건 브랜치에 커밋을 push했을 때, PR을 만들더가 PR 브랜치가 생겼을 때
+
+permissions: ## 권한제한 읽기 권한만 
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Linux Build and Packet Test ## YAML 내부에서 제공하는 job 식별자 Github 화면에 표시
+    runs-on: ubuntu-22.04 ## 실행 환경
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository ## 저장소 가져오기
+        uses: actions/checkout@v6
+
+      - name: Install dependencies  ## 빌드 의존성 설치
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            default-libmysqlclient-dev \
+            libhiredis-dev \
+            nlohmann-json3-dev
+
+      - name: Build all servers
+        run: make -C SERVER
+
+      - name: Run packet parser test
+        run: make -C Test packet-test

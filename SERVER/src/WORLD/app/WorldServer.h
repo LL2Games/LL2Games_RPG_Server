@@ -18,7 +18,6 @@ public:
     int Init(const int port, const RedisConfig& redisConfig);
     int Run();
     int OnAccept();
-    int OnReceive(int fd, const std::string& buf);
     int OnReceive(int fd);
     int OnDisconnect(int fd);
     int HandleSelectCharacter(int fd, const std::string& charId);
