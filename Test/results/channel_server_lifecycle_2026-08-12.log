@@ -1,0 +1,55 @@
+make: Entering directory '/home/ljh/LL2Games_RPG/SERVER/src/CHANNEL'
+../../bin/auth_session_regression_test
+[PASS] fd 재사용 후 오래된 인증 결과 거부
+[PASS] 현재 세션 승인 및 종료 중 세션 거부
+../../bin/player_save_flow_test
+[PASS] 변경 없는 플레이어는 저장 불필요
+[PASS] 변경된 플레이어는 저장 필요
+[PASS] 저장 스냅샷에 현재 버전 기록
+[PASS] 일치하는 저장 버전으로 저장 대기 상태 해제
+[PASS] 저장 성공 후 대기 상태 해제
+[PASS] 오래된 저장 버전 거부
+[PASS] 오래된 저장 완료 후 신규 변경 상태 유지
+[PASS] 최신 스냅샷의 저장 버전 증가 확인
+[PASS] 최신 저장 버전 승인
+[PASS] 최신 저장 성공 후 대기 상태 해제
+[PASS] 저장 실패 후 대기 상태 유지
+[PASS] 실패한 저장 버전의 재시도 가능 상태 유지
+[PASS] 재시도 저장 성공
+[PASS] 재시도 성공 후 대기 상태 해제
+[PASS] 변경 없는 플레이어의 저장소 호출 생략
+[PASS] 저장 생략 시 오류 미발생
+[PASS] MySQL 풀 미초기화 상태에서 저장 실패
+[PASS] 저장 실패 사유 반환 확인
+[PASS] 서비스 저장 실패 후 대기 상태 유지
+플레이어 저장 흐름 테스트 전체 통과
+../../bin/player_movement_validation_test
+[PASS] 검증 초기화 전 이동 거부
+[PASS] 검증 초기화 전 이동의 실패 사유 반환
+[PASS] 허용 거리 이내의 정상 이동 승인
+[PASS] 정상 이동 시 오류 미발생
+[PASS] 승인된 좌표를 서버 상태에 반영
+[PASS] 정상 이동 후 DB 저장 필요 상태 표시
+[PASS] 허용 거리를 초과한 이동 거부
+[PASS] 거리 초과 이동의 실패 사유 반환
+[PASS] 거부된 좌표를 서버 상태에 반영하지 않음
+[PASS] 거부된 이동은 DB 저장 상태를 변경하지 않음
+[PASS] NaN 좌표 거부
+[PASS] 무한대 좌표 거부
+[PASS] 비정상 좌표 거부 후 기존 위치 보존
+[PASS] 비정상 좌표는 DB 저장 상태를 변경하지 않음
+[PASS] 맵 입장 좌표 기준의 정상 이동 승인
+[PASS] 맵 입장 후 이동 좌표 반영
+플레이어 이동 검증 테스트 전체 통과
+../../bin/channel_server_lifecycle_test
+[PASS] 실행 전에 종료 요청이 있으면 서버 실행을 시작하지 않음
+[PASS] 실행 전 종료 요청 상태가 유지됨
+[PASS] 실행 전 종료 요청 후 running=false 유지
+[PASS] RequestStop 중복 호출 후 stopRequested=true
+[PASS] RequestStop 중복 호출 후 running=false
+[PASS] 상태 갱신 대기 스레드가 종료 요청을 감지함
+[PASS] condition_variable 대기 스레드를 1초 이내 깨움
+[PASS] 실행 시작과 종료 요청 경쟁 5000회 통과
+[PASS] MapManager Start/Stop 50회 및 중복 Stop 통과
+ChannelServer 종료 생명주기 테스트 전체 통과
+make: Leaving directory '/home/ljh/LL2Games_RPG/SERVER/src/CHANNEL'

@@ -32,6 +32,8 @@
 #include <cstdint>
 #include <chrono>
 #include <unordered_set>
+#include <thread>
+#include <condition_variable>
 
 class ChannelServerTestAccess;
 
@@ -57,6 +59,8 @@ public:
     bool SubmitFinalPlayerDataSave(PlayerSaveData saveData);
     bool IsFinalPlayerDataSavePending(int characterId) const;
     void CompleteFinalPlayerDataSave(int characterId,bool saveSucceeded,const std::string& errMsg);
+
+    void RequestStop() noexcept;
 public:
     PlayerManager* GetPlayerManager() { return &m_player_mamager; }
     MapService* GetMapService() {return &m_map_service;}
@@ -88,11 +92,14 @@ private:
     void ProcessAuthResults();
 
     void SchedulePlayerSaves();
+
+    void StartWorkers();
+    void StopWorkers() noexcept;
+    bool TryBeginRun() noexcept;
 private:
     int m_channel_id;
     int m_listen_fd;
     int m_epfd;
-    bool m_running;
 
     std::vector<epoll_event> m_events;
     std::unordered_map<int,ChannelSession*> m_sessions;
@@ -109,6 +116,10 @@ private:
     StatService m_stat_service;
     ItemService m_item_service;
     CombatService m_combat_service;
+    TradeService m_trade_service;
+    LevelManager* m_level_manager;
+    PlayerDataSaveService m_playerDataSaveService;
+
 
     ThreadPool m_pool;
     // ChannelAuth 전용 쓰레드
@@ -116,22 +127,29 @@ private:
     // 최종 DB 저장 전용 스레드 풀
     // 동시 DB 저장 수를 제한하여 인증과 게임 작업을 보호한다.
     ThreadPool m_savePool;
+    std::thread m_stateUpdateThread;
     RedisConnectionPool m_redisPool;
     CommandReceiver m_cmd_receiver;
+    std::condition_variable m_stateUpdateCv;
 
-    TradeService m_trade_service;
-
-    LevelManager* m_level_manager;
-
-    PlayerDataSaveService m_playerDataSaveService;
+   
 
     std::queue<ChannelAuthResult> m_authResults;
     std::atomic<uint64_t> m_nextSessionId{1};
     std::mutex m_authResultMutex;
     std::mutex m_authLoadMutex;
     std::mutex m_sessionMutex;
-    std::atomic<unsigned int> m_current_user_count;
+    std::mutex m_stateUpdateWaitMutex;
     mutable std::mutex m_finalPlayerDataSaveMutex;
+
+    // 백그라운드 스레드가 시작됐는지
+    std::atomic<bool> m_workersStarted{false};
+    // 종료 요청이 들어왔는지
+    std::atomic<bool> m_stopRequested{false};
+    // 게임 루프 실행 여부
+    std::atomic<bool> m_running{false};
+    std::atomic<unsigned int> m_current_user_count;
+    
     unsigned int m_max_user_count;
     std::unordered_set<int> m_finalPlayerDataSavePending;
 };

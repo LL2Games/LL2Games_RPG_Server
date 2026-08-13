@@ -16,13 +16,13 @@
 //threadCount == 0 인경우 하드웨어 CPU 코어 수를 계산하여 스레드풀 생성
 ChannelServer::ChannelServer(const int channelId, const int threadCount, const int maxUserCount) : 
                 m_channel_id(channelId), 
-                m_listen_fd(0), m_epfd(0), 
-                m_running(false), m_map_manager(this),
+                m_listen_fd(-1), m_epfd(-1), // 아직 fd가 할당되지 않음을 나탄내는 특별한 값으로 초기화 해야함
+                m_map_manager(this),
                 m_map_service(m_player_mamager, m_map_manager), 
                 m_pool(threadCount == 0 ? std::thread::hardware_concurrency() : threadCount), 
                 m_authPool(threadCount == 0 ? std::thread::hardware_concurrency() : threadCount),
                 m_savePool(2),
-                m_level_manager(nullptr),m_current_user_count(0), m_max_user_count(maxUserCount)
+                m_current_user_count(0), m_max_user_count(maxUserCount)
 {
     m_item_manager = ItemManager::GetInstance();
     m_monster_manager = MonsterManager::GetInstance();
@@ -32,9 +32,20 @@ ChannelServer::ChannelServer(const int channelId, const int threadCount, const i
 
 ChannelServer::~ChannelServer()
 {
-    m_authPool.Stop();
-    m_pool.Stop();
-    m_savePool.Stop();
+   RequestStop();
+    StopWorkers();
+
+    if (m_epfd >= 0)
+    {
+        close(m_epfd);
+        m_epfd = -1;
+    }
+
+    if (m_listen_fd >= 0)
+    {
+        close(m_listen_fd);
+        m_listen_fd = -1;
+    }
 }
 
 int ChannelServer::SetNonblocking(int fd)
@@ -133,16 +144,6 @@ bool ChannelServer::Init(const int port, const RedisConfig& redisConfig)
    K_LOG_TRACE( "MAX_USER_COUNT: %d\n", m_max_user_count);
    K_LOG_TRACE( "Thread Pool Start ==PoolSize: %zu\n", m_pool.GetPoolSize());
    K_LOG_TRACE( "Auth Thread Pool Start ==PoolSize: %zu\n", m_authPool.GetPoolSize());
-   //스레드풀 시작
-    m_pool.Start();
-    K_LOG_TRACE( "ChatD MessageQueue Start\n");
-    //chatD 메시지큐 리시버 스레드 시작
-    m_authPool.Start();
-    m_savePool.Start();
-    //m_cmd_receiver.Start(); 지금 미사용 나중에 다시 풀어야함
-   
-   //맵매니저 스레드 시작
-    m_map_manager.Start();
     if (!m_redisPool.Init(redisConfig, redisConfig.poolCount))
     {
         K_LOG_ERROR( "[ChannelServer] RedisConnectionPool Init failed");
@@ -150,9 +151,6 @@ bool ChannelServer::Init(const int port, const RedisConfig& redisConfig)
     }
     m_playerDataSaveService.SetRedisPool(&m_redisPool);
    //채널 상태 업데이트 스레드 시작
-    std::thread stateUpdateThread(&ChannelServer::UpdateChannelState, this, 3, 10); // 3초마다 업데이트, TTL은 10초
-    stateUpdateThread.detach(); // 스레드를 분리하여 백그라운드에서 실행
-
    return true;
 }
 
@@ -262,8 +260,26 @@ void ChannelServer::Run()
         return;
     }
 
-    m_running = true;
-    GameLoop();
+    if (!TryBeginRun())
+    {
+        K_LOG_TRACE("ChannelServer start skipped because running or stop was already requested");
+        return;
+    }
+
+    try
+    {
+        StartWorkers();
+        GameLoop();
+    }
+    catch (...)
+    {
+        RequestStop();
+        StopWorkers();
+        throw;
+    }
+
+    RequestStop();
+    StopWorkers();
 
 }
 
@@ -272,7 +288,7 @@ void ChannelServer::GameLoop()
     constexpr auto saveInterval = std::chrono::seconds(60);
 
     auto nextSaveTime =std::chrono::steady_clock::now() + saveInterval;
-    while(true)
+    while(m_running.load(std::memory_order_acquire))
     {
         // m_epfd에 등록된 관심 목록에서 이벤트가 발생한 것들을 기다렸다가 m_events 배열에 채워 넣고 발생한 이벤트 개수를 n에 저장/ -1은 무한 대기의 의미 이벤트가 발생할 때 까지 계속 블로킹 
         int n = epoll_wait(m_epfd, m_events.data(), static_cast<int>(m_events.size()), 10);
@@ -378,8 +394,6 @@ void ChannelServer::OnAccept()
         if (setsockopt(cfd, IPPROTO_TCP, TCP_NODELAY, (const char*)&nodelay, sizeof(nodelay)) < 0)
         {
             K_LOG_ERROR( "cfd Setsockopt Error \n");
-            close(m_listen_fd);
-            m_listen_fd =-1;
             close(cfd);
             continue;
         }
@@ -579,11 +593,16 @@ void ChannelServer::PushAuthResult(ChannelAuthResult result)
 
 void ChannelServer::UpdateChannelState(const int interval, const int ttl)
 {
-    while(true)
+    while (m_running.load(std::memory_order_acquire))
     {
         auto task = std::make_unique<ChannelStateUpdateTask>(this, ttl);
-        this->GetThreadPool()->Submit(std::move(task));
-        sleep(interval); // 지정된 시간마다 업데이트
+        m_pool.Submit(std::move(task));
+
+        std::unique_lock<std::mutex> lock(m_stateUpdateWaitMutex);
+        m_stateUpdateCv.wait_for(lock,std::chrono::seconds(interval),[this]
+            {
+                return !m_running.load(std::memory_order_acquire);
+            });
     }
 }
 
@@ -826,4 +845,76 @@ void ChannelServer::CompleteFinalPlayerDataSave(const int characterId,const bool
     }
 
     K_LOG_ERROR("Final player data save failed after retries. characterId[%d] error[%s]",characterId,errMsg.c_str());
+}
+
+void ChannelServer::StartWorkers()
+{
+    bool expected = false;
+
+    if (!m_workersStarted.compare_exchange_strong(expected, true))
+    {
+        K_LOG_ERROR("[ChannelServer] Workers already started");
+        return;
+    }
+
+    // 작업을 소비하는 스레드 풀을 먼저 시작한다.
+    m_pool.Start();
+    m_authPool.Start();
+    m_savePool.Start();
+
+    // ThreadPool에 작업을 제출하는 생산자 스레드를 나중에 시작한다.
+    m_map_manager.Start();
+
+    m_stateUpdateThread = std::thread(
+        &ChannelServer::UpdateChannelState,
+        this,
+        3,   // 갱신 간격
+        10); // Redis TTL
+
+    K_LOG_TRACE("[ChannelServer] Workers started");
+}
+
+void ChannelServer::StopWorkers() noexcept
+{
+    RequestStop();
+
+    if (!m_workersStarted.exchange(false))
+        return;
+
+    m_map_manager.Stop();
+
+    if (m_stateUpdateThread.joinable())
+        m_stateUpdateThread.join();
+
+    m_authPool.Stop();
+    m_pool.Stop();
+    m_savePool.Stop();
+
+    K_LOG_TRACE("[ChannelServer] Workers stopped");
+}
+
+void ChannelServer::RequestStop() noexcept
+{
+    {
+        std::lock_guard<std::mutex> lock(m_stateUpdateWaitMutex);
+        // 종료 요청이 들어왔다는 사실은 다시 false로 변경하지 않는다.
+        m_stopRequested.store(true, std::memory_order_release);
+        m_running.store(false, std::memory_order_release);
+    }
+
+    m_stateUpdateCv.notify_all();
+}
+
+bool ChannelServer::TryBeginRun() noexcept
+{
+    if (m_running.exchange(true))
+        return false;
+
+    if (m_stopRequested.load(std::memory_order_acquire))
+    {
+        m_running.store(false, std::memory_order_release);
+        return false;
+    }
+
+    return true;
 }
