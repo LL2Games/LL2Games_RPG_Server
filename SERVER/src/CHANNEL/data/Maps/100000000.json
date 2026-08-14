@@ -5,7 +5,25 @@
   "monsters": [
     { "monsterId": 100100, "xPos":   100.0, "yPos": 700.0, "group": 1 },
     { "monsterId": 100101, "xPos":   1000.0, "yPos": 700.0, "group": 1 },
-    { "monsterId": 100102, "xPos":   500.0, "yPos": 700.0, "group": 1 }
+    { "monsterId": 100102, "xPos":   500.0, "yPos": 700.0, "group": 1 },
+    { "monsterId": 100102, "xPos":   500.0, "yPos": 700.0, "group": 1 },
+    { "monsterId": 100102, "xPos":   500.0, "yPos": 700.0, "group": 1 },
+    { "monsterId": 100102, "xPos":   500.0, "yPos": 700.0, "group": 1 },
+    { "monsterId": 100102, "xPos":   500.0, "yPos": 700.0, "group": 1 },
+    { "monsterId": 100102, "xPos":   500.0, "yPos": 700.0, "group": 1 },
+    { "monsterId": 100102, "xPos":   500.0, "yPos": 700.0, "group": 1 },
+    { "monsterId": 100102, "xPos":   500.0, "yPos": 700.0, "group": 1 },
+    { "monsterId": 100102, "xPos":   500.0, "yPos": 700.0, "group": 1 },
+    { "monsterId": 100102, "xPos":   500.0, "yPos": 700.0, "group": 1 },
+    { "monsterId": 100102, "xPos":   500.0, "yPos": 700.0, "group": 1 },
+    { "monsterId": 100100, "xPos":   100.0, "yPos": 700.0, "group": 1 },
+    { "monsterId": 100100, "xPos":   100.0, "yPos": 700.0, "group": 1 },
+    { "monsterId": 100100, "xPos":   100.0, "yPos": 700.0, "group": 1 },
+    { "monsterId": 100100, "xPos":   100.0, "yPos": 700.0, "group": 1 },
+    { "monsterId": 100100, "xPos":   100.0, "yPos": 700.0, "group": 1 },
+    { "monsterId": 100100, "xPos":   100.0, "yPos": 700.0, "group": 1 },
+    { "monsterId": 100100, "xPos":   100.0, "yPos": 700.0, "group": 1 },
+    { "monsterId": 100100, "xPos":   100.0, "yPos": 700.0, "group": 1 }
   ],
   "portals": [
     {
