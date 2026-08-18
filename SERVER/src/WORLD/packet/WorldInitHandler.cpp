@@ -86,5 +86,5 @@ void WorldInitHandler::Execute(PacketContext *ctx)
     session->SetAccountid(*accountId);
     session->SetAuthenticated(true);
     session->SendOk(PKT_INIT_WORLD);
-    K_LOG_TRACE("World authentication succeeded: fd=%d",session->GetFD());
+    K_LOG_TRACE("[FLOW][WORLD] world ticket consumed and session authenticated. fd[%d] accountId[%s]", session->GetFD(), accountId->c_str());
 }
