@@ -65,6 +65,16 @@ MySqlConnectionPool::MySqlConnectionPool(const MySqlConfig& mysqlConfig, const i
             continue;
         }
 
+        if (mysql_set_character_set(conn, "utf8mb4") != 0)
+        {
+            K_LOG_ERROR(
+                "mysql_set_character_set failed: %s",
+                mysql_error(conn));
+            
+            mysql_close(conn);
+            continue;
+        }
+
 
         m_pool.push(conn);
         cnt++;

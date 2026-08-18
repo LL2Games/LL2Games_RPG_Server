@@ -3,6 +3,7 @@
 #include "PlayerManager.h"
 #include "MapUpdateTask.h"
 #include "ChannelServer.h"
+#include <algorithm>
 
 #define MAP_PATH "../src/CHANNEL/data/Maps/"
 namespace fs = std::filesystem;
@@ -61,10 +62,24 @@ void MapManager::Stop()
 
 void MapManager::Update()
 {
-    constexpr auto updateInterval = std::chrono::milliseconds(2000);
+    using Clock = std::chrono::steady_clock;
+
+    constexpr auto updateInterval = std::chrono::milliseconds(50);
+
+      // 첫 업데이트도 약 0.05초로 계산되도록 설정
+    auto previousTime = Clock::now() - updateInterval;
 
     while (m_running.load(std::memory_order_acquire))
     {
+        const auto currentTime = Clock::now();
+
+        float deltaTime = std::chrono::duration<float>(currentTime - previousTime).count();
+
+        previousTime = currentTime;
+
+        // 디버깅 중단 등으로 dt가 너무 커지는 것 방지
+        deltaTime = std::clamp(deltaTime, 0.0f, 0.25f);
+
         for (auto iter = m_maps.begin(); iter != m_maps.end(); ++iter)
         {
             if (!m_running.load(std::memory_order_acquire))
@@ -74,7 +89,7 @@ void MapManager::Update()
             {
                 MapInstance *map = iter->second;
 
-                auto task = std::make_unique<MapUpdateTask>(map);
+                auto task = std::make_unique<MapUpdateTask>(map, deltaTime);
                 m_server->GetThreadPool()->Submit(std::move(task));
             }
         }

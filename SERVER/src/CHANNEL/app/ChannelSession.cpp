@@ -141,10 +141,6 @@ int ChannelSession::SendOk(int type, std::vector<std::string> payload)
 {
     std::vector<std::string>::iterator payloadIter;
 
-    for(payloadIter = payload.begin(); payloadIter < payload.end(); ++payloadIter)
-    {
-         K_LOG_TRACE( "body[%s]", payloadIter->c_str());
-    }
     payload.insert(payload.begin(), "ok");
     std::string body = PacketParser::MakeBody(payload);
     std::string packet = PacketParser::MakePacket(type, body);

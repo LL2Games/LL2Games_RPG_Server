@@ -24,7 +24,7 @@ void PlayerPacketSender::SendPlayerInfo(Player* player)
     payload.push_back(std::to_string(player->GetPos().yPos));
     session->Send(PKT_PLAYER_INFO, payload);
 
-    K_LOG_TRACE( "PlayerInfo Send Success.");
+    K_LOG_DEBUG("PlayerInfo Send Success.");
 }
 
 
@@ -62,7 +62,7 @@ void PlayerPacketSender::SendPlayerStat(Player* player)
     payload.push_back(std::to_string(playerStat.GetNeedExp()));
     session->Send(PKT_PLAYER_STAT, payload);
 
-    K_LOG_TRACE( "SendPlayerStat Send Success.");
+    K_LOG_DEBUG( "SendPlayerStat Send Success.");
 }
 
 
@@ -89,7 +89,7 @@ void PlayerPacketSender::SendPlayerSkillList(Player* player)
         payload.push_back(std::to_string(skill.skill_level));
     }
     session->Send(PKT_PLAYER_SKILLLIST, payload);
-    K_LOG_TRACE( "SendPlayerSkillList Send Success.");
+    K_LOG_DEBUG("SendPlayerSkillList Send Success.");
 }
 
 

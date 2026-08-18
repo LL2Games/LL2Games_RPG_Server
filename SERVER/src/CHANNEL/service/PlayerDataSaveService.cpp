@@ -1,5 +1,5 @@
 #include "PlayerDataSaveService.h"
-
+#include "K_slog.h"
 
 bool PlayerDataSaveService::SavePlayerData(const PlayerSaveData& saveData, std::string& errMsg)
 {
@@ -46,7 +46,7 @@ bool PlayerDataSaveService::Save(Player& player, const bool forceSave, std::stri
     // 저장하는 동안 상태가 다시 변경되지 않은 경우에만
     // 저장 대기 상태를 해제한다.
     player.TryMarkSaved(saveData.saveVersion);
-
+    K_LOG_TRACE("[FLOW][CHANNEL] player state persisted. playerId[%d] saveVersion[%llu]",saveData.characterId,static_cast<unsigned long long>(saveData.saveVersion));
     return true;
 }
 

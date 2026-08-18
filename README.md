@@ -7,6 +7,7 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![C++](https://img.shields.io/badge/C++-17-00599C.svg?logo=c%2B%2B)](https://isocpp.org/)
 [![Platform](https://img.shields.io/badge/platform-Linux-lightgrey.svg)](https://www.linux.org/)
+[![서버 CI](https://github.com/LL2Games/LL2Games_RPG_Server/actions/workflows/server-ci.yml/badge.svg?branch=main)](https://github.com/LL2Games/LL2Games_RPG_Server/actions/workflows/server-ci.yml)
 
 ---
 
@@ -25,21 +26,29 @@
 - 캐릭터, 스탯, 인벤토리, 퀵슬롯을 하나의 MySQL 트랜잭션으로 저장
 - 저장 버전을 이용해 저장 중 발생한 새로운 변경 상태 보존
 - C++ 회귀·통합 테스트와 Python socket 기반 실제 네트워크 부하 테스트
+- 패킷 헤더와 문자열 길이 접두사를 네트워크 바이트 오더로 통일
+- 이동 거리와 경과 시간을 서버에서 검증하고 거리 초과·NaN·무한대 좌표 거부
+- SIGINT·SIGTERM 수신 시 RequestStop()으로 작업 종료를 요청하고 백그라운드 스레드를 join()
+- GitHub Actions에서 MySQL·Redis 컨테이너를 구성해 전체 서버 빌드 및 회귀·통합 테스트 자동 실행
+
 
 ## 검증 결과
 
 ### 자동 테스트
 
-`make test`로 다음 항목을 검증했습니다.
+저장소 루트에서 `make -C SERVER test`를 실행하면 다음 회귀·통합 테스트를 수행합니다. 동일한 테스트는 [GitHub Actions](.github/workflows/server-ci.yml)에서도 자동으로 실행됩니다.
 
-| 영역 | 검증 항목 |
-| --- | --- |
-| 패킷 파서 | 최대·초과·최소 패킷, 부분 수신, 병합 수신 |
-| 토큰 생성 | 64글자 소문자 16진수 형식, 10,000개 중복 없음 |
-| 인증 티켓 | 최초 사용 성공, 재사용·만료·채널 불일치 거부 |
-| 세션 회귀 | fd 재사용 후 오래된 인증 결과 거부 | 
-| 저장 흐름 | 변경 감지, 저장 버전 비교, 실패 상태 유지 및 재시도 | 
-| DB 트랜잭션 | 캐릭터·스탯·인벤토리·퀵슬롯 커밋 및 실패 시 롤백 |
+| 영역 | 검증 항목 | 근거 |
+| --- | --- | --- |
+| 패킷 파서 | 최대·초과·최소 패킷, 부분 수신, 병합 수신 | [테스트](Test/cpp/PacketParserLengthTest.cpp) |
+| 네트워크 바이트 오더 | 패킷 헤더와 2바이트 길이 접두사의 빅 엔디안 직렬화·역직렬화 | [코드](SERVER/src/COMMON/packet/PacketParser.cpp) · [테스트](Test/cpp/PacketParserLengthTest.cpp) |
+| 토큰 생성 | 64글자 소문자 16진수 형식, 10,000개 중복 없음 | [테스트](Test/cpp/AuthTokenGeneratorTest.cpp) |
+| 인증 티켓 | 최초 사용 성공, 재사용·만료·채널 불일치 거부 | [테스트](Test/cpp/AuthChannelTicketReplayTest.cpp) |
+| 세션 회귀 | fd 재사용 후 오래된 인증 결과 거부 | [테스트](Test/cpp/AuthSessionRegressionTest.cpp) |
+| 저장 흐름 | 변경 감지, 저장 버전 비교, 실패 상태 유지 및 재시도 | [테스트](Test/cpp/PlayerSaveFlowTest.cpp) |
+| DB 트랜잭션 | 캐릭터·스탯·인벤토리·퀵슬롯 커밋 및 실패 시 롤백 | [테스트](Test/cpp/PlayerStateRepositoryTest.cpp) |
+| 이동 검증 | 거리 초과·NaN·무한대 좌표 거부 및 정상 이동 반영 | [검증 코드](SERVER/src/CHANNEL/domain/Player.cpp) · [거부 응답](SERVER/src/CHANNEL/packet/MovePacket.cpp) · [테스트](Test/cpp/PlayerMovementValidationTest.cpp) |
+| 종료 생명주기 | 중복 종료 요청, 대기 스레드 깨우기, 실행·종료 경쟁 5,000회, MapManager 반복 종료 | [시그널 처리](SERVER/src/CHANNEL/main.cpp) · [종료 처리](SERVER/src/CHANNEL/app/ChannelServer.cpp) · [테스트](Test/cpp/ChannelServerLifecycleTest.cpp) · [결과](Test/results/channel_server_lifecycle_2026-08-12.log) |
 
 ### ChannelServer 부하 테스트 — 2026-08-06
 
@@ -72,7 +81,9 @@
 | 패킷 처리 | 1KiB 제한과 TCP 수신 경계 처리 | 4 KiB 수신 단위, 16 KiB 최대 크기, 누적 파싱 및 경계 검증 |
 | 서버 인증 | 서버 간 접속 권한 검증 부재 | LOGIN → WORLD → CHANNEL 일회성 Redis 티켓 |
 | 상태 저장 | 종료 시 일부 스탯만 저장 | 60초 주기 및 종료 시 스냅샷·트랜잭션 기반 저장 |
-
+| 프로토콜 호환성 | 호스트 바이트 순서에 의존 | 패킷 헤더와 문자열 길이 접두사를 네트워크 바이트 오더로 통일 |
+| 이동 검증 | 클라이언트가 보낸 좌표를 그대로 신뢰 | 경과 시간·이동 거리 검증 및 거리 초과·NaN·무한대 좌표 거부 |
+| 서버 종료 | 백그라운드 스레드 detach 및 무한 대기 | SIGINT·SIGTERM 수신 후 RequestStop(), 대기 스레드 알림 및 join()으로 종료 순서 보장 |
 
 
 ## 📋 목차
@@ -437,26 +448,26 @@ sequenceDiagram
     participant C as Client
     participant H as MovePacket Handler
     participant S as ChannelSession
-    participant M as MapInstance
     participant P as Player
+    participant M as MapInstance
     participant O as Other Clients
 
     C->>H: PKT_PLAYER_MOVE<br/>x, y, speed, direction
     H->>H: 패킷 필드 파싱
-    H->>S: 현재 세션 조회
+    H->>S: 인증된 세션 및 Player 조회
     S-->>H: Player
-    H->>P: 현재 MapInstance 조회
+    H->>P: TryApplyMove(x, y)
+    P->>P: 좌표 유효성·경과 시간·이동 거리 검증
 
-    alt 파싱 또는 객체 조회 실패
-        H-->>C: NOK 응답
-    else 처리 성공
-        H->>M: HandleMove(Player, position, speed, direction)
-        M->>M: 맵에 등록된 플레이어인지 확인
-        M->>P: 위치 갱신
-        P->>P: MarkSaveNeeded()
-        M->>M: 플레이어 목록 스냅샷 생성
-        M-->>O: PKT_PLAYER_MOVE 브로드캐스트
-        H-->>C: OK 응답
+    alt 거리 초과·NaN·무한대 등 비정상 이동
+        P-->>H: 이동 거부 및 기존 서버 좌표 유지
+        H-->>C: NOK + 서버 기준 x, y
+    else 정상 이동
+        P->>P: 검증된 위치 반영 및 저장 필요 상태 갱신
+        H->>P: 서버 기준 이동 속도 조회
+        H->>M: HandleMove(Player, position, serverSpeed, direction)
+        M-->>O: 검증된 이동만 브로드캐스트
+        H-->>C: OK
     end
 ```
 

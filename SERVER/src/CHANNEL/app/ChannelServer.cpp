@@ -721,6 +721,18 @@ void ChannelServer::ProcessAuthResults()
         session->SetPlayerManager(&m_player_mamager);
         session->MarkAuthenticated();
 
+
+        const Vec2 position = rawPlayer->GetPos();
+
+        K_LOG_TRACE("[FLOW][CHANNEL] session authenticated and player loaded. fd[%d] sessionId[%llu] playerId[%d] mapId[%d] position[(%.2f, %.2f)]",
+            result.fd,
+            static_cast<unsigned long long>(result.sessionId),
+            rawPlayer->GetId(),
+            rawPlayer->GetMapId(),
+            position.xPos,
+            position.yPos
+        );
+
         session->SendOk(PKT_CHANNEL_AUTH, { rawPlayer->GetName() });
 
         PlayerPacketSender::SendPlayerInfo(rawPlayer);
@@ -840,7 +852,7 @@ void ChannelServer::CompleteFinalPlayerDataSave(const int characterId,const bool
 
     if (saveSucceeded)
     {
-        K_LOG_TRACE("Final player data save completed. ""characterId[%d]",characterId);
+        K_LOG_TRACE("[FLOW][CHANNEL] final player save completed. playerId[%d]", characterId);
         return;
     }
 
