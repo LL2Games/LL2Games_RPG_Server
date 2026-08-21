@@ -6,6 +6,8 @@
 #include <unordered_map>
 #include <mutex>
 
+class TradeServiceRegressionTest;
+
 struct TradeItem
 {
     std::string id;
@@ -53,6 +55,7 @@ public:
     const std::vector<TradeItem>& GetTargetItems(Player *);
 
 private:
+   
     int Execute(TradeExecuteData& data);
     int DecreaseItem(MYSQL *conn, const std::string &char_id, const TradeItem &item);
     int IncreaseItem(MYSQL *conn, const std::string &char_id, TradeItem &item);
@@ -77,6 +80,8 @@ public:
     int Cancel(Player* requester, std::string &errMsg);
 
 private:
+    friend class TradeServiceRegressionTest;
+
     MySqlConnectionPool* m_mySql;
     //RedisClient* m_redis;
 
