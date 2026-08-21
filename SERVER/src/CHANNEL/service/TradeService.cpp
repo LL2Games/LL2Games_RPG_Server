@@ -3,7 +3,14 @@
 #include "MapInstance.h"
 #include "MySqlConnectionPool.h"
 //#include "RedisClient.h"
+#include "ItemManager.h"
+#include "Inventory_Info.h"
 #include "K_slog.h"
+
+#include <limits>
+#include <limits>
+#include <map>
+#include <tuple>
 
 std::mutex TradeService::m_TradeMutex;
 std::unordered_map<int, TradeSession *> TradeService::m_sessions;
@@ -99,26 +106,149 @@ int TradeService::Start(Player *requester, Player *accepter, std::string &errMsg
 
 int TradeService::UploadItem(Player* player, const TradeItem& item, std::string &errMsg)
 {
-    if (player == nullptr)
+   if (player == nullptr)
     {
         errMsg = "Invalid player";
         return -1;
     }
-    std::lock_guard<std::mutex> lock(m_TradeMutex);
 
-    auto it = m_sessions.find(player->GetId());
-    if (it == m_sessions.end() || it->second == nullptr)
+    int itemId = 0;
+
+    try
     {
-        errMsg = "player trade session Not Found";
+        size_t parsedLength = 0;
+        itemId = std::stoi(item.id, &parsedLength);
+
+        if (parsedLength != item.id.size())
+        {
+            errMsg = "Invalid item id";
+            return -1;
+        }
+    }
+    catch (const std::exception&)
+    {
+        errMsg = "Invalid item id";
         return -1;
     }
 
-    TradeSession* session = it->second;
+    if (itemId <= 0 || item.amount <= 0 || item.slot_index < 0)
+    {
+        errMsg = "Invalid trade item";
+        return -1;
+    }
 
-    if (session->a_player == player)
-        session->a_items.push_back(item);
+    ItemManager* itemManager = ItemManager::GetInstance();
+    if (itemManager == nullptr)
+    {
+        errMsg = "Item manager is unavailable";
+        return -1;
+    }
+
+    const auto* itemData = itemManager->Find(itemId);
+    if (itemData == nullptr)
+    {
+        errMsg = "Item does not exist";
+        return -1;
+    }
+
+    // 클라이언트가 계산한 type을 신뢰하지 않고
+    // 서버의 아이템 데이터에서 인벤토리 타입을 결정한다.
+    const int inventoryType = inven::ConvertItemTypeToInventoryType(itemData->type);
+
+    InventoryManager* inventoryManager = player->GetInventoryManager();
+    if (inventoryManager == nullptr)
+    {
+        errMsg = "Inventory manager is unavailable";
+        return -1;
+    }
+
+    std::lock_guard<std::mutex> lock(m_TradeMutex);
+
+    auto sessionIt = m_sessions.find(player->GetId());
+    if (sessionIt == m_sessions.end() || sessionIt->second == nullptr)
+    {
+        errMsg = "Player trade session not found";
+        return -1;
+    }
+
+    TradeSession* session = sessionIt->second;
+
+    std::vector<TradeItem>* tradeItems = nullptr;
+
+    if (session->a_id == player->GetId())
+    {
+        tradeItems = &session->a_items;
+    }
+    else if (session->b_id == player->GetId())
+    {
+        tradeItems = &session->b_items;
+    }
     else
-        session->b_items.push_back(item);
+    {
+        errMsg = "Player does not belong to this trade";
+        return -1;
+    }
+
+    if (session->a_ready || session->b_ready || session->executing)
+    {
+        errMsg = "Trade items cannot be changed after ready";
+        return -1;
+    }
+
+    long long totalOfferedAmount = item.amount;
+
+    for (const TradeItem& uploadedItem : *tradeItems)
+    {
+        if (uploadedItem.slot_index != item.slot_index)
+            continue;
+
+        int uploadedItemId = 0;
+
+        try
+        {
+            uploadedItemId = std::stoi(uploadedItem.id);
+        }
+        catch (const std::exception&)
+        {
+            errMsg = "Invalid item in trade session";
+            return -1;
+        }
+
+        // 동일한 인벤토리 슬롯이 다른 아이템 ID로 등록된 상태
+        if (uploadedItemId != itemId)
+        {
+            errMsg = "Trade slot item mismatch";
+            return -1;
+        }
+
+        totalOfferedAmount += uploadedItem.amount;
+
+        if (totalOfferedAmount > std::numeric_limits<int>::max())
+        {
+            errMsg = "Trade item amount is too large";
+            return -1;
+        }
+    }
+
+    // 같은 슬롯을 여러 번 등록했다면 합산 수량으로 검사한다.
+    if (!inventoryManager->HasItemBySlot(
+            inventoryType,
+            item.slot_index,
+            itemId,
+            static_cast<int>(totalOfferedAmount)))
+    {
+        errMsg = "Item ownership or amount validation failed";
+        return -1;
+    }
+
+    TradeItem validatedItem = item;
+
+    // 패킷에서 계산한 타입 대신 서버 데이터 기준 타입을 저장한다.
+    validatedItem.id = std::to_string(itemId);
+    validatedItem.type = std::to_string(inventoryType);
+
+    tradeItems->push_back(validatedItem);
+
     return 0;
 }
 
@@ -131,7 +261,7 @@ int TradeService::Ready(Player* player, const std::vector<TradeItem>& , std::str
     }
 
     TradeExecuteData executeData;
-    bool shouldExecute = false;
+    TradeSession* executingSession = nullptr;
 
     {
         std::lock_guard<std::mutex> lock(m_TradeMutex);
@@ -139,140 +269,88 @@ int TradeService::Ready(Player* player, const std::vector<TradeItem>& , std::str
         auto it = m_sessions.find(player->GetId());
         if (it == m_sessions.end() || it->second == nullptr)
         {
-            errMsg = "player trade session Not Found";
+            errMsg = "Player trade session not found";
             return -1;
         }
 
         TradeSession* session = it->second;
 
-        if (session->a_player == player)
+        if (session->executing)
+        {
+            errMsg = "Trade is already executing";
+            return -1;
+        }
+
+        if (session->a_id == player->GetId())
+        {
             session->a_ready = true;
-        else
+        }
+        else if (session->b_id == player->GetId())
+        {
             session->b_ready = true;
-
-        shouldExecute =
-            (session->a_id == player->GetId() && session->b_ready) ||
-            (session->b_id == player->GetId() && session->a_ready);
-
-        if (shouldExecute)
-        {
-            executeData.a_id = session->a_id;
-            executeData.b_id = session->b_id;
-            executeData.a_items = session->a_items;
-            executeData.b_items = session->b_items;
-
-            //m_sessions.erase(session->a_id);
-            //m_sessions.erase(session->b_id);
-            //delete session;
         }
-    }
-
-    if (shouldExecute)
-        return Execute(executeData);
-
-    return 2;
-}
-
-int TradeService::Execute(TradeSession *session)
-{
-    MYSQL *conn = m_mySql->GetConnection();
-    std::string query;
-    int result = 0;
-
-    if (session == nullptr)
-    {
-        K_LOG_ERROR( "session is nullptr");
-        return -1;
-    }
-
-    if (!conn)
-    {
-        K_LOG_ERROR( "MYSQL GetConnection failed");
-        return -1;
-    }
-
-    mysql_query(conn, "START TRANSACTION");
-    K_LOG_DEBUG( "TRANSACTION");
-
-    //0. 아이템 검증(예외처리)
-    //A player DB에서 A items 존재 및 수량 확인
-    //B player DB에서 B items 존재 및 수량 확인
-
-    //1. 아이템 교환
-    //A player DB에서 A items 임시 제거
-    //B player DB에서 B items 임시제거
-
-    //2. 교환 실패(인벤창 예외처리)
-    //A player DB에 B items 추가시 인벤창 여유 확인
-    //B player DB에 A items 추가시 인벤창 여유 확인
-
-    //3. 교환 성사
-    //A player DB에 A items 삭제 및 B items 추가
-    //B player DB에 B items 삭제 및 A items 추가
-
-    for (auto& item : session->a_items)
-    {
-        //3-1 A인벤에 A의 아이템 삭제
-        if (DecreaseItem(conn, std::to_string(session->a_id), item) != 0)
+        else
         {
-            K_LOG_ERROR( "DecreaseItem failed");
-            result = -1;
-            goto err;
+            errMsg = "Player does not belong to this trade";
+            return -1;
         }
 
-        //3-2 B인벤에 A의 아이템 추가
-        if (IncreaseItem(conn, std::to_string(session->b_id), item) != 0)
-        {
-            K_LOG_ERROR( "IncreaseItem failed");
-            result = -1;
-            goto err;
-        }
-    }
+        // 상대방이 아직 준비하지 않은 상태
+        if (!session->a_ready || !session->b_ready)
+            return 2;
 
-    for (auto& item : session->b_items)
-    {
-        //3-3 B인벤에 B의 아이템 삭제
-        if (DecreaseItem(conn, std::to_string(session->b_id), item) != 0)
+        // 실행 직전에 양쪽 인벤토리를 다시 확인한다.
+        if (!ValidateTradeItems(session->a_player, session->a_items, errMsg) ||
+            !ValidateTradeItems(session->b_player, session->b_items, errMsg))
         {
-            K_LOG_ERROR( "DecreaseItem failed");
-            result = -1;
-            goto err;
-        } 
-    
-        //3-4 A인벤에 B의 아이템 추가
-        if (IncreaseItem(conn, std::to_string(session->a_id), item) != 0)
-        {
-            K_LOG_ERROR( "IncreaseItem failed");
-            result = -1;
-            goto err;
+            m_sessions.erase(session->a_id);
+            m_sessions.erase(session->b_id);
+
+            delete session;
+            return -1;
         }
 
+        // mutex를 풀기 전에 실행 상태를 설정해야 한다.
+        session->executing = true;
+        executingSession = session;
+
+        executeData.a_id = session->a_id;
+        executeData.b_id = session->b_id;
+        executeData.a_items = session->a_items;
+        executeData.b_items = session->b_items;
     }
 
-err:
+    const int result = Execute(executeData);
+
     if (result != 0)
     {
-        mysql_query(conn, "ROLLBACK");
-        K_LOG_DEBUG( "ROLLBACK");
+        std::lock_guard<std::mutex> lock(m_TradeMutex);
+
+        auto it = m_sessions.find(player->GetId());
+
+        if (it != m_sessions.end() && it->second == executingSession)
+        {
+            m_sessions.erase(executingSession->a_id);
+            m_sessions.erase(executingSession->b_id);
+
+            delete executingSession;
+        }
+
+        errMsg = "Trade transaction failed";
         return -1;
     }
-    else
-    {
-        mysql_query(conn, "COMMIT");
 
-        // //4. 교환세션 삭제
-        // K_LOG_DEBUG( "COMMIT");
-        // DeleteTradeSession(session); 
-    }
-
+    // 성공 시 executing은 유지한다.
+    // HandleTradeReady가 결과 패킷을 만든 후 세션을 제거한다.
     return 0;
 }
 
+
 int TradeService::Execute(TradeExecuteData& data)
 {
-     MYSQL* conn = m_mySql->GetConnection();
+    MYSQL* conn = m_mySql->GetConnection();
 
-    if (!conn)
+    if (conn == nullptr)
     {
         K_LOG_ERROR( "MYSQL GetConnection failed");
         return -1;
@@ -283,7 +361,8 @@ int TradeService::Execute(TradeExecuteData& data)
     if (mysql_query(conn, "START TRANSACTION") != 0)
     {
         K_LOG_ERROR( "START TRANSACTION failed");
-        m_mySql->ReleaseConnection(conn);
+        // 연결 장애일 가능성이 있으므로 풀에 반환하지 않는다.
+        mysql_close(conn);
         return -1;
     }
 
@@ -313,15 +392,33 @@ int TradeService::Execute(TradeExecuteData& data)
     if (result == 0)
     {
         if (mysql_query(conn, "COMMIT") != 0)
+        {
+            K_LOG_ERROR("COMMIT failed: %s",mysql_error(conn));
             result = -1;
+            if (mysql_query(conn, "ROLLBACK") != 0)
+            {
+                K_LOG_ERROR("ROLLBACK after COMMIT failure failed: %s",mysql_error(conn));
+                // 상태를 보장할 수 없는 연결은 풀에 반환하지 않는다.
+                mysql_close(conn);
+                return -1;
+            }
+        }
     }
     else
     {
-        mysql_query(conn, "ROLLBACK");
-    }
+        if (mysql_query(conn, "ROLLBACK") != 0)
+        {
+            K_LOG_ERROR("ROLLBACK failed: %s", mysql_error(conn));
+            // 실패한 연결을 풀에 다시 넣지 않는다.
+            mysql_close(conn);
+            return -1;
+        }
 
-    m_mySql->ReleaseConnection(conn);
-    return result;
+    K_LOG_DEBUG("Trade transaction rolled back");
+}
+
+m_mySql->ReleaseConnection(conn);
+return result;
 }
 
 int TradeService::Cancel(Player *requester, std::string &errMsg)
@@ -343,8 +440,15 @@ int TradeService::Cancel(Player *requester, std::string &errMsg)
         errMsg = "player trade session Not Found";
         return -1;
     }
-
+  
     TradeSession* session = it->second; 
+
+    if (session->executing)
+    {
+        errMsg = "Trade is already executing";
+        return -1;
+    }
+
 
     // 기존에 DecreaseSession을 호출했지만 DecreaseSession 내부에서도 m_session 접근을 위해 
     // lock을 걸다 보니 같은 변수에 대한 2번의 락을 걸게 되어 deadlock이 발생할 수 있어
@@ -492,18 +596,40 @@ const std::vector<TradeItem>& TradeService::GetTargetItems(Player *player)
 
 int TradeService::DecreaseItem(MYSQL *conn, const std::string &char_id, const TradeItem &item)
 {
-    long long charId = std::stoll(char_id);
-    int itemId = std::stoi(item.id);
-    
-    if(updateInventoryItemCountMinus(conn,charId,itemId,item.amount) !=0)
+    long long charId = 0;
+    int itemId = 0;
+    int inventoryType = 0;
+
+    try
     {
-        K_LOG_ERROR( "updateInventoryItemCountMinus Fail");
+        charId = std::stoll(char_id);
+        itemId = std::stoi(item.id);
+        inventoryType = std::stoi(item.type);
+    }
+    catch (const std::exception&)
+    {
+        K_LOG_ERROR("Invalid trade item DB parameter");
         return -1;
     }
 
-    if(DeleteInventoryItem(conn, charId, itemId) != 0)
+    const int slotPos = item.slot_index;
+    const int amount = item.amount;
+
+    if (charId <= 0 || itemId <= 0 || inventoryType < 0 || slotPos < 0 || amount <= 0)
     {
-        K_LOG_ERROR( "DeleteInventoryItem Fail");
+        K_LOG_ERROR("Trade item DB parameter is out of range");
+        return -1;
+    }
+
+    if (updateInventoryItemCountMinus(conn, charId, inventoryType, slotPos, itemId, amount) != 0)
+    {
+        K_LOG_ERROR("updateInventoryItemCountMinus failed");
+        return -1;
+    }
+
+    if (DeleteInventoryItem(conn, charId, inventoryType, slotPos, itemId) != 0)
+    {
+        K_LOG_ERROR("DeleteInventoryItem failed");
         return -1;
     }
 
@@ -512,41 +638,62 @@ int TradeService::DecreaseItem(MYSQL *conn, const std::string &char_id, const Tr
 
 int TradeService::IncreaseItem(MYSQL *conn, const std::string &char_id, TradeItem &item)
 {
-    bool hasItem = false;
-    long long charId = std::stoll(char_id);
-    int inventoryType = std::stoi(item.type);
-    int itemId = std::stoi(item.id);
-    int slotPos = 0;
-    if(SelectInventoryItemSlot(conn,char_id,item, hasItem) != 0)
+     long long charId = 0;
+    int inventoryType = 0;
+    int itemId = 0;
+
+    try
     {
-        K_LOG_DEBUG( "SelectInventoryItemSlot Error");
+        charId = std::stoll(char_id);
+        inventoryType = std::stoi(item.type);
+        itemId = std::stoi(item.id);
+    }
+    catch (const std::exception&)
+    {
+        K_LOG_ERROR("Invalid trade item DB parameter");
         return -1;
     }
 
+    if (charId <= 0 || inventoryType < 0 || itemId <= 0 || item.amount <= 0)
+    {
+        K_LOG_ERROR("Trade item DB parameter is out of range");
+        return -1;
+    }
+
+    bool hasItem = false;
+
+    if (SelectInventoryItemSlot(conn, char_id, item, hasItem) != 0)
+    {
+        K_LOG_ERROR("SelectInventoryItemSlot failed");
+        return -1;
+    }
 
     if (hasItem)
     {
-        int itemId = std::stoi(item.id);
-        if(UpdateInventoryItemCountPlus(conn, charId, itemId, item.amount) != 0)
+        if (UpdateInventoryItemCountPlus(conn, charId, inventoryType, item.slot_index, itemId, item.amount) != 0)
         {
-            K_LOG_DEBUG( "UpdateInventoryItemCount fail");
-            return -1;    
+            K_LOG_ERROR("UpdateInventoryItemCountPlus failed");
+            return -1;
         }
+
         return 0;
     }
 
-    if(SelectNextInventorySlotPos(conn, charId, inventoryType, slotPos) != 0)
+    int slotPos = 0;
+
+    if (SelectNextInventorySlotPos(conn, charId, inventoryType, slotPos) != 0)
     {
-        K_LOG_DEBUG( "SelectNextInventorySlotPos fail");
+        K_LOG_ERROR("SelectNextInventorySlotPos failed");
         return -1;
     }
 
-    if(InsertInventoryItem(conn, charId, inventoryType, slotPos, itemId, item.amount))
+    if (InsertInventoryItem(conn, charId, inventoryType, slotPos, itemId, item.amount) != 0)
     {
-        K_LOG_DEBUG( "InsertInventoryItem fail");
-        return -1; 
+        K_LOG_ERROR("InsertInventoryItem failed");
+        return -1;
     }
-    //내 슬롯 index 업데이트
+
+    // 받는 사람에게 전송할 실제 슬롯
     item.slot_index = slotPos;
 
     return 0;
@@ -562,7 +709,7 @@ int TradeService::SelectInventoryItemSlot(MYSQL *conn, const std::string &char_i
         return -1;
     }
     // 아이템 보유 여부 확인
-    const char* query = "SELECT slot_pos FROM character_inventory WHERE char_id = ? AND item_id = ? LIMIT 1"; 
+    const char* query = "SELECT slot_pos FROM character_inventory WHERE char_id = ? AND inventory_type = ?  AND item_id = ? ORDER BY slot_pos ASC LIMIT 1"; 
 
     if(mysql_stmt_prepare(stmt, query, strlen(query)) != 0)
     {
@@ -571,16 +718,20 @@ int TradeService::SelectInventoryItemSlot(MYSQL *conn, const std::string &char_i
         return -1;
     }
 
-    MYSQL_BIND param[2]{};
+    MYSQL_BIND param[3]{};
     
     long long charId = std::stoll(char_id);
+    int inventoryType = std::stoi(item.type);
+    int itemId = std::stoi(item.id);
 
     param[0].buffer_type = MYSQL_TYPE_LONGLONG;
     param[0].buffer = &charId;
-    
-    int itemId = std::stoi(item.id);
+
     param[1].buffer_type = MYSQL_TYPE_LONG;
-    param[1].buffer =&itemId;
+    param[1].buffer = &inventoryType;
+
+    param[2].buffer_type = MYSQL_TYPE_LONG;
+    param[2].buffer = &itemId;
     
     if(mysql_stmt_bind_param(stmt, param) != 0)
     {
@@ -647,7 +798,7 @@ int TradeService::SelectInventoryItemSlot(MYSQL *conn, const std::string &char_i
     }
 }
 
-int TradeService::UpdateInventoryItemCountPlus(MYSQL* conn, long long charId, int itemId, int amount)
+int TradeService::UpdateInventoryItemCountPlus(MYSQL* conn, long long charId, int inventoryType, int slotPos, int itemId, int amount)
 {
     MYSQL_STMT* stmt = mysql_stmt_init(conn);
     if(!stmt)
@@ -656,7 +807,7 @@ int TradeService::UpdateInventoryItemCountPlus(MYSQL* conn, long long charId, in
         return -1;
     }
 
-    const char* query = "UPDATE character_inventory SET item_count = item_count + ? WHERE char_id = ? AND item_id = ? ";
+    const char* query = "UPDATE character_inventory SET item_count = item_count + ? WHERE char_id = ? AND inventory_type = ? AND slot_pos = ? AND item_id = ? ";
 
     if(mysql_stmt_prepare(stmt, query, strlen(query)) != 0)
     {
@@ -665,7 +816,7 @@ int TradeService::UpdateInventoryItemCountPlus(MYSQL* conn, long long charId, in
         return -1;
     }
 
-    MYSQL_BIND param[3]{};
+    MYSQL_BIND param[5]{};
 
     param[0].buffer_type = MYSQL_TYPE_LONG;
     param[0].buffer = &amount;
@@ -674,7 +825,13 @@ int TradeService::UpdateInventoryItemCountPlus(MYSQL* conn, long long charId, in
     param[1].buffer = &charId;
 
     param[2].buffer_type = MYSQL_TYPE_LONG;
-    param[2].buffer = &itemId;
+    param[2].buffer = &inventoryType;
+
+    param[3].buffer_type = MYSQL_TYPE_LONG;
+    param[3].buffer = &slotPos;
+
+    param[4].buffer_type = MYSQL_TYPE_LONG;
+    param[4].buffer = &itemId;
 
     if(mysql_stmt_bind_param(stmt, param) != 0)
     {
@@ -689,20 +846,21 @@ int TradeService::UpdateInventoryItemCountPlus(MYSQL* conn, long long charId, in
         mysql_stmt_close(stmt);
         return -1;
     }
-    my_ulonglong affectedRows = mysql_stmt_affected_rows(stmt);
+    const my_ulonglong affectedRows = mysql_stmt_affected_rows(stmt);
 
-    if (affectedRows == 0)
+    mysql_stmt_close(stmt);
+
+    if (affectedRows != 1)
     {
-        K_LOG_ERROR( "update affected 0 rows");
-        mysql_stmt_close(stmt);
+        K_LOG_ERROR("Inventory increase failed. affectedRows[%llu]", static_cast<unsigned long long>(affectedRows));
         return -1;
     }
-    mysql_stmt_close(stmt);
+  
     return 0;
 
 }
 
-int TradeService::updateInventoryItemCountMinus(MYSQL *conn, long long charId, int itemId, int amount)
+int TradeService::updateInventoryItemCountMinus(MYSQL *conn, long long charId, int inventoryType, int slotPos,int itemId, int amount)
 {
     MYSQL_STMT* stmt = mysql_stmt_init(conn);
 
@@ -712,7 +870,7 @@ int TradeService::updateInventoryItemCountMinus(MYSQL *conn, long long charId, i
         return -1;
     }
 
-    const char* query = "UPDATE character_inventory SET item_count = item_count - ? WHERE char_id = ? AND item_id = ? AND item_count >= ?";
+    const char* query = "UPDATE character_inventory SET item_count = item_count - ? WHERE char_id = ? AND inventory_type = ? AND slot_pos = ? AND item_id = ? AND item_count >= ?";
 
     if(mysql_stmt_prepare(stmt, query, strlen(query)) != 0)
     {
@@ -721,7 +879,7 @@ int TradeService::updateInventoryItemCountMinus(MYSQL *conn, long long charId, i
         return -1;    
     }
 
-    MYSQL_BIND param[4]{};
+    MYSQL_BIND param[6]{};
 
     param[0].buffer_type = MYSQL_TYPE_LONG;
     param[0].buffer = &amount;
@@ -730,10 +888,16 @@ int TradeService::updateInventoryItemCountMinus(MYSQL *conn, long long charId, i
     param[1].buffer = &charId;
 
     param[2].buffer_type = MYSQL_TYPE_LONG;
-    param[2].buffer = &itemId;
+    param[2].buffer = &inventoryType;
 
     param[3].buffer_type = MYSQL_TYPE_LONG;
-    param[3].buffer = &amount;
+    param[3].buffer = &slotPos;
+
+    param[4].buffer_type = MYSQL_TYPE_LONG;
+    param[4].buffer = &itemId;
+
+    param[5].buffer_type = MYSQL_TYPE_LONG;
+    param[5].buffer = &amount;
 
     if(mysql_stmt_bind_param(stmt, param) != 0)
     {
@@ -749,15 +913,19 @@ int TradeService::updateInventoryItemCountMinus(MYSQL *conn, long long charId, i
         return -1;
     }
 
-    my_ulonglong affectedRows = mysql_stmt_affected_rows(stmt);
+    const my_ulonglong affectedRows = mysql_stmt_affected_rows(stmt);
 
-    if (affectedRows == 0)
+    mysql_stmt_close(stmt);
+
+    // 슬롯·아이템 불일치 또는 수량 부족
+    if (affectedRows != 1)
     {
-        K_LOG_ERROR( "update affected 0 rows");
-        mysql_stmt_close(stmt);
+        K_LOG_ERROR(
+            "Inventory decrease failed. affectedRows[%llu]",
+            static_cast<unsigned long long>(affectedRows));
+
         return -1;
     }
-    mysql_stmt_close(stmt);
 
     return 0;
 }
@@ -895,7 +1063,7 @@ int TradeService::InsertInventoryItem(MYSQL* conn,long long charId,int inventory
     return 0;
 }
 
-int TradeService::DeleteInventoryItem(MYSQL *conn, long long charId, int itemId)
+int TradeService::DeleteInventoryItem(MYSQL *conn, long long charId, int inventoryType, int slotPos, int itemId)
 {
     MYSQL_STMT* stmt = mysql_stmt_init(conn);
 
@@ -905,7 +1073,7 @@ int TradeService::DeleteInventoryItem(MYSQL *conn, long long charId, int itemId)
         return -1;
     }
 
-    const char* query = "DELETE FROM character_inventory WHERE char_id = ? AND item_id = ? AND item_count <= 0";
+    const char* query = "DELETE FROM character_inventory WHERE char_id = ? AND inventory_type = ?  AND slot_pos = ? AND item_id = ? AND item_count <= 0";
 
     if(mysql_stmt_prepare(stmt, query, strlen(query)) != 0)
     {
@@ -914,13 +1082,19 @@ int TradeService::DeleteInventoryItem(MYSQL *conn, long long charId, int itemId)
         return -1;
     }
     
-    MYSQL_BIND param[2]{};
+    MYSQL_BIND param[4]{};
 
     param[0].buffer_type = MYSQL_TYPE_LONGLONG;
     param[0].buffer = &charId;
 
     param[1].buffer_type = MYSQL_TYPE_LONG;
-    param[1].buffer = &itemId;
+    param[1].buffer = &inventoryType;
+
+    param[2].buffer_type = MYSQL_TYPE_LONG;
+    param[2].buffer = &slotPos;
+
+    param[3].buffer_type = MYSQL_TYPE_LONG;
+    param[3].buffer = &itemId;
 
 
     if(mysql_stmt_bind_param(stmt, param) != 0)
@@ -937,13 +1111,96 @@ int TradeService::DeleteInventoryItem(MYSQL *conn, long long charId, int itemId)
         return -1;
     }
 
-    my_ulonglong affectedRows = mysql_stmt_affected_rows(stmt);
-
-    if (affectedRows == 0)
-    {
-        mysql_stmt_close(stmt);
-        return 0;
-    }
     mysql_stmt_close(stmt);
     return 0;
+}
+
+bool TradeService::ValidateTradeItems(Player* player, const std::vector<TradeItem>& items, std::string& errMsg) const
+{
+    if (player == nullptr)
+    {
+        errMsg = "Invalid player";
+        return false;
+    }
+
+    ItemManager* itemManager = ItemManager::GetInstance();
+    InventoryManager* inventoryManager = player->GetInventoryManager();
+
+    if (itemManager == nullptr || inventoryManager == nullptr)
+    {
+        errMsg = "Inventory service is unavailable";
+        return false;
+    }
+
+    // inventoryType, slotIndex, itemId별 누적 교환 수량
+    std::map<std::tuple<int, int, int>, long long> offeredAmounts;
+
+    for (const TradeItem& item : items)
+    {
+        int itemId = 0;
+
+        try
+        {
+            size_t parsedLength = 0;
+            itemId = std::stoi(item.id, &parsedLength);
+
+            if (parsedLength != item.id.size())
+            {
+                errMsg = "Invalid trade item id";
+                return false;
+            }
+        }
+        catch (const std::exception&)
+        {
+            errMsg = "Invalid trade item id";
+            return false;
+        }
+
+        if (itemId <= 0 || item.amount <= 0 || item.slot_index < 0)
+        {
+            errMsg = "Invalid trade item";
+            return false;
+        }
+
+        const auto* itemData = itemManager->Find(itemId);
+        if (itemData == nullptr)
+        {
+            errMsg = "Trade item does not exist";
+            return false;
+        }
+
+        const int inventoryType = inven::ConvertItemTypeToInventoryType(itemData->type);
+        const auto key = std::make_tuple(inventoryType, item.slot_index, itemId);
+
+        long long& totalAmount = offeredAmounts[key];
+        totalAmount += item.amount;
+
+        if (totalAmount > std::numeric_limits<int>::max())
+        {
+            errMsg = "Trade item amount is too large";
+            return false;
+        }
+    }
+
+    for (const auto& entry : offeredAmounts)
+    {
+        const auto& key = entry.first;
+        const long long totalAmount = entry.second;
+
+        const int inventoryType = std::get<0>(key);
+        const int slotIndex = std::get<1>(key);
+        const int itemId = std::get<2>(key);
+
+        if (!inventoryManager->HasItemBySlot(
+                inventoryType,
+                slotIndex,
+                itemId,
+                static_cast<int>(totalAmount)))
+        {
+            errMsg = "Trade item ownership changed before execution";
+            return false;
+        }
+    }
+
+    return true;
 }
