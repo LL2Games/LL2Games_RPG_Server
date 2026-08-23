@@ -70,7 +70,7 @@ int MapInstance::Init(const MapInitData& data)
     return 1;
 }
 
-int MapInstance::Update()
+int MapInstance::Update(float deltaTime)
 {
 	//K_LOG_TRACE( "MapInstance Pointer[%p]", this);
 	if(!HasPlayer())
@@ -80,8 +80,8 @@ int MapInstance::Update()
 	else
 	{
 		SpawnMonster();
-		UpdateMonster();
-		m_projectileManager.Update(); //투사체 업데이트
+		UpdateMonster(deltaTime);
+		m_projectileManager.Update(deltaTime); //투사체 업데이트
 		SendMapInfo();
 		ProcessRangedDamage(NowMs()); //원거리 공격 판정 및 데미지 처리
 		ProcessContactDamage(NowMs()); //플레이어-몬스터 접촉 판정 및 데미지 처리
@@ -156,7 +156,7 @@ int MapInstance::InitSpawnMonster()
     return 1;
 }   
 
-int MapInstance::UpdateMonster()
+int MapInstance::UpdateMonster(float deltaTime)
 {
 	//K_LOG_ERROR( "몬스터 업데이트 시작");
 	std::lock_guard<std::mutex> lock(m_monsterMutex);
@@ -164,7 +164,7 @@ int MapInstance::UpdateMonster()
 	{
 		if(monster.IsAlive())
 		{
-			monster.Update();
+			monster.Update(deltaTime);
 		}
 	}
 

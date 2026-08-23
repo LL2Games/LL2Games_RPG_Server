@@ -30,7 +30,7 @@ void QuickSlotPacketSender::SendQuickSlotList(Player* player)
 
     session->Send(PKT_QUICKSLOT_LIST, payload);
 
-    K_LOG_TRACE( "SendQuickSlotList Send Success.");
+    K_LOG_DEBUG( "SendQuickSlotList Send Success.");
 }
 
 void QuickSlotPacketSender::SendQuickSlotSet(Player* player, std::vector<QuickSlotData>& result)

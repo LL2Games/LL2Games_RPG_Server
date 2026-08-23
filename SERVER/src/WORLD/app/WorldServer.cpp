@@ -70,12 +70,11 @@ int WorldServer::Init(const int port,const RedisConfig& redisConfig)
 
 int WorldServer::Run()
 {
-    int idx = 0;
+  
     fd_set reads;
 
     while (true)
     {
-        K_LOG_TRACE( "Run[%d]", ++idx);
         FD_ZERO(&reads);
         FD_SET(m_listen_fd, &reads);
 

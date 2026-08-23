@@ -123,6 +123,8 @@ void ChannelSelectHandler::Execute(PacketContext* ctx)
 
     const ChannelInfo& channelInfo = *selectedChannel;
 
+    K_LOG_TRACE("[FLOW][WORLD] channel ticket issued. accountId[%s] characterId[%d] channelId[%d]", accountId.c_str(), characterId, channelId);
+    
     session->SendOk(PKT_SELECT_CHANNEL,
         {
             channelInfo.ip,

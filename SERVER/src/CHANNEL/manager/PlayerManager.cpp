@@ -48,115 +48,18 @@ Player* PlayerManager::GetPlayer(int playerId)
 //바로 DB조회 하는 방식은 리소스 손해를 많이본다.
 Player* PlayerManager::GetPlayer(const std::string& playerName)
 {
-    int playerId = 0;
+   std::lock_guard<std::mutex> lock(m_PlayerMutex);
 
-    MYSQL *conn = m_mySql->GetConnection();
-    if(!conn)
+    for (auto& [playerId, player] : m_players)
     {
-        K_LOG_ERROR( "conn is nullptr");
-        return nullptr;
-    }
-    // 더 좋은 Connecter/C++이 있지만 DB연동 원리를 이해하기 위해서 C API의 Prepared Statement를 사용함
-    MYSQL_STMT* stmt = mysql_stmt_init(conn);
-    if(!stmt)
-    {
-        K_LOG_ERROR( "mysql_stmt_init ERROR [%s]", mysql_error(conn));
-        m_mySql->ReleaseConnection(conn);
-        return nullptr;
-    }
-
-    const char* query = "SELECT char_id from `character` WHERE name = ?";
-
-    if(mysql_stmt_prepare(stmt, query, strlen(query)) != 0)
-    {
-        K_LOG_ERROR( "mysql_stmt_prepare ERROR [%s]", mysql_stmt_error(stmt));
-        mysql_stmt_close(stmt);
-        m_mySql->ReleaseConnection(conn);
-        return nullptr;
-    }
-   
-    MYSQL_BIND param[1]{};
-
-    unsigned long playerNameLen = static_cast<unsigned long>(playerName.size());
-
-    param[0].buffer_type = MYSQL_TYPE_STRING;
-    param[0].buffer = const_cast<char*>(playerName.c_str());
-    // 버퍼의 크기
-    param[0].buffer_length = playerNameLen;
-    //length 실제 전송할 사이즈
-    param[0].length = &playerNameLen;
-    param[0].is_null = nullptr;
-
-    if(mysql_stmt_bind_param(stmt, param) != 0)
-    {
-        K_LOG_ERROR( "mysql_stmt_bind_param ERROR [%s]", mysql_stmt_error(stmt));
-        mysql_stmt_close(stmt);
-        m_mySql->ReleaseConnection(conn);
-        return nullptr;
-    }
-
-    if(mysql_stmt_execute(stmt) != 0)
-    {
-        K_LOG_ERROR( "mysql_stmt_execute ERROR [%s]", mysql_stmt_error(stmt));
-        K_LOG_ERROR( "SQL [%s]", query);
-
-        mysql_stmt_close(stmt);
-        m_mySql->ReleaseConnection(conn);
-        return nullptr;
-    }
-
-    MYSQL_BIND resultBind[1]{};
-
-    resultBind[0].buffer_type = MYSQL_TYPE_SHORT;
-    resultBind[0].buffer = &playerId;
-
-    if(mysql_stmt_bind_result(stmt,resultBind) !=0)
-    {
-        K_LOG_ERROR( "mysql_stmt_bind_result ERROR [%s]", mysql_stmt_error(stmt));
-        mysql_stmt_close(stmt);
-        m_mySql->ReleaseConnection(conn);
-        return nullptr;
-    }
-
-    if(mysql_stmt_store_result(stmt) != 0)
-    {
-        K_LOG_ERROR( "mysql_stmt_store_result ERROR [%s]", mysql_stmt_error(stmt));
-        mysql_stmt_close(stmt);
-        m_mySql->ReleaseConnection(conn);
-        return nullptr;
-    }
-
-    int fetchResult = mysql_stmt_fetch(stmt);
-    if(fetchResult == MYSQL_NO_DATA)
-    {
-        mysql_stmt_free_result(stmt);
-        mysql_stmt_close(stmt);
-        m_mySql->ReleaseConnection(conn);
-        return nullptr;
-    }
-
-    //MYSQL_DATA_TRUNCATED : 가져온 데이터가 짤리거나 범위를 초과했을 때 나오는 에러
-    if(fetchResult !=0 && fetchResult != MYSQL_DATA_TRUNCATED)
-    {
-        K_LOG_ERROR( "mysql_stmt_fetch ERROR [%s]", mysql_stmt_error(stmt));
-        mysql_stmt_free_result(stmt);
-        mysql_stmt_close(stmt);
-        m_mySql->ReleaseConnection(conn);
-        return nullptr;
-    }
-    Player* result = nullptr;
-    {
-        std::lock_guard<std::mutex> lock(m_PlayerMutex);
-        auto it = m_players.find(playerId);
-        if (it != m_players.end())
+        if (player != nullptr &&
+            player->GetName() == playerName)
         {
-            result = it->second.get();
+            return player.get();
         }
     }
-    mysql_stmt_free_result(stmt);
-    mysql_stmt_close(stmt);
-    m_mySql->ReleaseConnection(conn);
-    return result;
+
+    return nullptr;
 }
 
 bool PlayerManager::RemovePlayer(int playerId)

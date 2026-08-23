@@ -78,10 +78,6 @@ void MapHandler::Execute(PacketContext * ctx)
     // 맵 전환 응답 뒤 기존 플레이어와 몬스터 정보를 전송한다.
     map->SendEnterPackets(player);
 
-    K_LOG_TRACE(
-        "Player entered saved map. playerId[%d] mapId[%d]",
-        playerId,
-        mapId
-    );
+   K_LOG_TRACE("[FLOW][CHANNEL] map entered. playerId[%d] mapId[%d] position[(%.2f, %.2f)]",playerId, mapId, position.xPos, position.yPos);
 }
 

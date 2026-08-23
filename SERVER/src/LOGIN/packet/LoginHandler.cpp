@@ -103,7 +103,7 @@ err:
     }
     else
     {
-        K_LOG_TRACE( "Login SUCCESS accountId=%s", id.c_str());
+        K_LOG_TRACE("[FLOW][LOGIN] authentication succeeded and world ticket issued. accountId[%s]", id.c_str());
         client->SendOk(PKT_LOGIN, {worldTicket});
     }
 }

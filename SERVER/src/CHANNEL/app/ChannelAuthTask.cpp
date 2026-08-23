@@ -96,6 +96,13 @@ void ChannelAuthTask::Execute()
         const int characterId = claims->characterId;
         result.characterId = characterId;
 
+        K_LOG_TRACE("[FLOW][CHANNEL] channel ticket consumed. fd[%d] sessionId[%llu] characterId[%d] channelId[%d]",
+                    m_fd,
+                    static_cast<unsigned long long>(m_sessionId),
+                    characterId,
+                    claims->channelId
+        );
+
         if (m_server->IsFinalPlayerDataSavePending(characterId))
         {
             result.error = "final player data save is in progress";

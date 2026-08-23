@@ -34,8 +34,8 @@ public:
 
     void SetCombatService(CombatService* combatservice){m_combatService = combatservice;};
     //int LoadMonsters(int monster_id);
-    int Update();
-    int UpdateMonster();
+    int Update(float deltaTime);
+    int UpdateMonster(float deltaTime);
     int SpawnMonster();
 
     void RemoveMap();
