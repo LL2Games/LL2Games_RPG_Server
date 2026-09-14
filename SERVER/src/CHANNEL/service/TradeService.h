@@ -45,7 +45,7 @@ class TradeService
 {
 private:
     static std::unordered_map<int, TradeSession*> m_sessions; //<player_id, session*>
-    void CreateTradeSession(Player *, Player *);
+    bool CreateTradeSession(Player *, Player *);
 
 public:
     TradeSession* GetTradeSession(Player *);

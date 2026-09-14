@@ -12,14 +12,30 @@ class TradeServiceRegressionTest
 public:
     static bool CreateSession(TradeService& service,Player* first,Player* second)
     {
-        service.CreateTradeSession(first, second);
-
-        std::lock_guard<std::mutex> lock(TradeService::m_TradeMutex);
-        auto it = TradeService::m_sessions.find(first->GetId());
-
-        return it != TradeService::m_sessions.end() &&it->second != nullptr;
+        return service.CreateTradeSession(first,second);
     }
 
+    static bool HasSession(const int playerId)
+    {
+        std::lock_guard<std::mutex> lock(TradeService::m_TradeMutex);
+
+        auto it = TradeService::m_sessions.find(playerId);
+
+        return it != TradeService::m_sessions.end() && it->second !=nullptr;
+    }
+
+    static bool IsSameSession(const int firstPlayerId, const int secondPlayerId)
+    {
+        std::lock_guard<std::mutex> lock(TradeService::m_TradeMutex);
+
+        auto firstIt = TradeService::m_sessions.find(firstPlayerId);
+        auto secondIt = TradeService::m_sessions.find(secondPlayerId);
+
+        if(firstIt == TradeService::m_sessions.end() || secondIt == TradeService::m_sessions.end())
+            return false;
+        
+        return firstIt->second != nullptr && firstIt->second == secondIt->second;
+    }
     static void DeleteSession(const int playerId)
     {
         std::lock_guard<std::mutex> lock(TradeService::m_TradeMutex);
@@ -43,6 +59,7 @@ namespace
 {
     constexpr int kFirstPlayerId = 910001;
     constexpr int kSecondPlayerId = 910002;
+    constexpr int kThirdPlayerId = 910003;
     constexpr int kInventoryType = inven::Consume;
     constexpr int kInventorySlot = 3;
     constexpr int kItemId = 2000000;
@@ -196,6 +213,47 @@ namespace
 
         return Check(result == 0,"정상 교환 아이템 등록 성공");
     }
+
+    bool TestPlayerAlreadyTradingRejected()
+    {
+        Player first;
+        Player second;
+        Player third;
+        TradeService service;
+
+        InitializePlayer(first, kFirstPlayerId);
+        InitializePlayer(second, kSecondPlayerId);
+        InitializePlayer(third, kThirdPlayerId);
+
+        const bool firstCreated = TradeServiceRegressionTest::CreateSession(service, &first, &second);
+
+        const bool secondCreated = TradeServiceRegressionTest::CreateSession(service, &third, &first);
+
+
+
+        const bool result =
+        Check(!firstCreated, "첫 번째 거래 세션 생성 성공") &&
+        Check(!secondCreated, "이미 거래 중인 플레이어의 중복 거래 세션 생성 거절") &&
+        Check(TradeServiceRegressionTest::IsSameSession(kFirstPlayerId, kSecondPlayerId), "기존 거래 세션 유지") &&
+        Check(TradeServiceRegressionTest::HasSession(kThirdPlayerId), "중복 거래 요청자의 세션 미생성");
+
+        TradeServiceRegressionTest::DeleteSession(kFirstPlayerId);
+
+        return result;
+    }
+
+    bool TestSelfThreadRejected()
+    {
+        Player player;
+        TradeService service;
+
+        InitializePlayer(player, kFirstPlayerId);
+
+        const bool created = TradeServiceRegressionTest::CreateSession(service, &player, &player);
+
+        return Check(!created, "자기 자신과의 거래 세션 생성 거절") &&
+               Check(!TradeServiceRegressionTest::HasSession(kFirstPlayerId), "자기 자신 거래 실패 후 세션 미생성");
+    }
 }
 
 int main()
@@ -218,7 +276,9 @@ int main()
         !TestMismatchedItemRejected() ||
         !TestExcessAmountRejected() ||
         !TestDuplicateAccumulationRejected() ||
-        !TestValidItemAccepted())
+        !TestValidItemAccepted() ||
+        !TestPlayerAlreadyTradingRejected() ||
+        !TestSelfThreadRejected())
     {
         return EXIT_FAILURE;
     }

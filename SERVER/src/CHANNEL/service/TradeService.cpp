@@ -54,7 +54,11 @@ int TradeService::Request(Player *requester, Player *target_player, std::string 
 
 int TradeService::Start(Player *requester, Player *accepter, std::string &errMsg)
 {
-    K_LOG_DEBUG( "gunoo22_TEST");
+   if(requester == accepter || requester->GetId() == accepter->GetId())
+   {
+        errMsg = "Cannot trade with self";
+        return -1;
+   }
 
     // 1. 예외처리: target_player와 requester 객체가 유효한지
     if (requester == nullptr || accepter == nullptr)
@@ -63,7 +67,7 @@ int TradeService::Start(Player *requester, Player *accepter, std::string &errMsg
         errMsg = "Invalid player or target player";
         return -1;
     }
-        K_LOG_DEBUG( "gunoo22_TEST");
+        
 
 
     // 2-1. 예외처리: accepter와 requester가 맵 안에 있는지
@@ -91,7 +95,11 @@ int TradeService::Start(Player *requester, Player *accepter, std::string &errMsg
     }
 
     // 4. TradeSession 생성
-    CreateTradeSession(requester, accepter);
+    if(!CreateTradeSession(requester, accepter))
+    {
+        errMsg = "Player is already trading";
+        return -1;
+    }
     K_LOG_DEBUG( "gunoo22_TEST CreateTradeSession");
 
     // 5. player들에게 교환 실행 패킷 보내기
@@ -461,12 +469,24 @@ int TradeService::Cancel(Player *requester, std::string &errMsg)
     return 0;
 }
 
-void TradeService::CreateTradeSession(Player *a_player, Player *b_player)
+bool TradeService::CreateTradeSession(Player *a_player, Player *b_player)
 {
     if (a_player == nullptr || b_player == nullptr)
     {
         K_LOG_ERROR( "a_player or b_player is nullptr");
-        return;
+        return false;
+    }
+
+    if(a_player->GetId() == b_player->GetId())
+    {
+        K_LOG_ERROR("Cannot create self trade session");
+        return false;
+    }
+    std::lock_guard<std::mutex> lock(m_TradeMutex);
+    if (m_sessions.find(a_player->GetId()) != m_sessions.end() ||
+    m_sessions.find(b_player->GetId()) != m_sessions.end())
+    {
+        return false;
     }
 
     TradeSession *session = new TradeSession();
@@ -475,15 +495,11 @@ void TradeService::CreateTradeSession(Player *a_player, Player *b_player)
     session->b_player = b_player;
     session->a_id = a_player->GetId();
     session->b_id = b_player->GetId();
-    std::lock_guard<std::mutex> lock(m_TradeMutex);
-    if (m_sessions.find(a_player->GetId()) != m_sessions.end() ||
-    m_sessions.find(b_player->GetId()) != m_sessions.end())
-    {
-        delete session;
-        return;
-    }
+   
     m_sessions[a_player->GetId()] = session;
     m_sessions[b_player->GetId()] = session;
+
+    return true;
 }
 
 void TradeService::DeleteTradeSession(TradeSession *session)
