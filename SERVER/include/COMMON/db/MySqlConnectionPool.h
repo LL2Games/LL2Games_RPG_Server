@@ -13,11 +13,16 @@ public:
     int ReleaseConnection(MYSQL*);
     int GetPoolSize() const;
 private:
-    explicit MySqlConnectionPool(const MySqlConfig& mysqlConfig, const int pool_size);
-    std::queue<MYSQL*> m_pool;
     ~MySqlConnectionPool();
+    explicit MySqlConnectionPool(const MySqlConfig& mysqlConfig, const int pool_size);
+
+    MYSQL* CreateConnection();
+private:
+    std::queue<MYSQL*> m_pool;
     static MySqlConnectionPool* m_instance;
     std::mutex m_sqlMutex;
+
+    MySqlConfig m_config;
 };
 
 

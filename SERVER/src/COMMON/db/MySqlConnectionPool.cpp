@@ -34,53 +34,23 @@ int MySqlConnectionPool::GetPoolSize() const
     return m_pool.size();
 }
 
-MySqlConnectionPool::MySqlConnectionPool(const MySqlConfig& mysqlConfig, const int pool_size)
+
+MySqlConnectionPool::MySqlConnectionPool(const MySqlConfig& mysqlConfig, const int pool_size) : m_config(mysqlConfig)
 {
-    int cnt = 0;
+    int connectedCount = 0;
 
-    for (int i = 0; i < pool_size; i++)
+    for (int i = 0; i < pool_size; ++i)
     {
-        MYSQL* conn = mysql_init(nullptr);
-        if (!conn)
-        {
-            K_LOG_ERROR( "mysql_init ERROR");
+        MYSQL* conn = CreateConnection();
+
+        if (conn == nullptr)
             continue;
-        }
-
-        MYSQL* result = mysql_real_connect(
-            conn,
-            mysqlConfig.host.c_str(),
-            mysqlConfig.user.c_str(),
-            mysqlConfig.password.c_str(),
-            mysqlConfig.database.c_str(),
-            mysqlConfig.port,
-            nullptr,
-            0
-        );
-
-        if (result == nullptr)
-        {
-            K_LOG_ERROR( "mysql_real_connect failed : %s", mysql_error(conn));
-            mysql_close(conn);
-            continue;
-        }
-
-        if (mysql_set_character_set(conn, "utf8mb4") != 0)
-        {
-            K_LOG_ERROR(
-                "mysql_set_character_set failed: %s",
-                mysql_error(conn));
-            
-            mysql_close(conn);
-            continue;
-        }
-
 
         m_pool.push(conn);
-        cnt++;
+        ++connectedCount;
     }
 
-    K_LOG_TRACE( "db pool created[%d]", cnt);
+    K_LOG_TRACE("db pool created[%d]", connectedCount);
 }
 
 MySqlConnectionPool::~MySqlConnectionPool()
@@ -103,16 +73,76 @@ MySqlConnectionPool* MySqlConnectionPool::GetInstance()
     return m_instance;
 }
 
-MYSQL* MySqlConnectionPool::GetConnection()
+MYSQL* MySqlConnectionPool::CreateConnection()
 {
-    std::lock_guard<std::mutex> lock(m_sqlMutex); 
-    // m_pool이 생성안됐을 때 대비해서 안전 코드 생성
-    if(m_pool.empty())
+    MYSQL* conn = mysql_init(nullptr);
+
+    if (conn == nullptr)
+        return nullptr;
+
+    unsigned int timeout = 5;
+    mysql_options(conn, MYSQL_OPT_CONNECT_TIMEOUT, &timeout);
+    mysql_options(conn, MYSQL_OPT_READ_TIMEOUT, &timeout);
+    mysql_options(conn, MYSQL_OPT_WRITE_TIMEOUT, &timeout);
+
+    if (mysql_real_connect(
+            conn,
+            m_config.host.c_str(),
+            m_config.user.c_str(),
+            m_config.password.c_str(),
+            m_config.database.c_str(),
+            m_config.port,
+            nullptr,
+            0) == nullptr)
     {
+        K_LOG_ERROR("mysql reconnect failed: %s", mysql_error(conn));
+        mysql_close(conn);
         return nullptr;
     }
-    MYSQL* conn = m_pool.front();
-    m_pool.pop();
+
+    if (mysql_set_character_set(conn, "utf8mb4") != 0)
+    {
+        mysql_close(conn);
+        return nullptr;
+    }
+
+    return conn;
+}
+
+MYSQL* MySqlConnectionPool::GetConnection()
+{
+    MYSQL* conn = nullptr;
+
+    {
+        std::lock_guard<std::mutex> lock(m_sqlMutex);
+
+        if (m_pool.empty())
+        {
+            K_LOG_ERROR("MySQL connection pool is empty");
+            return nullptr;
+        }
+
+        conn = m_pool.front();
+        m_pool.pop();
+    }
+
+    if (mysql_ping(conn) == 0)
+        return conn;
+
+    K_LOG_ERROR("Dead MySQL connection detected: %s",mysql_error(conn));
+
+    mysql_close(conn);
+
+    conn = CreateConnection();
+
+    if (conn == nullptr)
+    {
+        K_LOG_ERROR("Failed to replace dead MySQL connection");
+        return nullptr;
+    }
+
+    K_LOG_TRACE("Dead MySQL connection replaced");
+
     return conn;
 }
 

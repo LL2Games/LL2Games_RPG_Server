@@ -28,10 +28,11 @@ struct RedisGetDelResult
 class RedisClient
 {
 public:
-    
+    explicit RedisClient(const RedisConfig& redisConfig);
     ~RedisClient();
 
     bool IsConnected() const;
+    bool EnsureConnected();
     //static int Init(const RedisConfig& redisConfig);
     //static RedisClient *GetInstance();
 
@@ -48,7 +49,7 @@ private:
     //static RedisClient *m_instance;
 
 public:
-    explicit RedisClient(const RedisConfig& redisConfig);
+   
 
     // Redis에 인증 토큰 저장
     RedisSetResult SetIfAbsentWithTtl(const std::string& key, const std::string& value, int ttlSeconds);

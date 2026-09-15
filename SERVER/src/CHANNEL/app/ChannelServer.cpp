@@ -567,6 +567,71 @@ void ChannelServer::OnDisconnect(int fd)
     }
 }
 
+void ChannelServer::DisconnectAllSessions() noexcept
+{
+    std::vector<int> fds;
+
+    {
+        std::lock_guard<std::mutex> lock(m_sessionMutex);
+        fds.reserve(m_sessions.size());
+
+        for (const auto& [fd, session] : m_sessions)
+            fds.push_back(fd);
+    }
+
+    // m_sessionMutex를 잡은 상태에서 호출하면 교착될 수 있음
+    for (int fd : fds)
+        OnDisconnect(fd);
+}
+
+
+void ChannelServer::BroadcastServerShutdown()
+{
+     std::lock_guard<std::mutex> lock(m_sessionMutex);
+
+    for (const auto& [fd, session] : m_sessions)
+    {
+        if (session == nullptr || session->IsClosing())
+            continue;
+
+        session->Send(PKT_SERVER_SHUTDOWN_NOTIFY, {});
+    }
+}
+
+void ChannelServer::DrainSessionSendQueues()
+{
+    constexpr auto timeout = std::chrono::milliseconds(500);
+    const auto deadline = std::chrono::steady_clock::now() + timeout;
+
+    while (std::chrono::steady_clock::now() < deadline)
+    {
+        bool hasPendingSend = false;
+
+        {
+            std::lock_guard<std::mutex> lock(m_sessionMutex);
+
+            for (const auto& [fd, session] : m_sessions)
+            {
+                if (session == nullptr || session->IsClosing())
+                    continue;
+
+                if (!session->HasPendingSend())
+                    continue;
+
+                hasPendingSend = true;
+                session->FlushSend();
+            }
+        }
+
+        if (!hasPendingSend)
+            return;
+
+        // 논블로킹 소켓이 EAGAIN인 경우 잠시 후 재시도
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+
+    K_LOG_ERROR("Session send queue drain timed out");
+}
 
 // 클라이언트 fd는 기본적으로 읽기/끊김 이벤트만 감시한다.
 // 송신 큐에 보낼 데이터가 생기면 EPOLLOUT을 추가해서,
@@ -900,7 +965,12 @@ void ChannelServer::StopWorkers() noexcept
 
     m_authPool.Stop();
     m_pool.Stop();
-    m_savePool.Stop();
+
+    BroadcastServerShutdown(); // 종료 패킷을 각 세션의 송신 큐에 추가
+    DrainSessionSendQueues();  // GameLoop가 종료됐으므로 직접 FlushSend
+
+    DisconnectAllSessions();   // 소켓 종료 + FinalizePlayer
+    m_savePool.Stop();         // 최종 저장 완료
 
     K_LOG_TRACE("[ChannelServer] Workers stopped");
 }
