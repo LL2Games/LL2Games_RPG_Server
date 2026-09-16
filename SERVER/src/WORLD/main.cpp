@@ -4,6 +4,13 @@
 #include "MySqlConnectionPool.h"
 #include "RedisClient.h"
 
+#include <atomic>
+#include <cerrno>
+#include <csignal>
+#include <exception>
+#include <pthread.h>
+#include <thread>
+
 namespace
 {
     AppConfig g_config;
@@ -64,6 +71,24 @@ int main(int ac, char **av)
         }
         K_LOG_TRACE( "==============MySqlConnectionPool Count: %d==============", MySqlConnectionPool::GetInstance()->GetPoolSize());
     
+        sigset_t stopSignals{};
+        
+
+        sigemptyset(&stopSignals);
+        sigaddset(&stopSignals, SIGINT);
+        sigaddset(&stopSignals, SIGTERM);
+
+        const int maskResult = pthread_sigmask(SIG_BLOCK, &stopSignals, nullptr);
+
+        if(maskResult != 0)
+        {
+            K_LOG_ERROR("Failed to block termination signals. error[%d]", errno);
+
+            K_slog_close();
+            return -1;
+        }
+
+
         WorldServer server;
 
         if (server.Init(g_config.worldServer.port, g_config.redis) != 0)
@@ -72,9 +97,65 @@ int main(int ac, char **av)
             return -1;
         }
 
-        server.Run();
+        std::atomic_bool stopSignalsThread{false};
 
-        K_LOG_TRACE( "..................the End..............");
+        std::thread signalThread([&server, &stopSignals, &stopSignalsThread]()
+        {
+            while(!stopSignalsThread.load(std::memory_order_acquire))
+            {
+                timespec timeout{};
+                timeout.tv_sec = 1;
+                timeout.tv_nsec = 0;
+
+                const int signalNumber = sigtimedwait(&stopSignals, nullptr, &timeout);
+
+                if(signalNumber == SIGINT || signalNumber == SIGTERM)
+                {
+                    K_LOG_TRACE("[WORLD] Termination siganl received. signal [%d]", signalNumber);
+
+                    server.RequestStop();
+                    return;
+                }
+
+                if(signalNumber == -1)
+                {
+                    if(errno == EAGAIN || errno == EINTR)
+                        continue;
+
+                    K_LOG_ERROR("[WORLD] Failed to wait for termination signal, errno[%d]", errno);
+
+                    server.RequestStop();
+                    return;
+                }
+            }
+        });
+
+        std::exception_ptr runException;
+
+        try
+        {
+            server.Run();
+        }
+        catch(...)
+        {
+            runException = std::current_exception();
+        }
+
+        stopSignalsThread.store(true, std::memory_order_release);
+
+        if(signalThread.joinable())
+        {
+            signalThread.join();
+        }
+
+        server.ShutdownGracefully();
+
+        if(runException != nullptr)
+        {
+            std::rethrow_exception(runException);
+        }
+
+        K_LOG_TRACE("..................the End..............");
         K_slog_close();
     }
     catch (const std::exception &ex)

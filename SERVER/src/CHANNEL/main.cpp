@@ -82,12 +82,7 @@ int main(int ac, char **av)
         }
 
         K_LOG_TRACE( "[%s]==============MySqlConnectionPool Count: %d==============", daemonName.c_str(), MySqlConnectionPool::GetInstance()->GetPoolSize());
-        //if (RedisClient::Init(g_config.redis) != EXIT_SUCCESS)
-        //{
-        //    K_LOG_ERROR( "Failed to init RedisClient");
-        //    K_slog_close();
-        //    return -1;
-        //}
+       
         // SIGINT와 SIGTERM 종료 신호를 일반 시그널 핸들러에서 바로 처리하지 않고, 별도 스레드가 안전하게 기다려 처리하도록 먼저 차단
         sigset_t stopSignals{};
         // 처리할 시그널 목록을 담는 변수
