@@ -263,3 +263,22 @@ void PlayerPacketSender::SendExistingPlayersToNewPlayer(Player *newPlayer, std::
 
     newPlayer->GetSession()->Send(PKT_OTHERPLAYER_SNAPSHOT, payload);
 }
+
+
+void PlayerPacketSender::SendPlayerDead(Player* player, std::unordered_map<int, Player*>& playerList)
+{
+    std::vector<std::string> payload;
+
+    payload.push_back(std::to_string(player->GetId()));
+    payload.push_back(player->GetName());
+    payload.push_back(std::to_string(player->GetPos().xPos));
+    payload.push_back(std::to_string(player->GetPos().yPos));
+
+    for(const auto& [id, otherPlayer] : playerList)
+    {
+        if(otherPlayer == player) continue;
+
+        otherPlayer->GetSession()->Send(PKT_PLAYER_DEAD, payload);
+        K_LOG_TRACE( "플레이어 죽음 정보 전달 완료.\n");
+    }
+}

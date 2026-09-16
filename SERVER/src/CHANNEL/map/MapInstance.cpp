@@ -553,6 +553,7 @@ void MapInstance::ResolveSkillHit(Player* Attacker, SkillDef& skillDef, std::vec
 
 void MapInstance::ProcessContactDamage(int64_t nowMs)
 {
+	std::vector<Player*> deadPlayers;
 	std::vector<ContactDamageEvent> events;
     std::unordered_map<int, Player*> playerSnapshot;
 
@@ -596,6 +597,14 @@ void MapInstance::ProcessContactDamage(int64_t nowMs)
 			
 			//K_LOG_DEBUG( "OnDamaged");
 			player->OnDamaged(dmg,nowMs);
+
+			//사망했을 경우
+			if (!player->IsAlive())
+			{
+				deadPlayers.push_back(player);
+				break; //사망했으므로 추가 충돌처리 중단
+			}
+
 			PlayerHitResult result;
 			result.damage = dmg;
 			SetPlayerHitResult(player, monster.GetInstanceId(), result);
@@ -611,10 +620,17 @@ void MapInstance::ProcessContactDamage(int64_t nowMs)
     {
         PlayerPacketSender::SendPlayerOnDamaged(event.player, event.result, playerSnapshot);
     }
+
+	//플레이어 사망 이벤트
+	for (const auto& deadPlayer: deadPlayers)
+	{
+		PlayerPacketSender::SendPlayerDead(deadPlayer, playerSnapshot);
+	}
 }
 /*gunoo22 260223 원거리 공격 처리*/
 void MapInstance::ProcessRangedDamage(int64_t nowMs)
 {
+	std::vector<Player*> deadPlayers;
 	std::vector<ContactDamageEvent> events;
 	std::unordered_map<int, Player*> playerSnapshot;
 
@@ -651,6 +667,13 @@ void MapInstance::ProcessRangedDamage(int64_t nowMs)
 					//플레이어 온데미지
 					player->OnDamaged(dmg, nowMs);
 
+					//사망했을 경우
+					if (!player->IsAlive())
+					{
+						deadPlayers.push_back(player);
+						break; //사망했으므로 추가 충돌처리 중단
+					}
+
 					PlayerHitResult result;
 					result.damage = dmg;
 					SetPlayerHitResult(player, p->GetOwnerId(), result);
@@ -664,6 +687,12 @@ void MapInstance::ProcessRangedDamage(int64_t nowMs)
     {
         PlayerPacketSender::SendPlayerOnDamaged(event.player, event.result, playerSnapshot);
     }
+
+	//플레이어 사망 이벤트
+	for (const auto& deadPlayer: deadPlayers)
+	{
+		PlayerPacketSender::SendPlayerDead(deadPlayer, playerSnapshot);
+	}
 }
 
 void MapInstance::SetPlayerHitResult(Player* player, int monster_instanceId, PlayerHitResult& result)
