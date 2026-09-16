@@ -232,10 +232,10 @@ namespace
 
 
         const bool result =
-        Check(!firstCreated, "첫 번째 거래 세션 생성 성공") &&
+        Check(firstCreated, "첫 번째 거래 세션 생성 성공") &&
         Check(!secondCreated, "이미 거래 중인 플레이어의 중복 거래 세션 생성 거절") &&
         Check(TradeServiceRegressionTest::IsSameSession(kFirstPlayerId, kSecondPlayerId), "기존 거래 세션 유지") &&
-        Check(TradeServiceRegressionTest::HasSession(kThirdPlayerId), "중복 거래 요청자의 세션 미생성");
+        Check(!TradeServiceRegressionTest::HasSession(kThirdPlayerId), "중복 거래 요청자의 세션 미생성");
 
         TradeServiceRegressionTest::DeleteSession(kFirstPlayerId);
 
