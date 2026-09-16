@@ -59,6 +59,30 @@ ExpResult CharacterStat::AddExp(int64_t exp)
     return result;
 }
 
+int64_t CharacterStat::ReduceExp(double percent)
+{
+    if (percent <= 0.0 || percent > 100.0)
+        return 0;
+
+    LevelManager* levelManager = LevelManager::GetInstance();
+
+    const int64_t needExp =
+        levelManager->GetNeedExp(m_expStat.level);
+
+    if (needExp <= 0)
+        return 0;
+
+    int64_t reduceExp =
+        static_cast<int64_t>(needExp * (percent / 100.0));
+
+    if (reduceExp > m_expStat.exp)
+        reduceExp = m_expStat.exp;
+
+    m_expStat.exp -= reduceExp;
+
+    return reduceExp;
+}
+
 void CharacterStat::Up(const std::string &statType)
 {
     if(m_remain_ap <= 0) return;
