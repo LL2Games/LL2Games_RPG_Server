@@ -65,7 +65,6 @@ public:
     void SetLearnedSkill(const LearnedSkill& learnedSkill){m_learnedSkills[learnedSkill.skill_id] = learnedSkill;}
 
     void SetState(PlayerState state) {m_CurrentState = state;}
-
 public:
     int GetCurHP() const
     {
@@ -168,6 +167,7 @@ public:
     void OnDamaged(int dmg,int64_t nowMs);
 
     void Dead();
+    bool Revive(const Vec2& position);
 
     ExpResult AddExp(int64_t  exp);
 

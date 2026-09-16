@@ -352,6 +352,20 @@ void Player::Dead()
 
 }
 
+bool Player::Revive(const Vec2& position)
+{
+    //DEAD에서 변경
+    m_CurrentState = PlayerState::IDLE;
+
+    //임시로 부활시 경험치 맥스로
+    m_stat.SetCurHp(m_stat.GetMaxHp());
+
+    //안전한 위치 변경
+    SetPos(position);
+
+    return true;
+}
+
 ExpResult Player::AddExp(int64_t exp)
 {
     std::lock_guard<std::mutex> lock(m_statMutex);

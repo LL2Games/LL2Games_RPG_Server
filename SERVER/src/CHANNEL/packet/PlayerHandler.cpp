@@ -66,6 +66,9 @@ void PlayerHandler::Execute(PacketContext * ctx)
           case PKT_PLAYER_PICKUP_ITEM:
                PickUpItemPacket(ctx);
                break;
+          case PKT_PLAYER_REVIVE:
+               HandleRevivePacket(ctx);
+               break;
           default :
                K_LOG_ERROR( "default START\n");
                break;
