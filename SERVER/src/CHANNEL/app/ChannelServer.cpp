@@ -972,6 +972,7 @@ void ChannelServer::StopWorkers() noexcept
     DisconnectAllSessions();   // 소켓 종료 + FinalizePlayer
     m_savePool.Stop();         // 최종 저장 완료
 
+
     K_LOG_TRACE("[ChannelServer] Workers stopped");
 }
 

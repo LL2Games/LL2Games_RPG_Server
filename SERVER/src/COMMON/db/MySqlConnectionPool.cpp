@@ -10,7 +10,14 @@ int MySqlConnectionPool::Init(const MySqlConfig& mysqlConfig, const int pool_siz
         return -1;
     }
 
-    MySqlConnectionPool* client = new MySqlConnectionPool(mysqlConfig, pool_size == 0 ? MYSQL_POOL_SIZE : pool_size);
+     if (pool_size <= 0)
+    {
+        K_LOG_ERROR("Invalid MySQL pool size configured: %d",pool_size);
+
+        return EXIT_FAILURE;
+    }
+
+    MySqlConnectionPool* client = new MySqlConnectionPool(mysqlConfig, pool_size);
     if (client == nullptr)
     {
         K_LOG_ERROR( "Memory error(new MySqlConnectionPool(mysqlConfig, pool_size)) ");
@@ -31,14 +38,14 @@ int MySqlConnectionPool::Init(const MySqlConfig& mysqlConfig, const int pool_siz
 
 int MySqlConnectionPool::GetPoolSize() const
 {
-    return m_pool.size();
+    std::lock_guard<std::mutex> lock(m_sqlMutex);
+
+    return static_cast<int>(m_liveConnectionCount);
 }
 
 
-MySqlConnectionPool::MySqlConnectionPool(const MySqlConfig& mysqlConfig, const int pool_size) : m_config(mysqlConfig)
+MySqlConnectionPool::MySqlConnectionPool(const MySqlConfig& mysqlConfig, const int pool_size) : m_config(mysqlConfig), m_targetPoolSize(static_cast<std::size_t>(pool_size))
 {
-    int connectedCount = 0;
-
     for (int i = 0; i < pool_size; ++i)
     {
         MYSQL* conn = CreateConnection();
@@ -47,19 +54,36 @@ MySqlConnectionPool::MySqlConnectionPool(const MySqlConfig& mysqlConfig, const i
             continue;
 
         m_pool.push(conn);
-        ++connectedCount;
+        ++m_liveConnectionCount;
     }
 
-    K_LOG_TRACE("db pool created[%d]", connectedCount);
+    K_LOG_TRACE("db pool created[%zu/%zu]", m_liveConnectionCount,m_targetPoolSize);
 }
 
 MySqlConnectionPool::~MySqlConnectionPool()
 {
-    if(m_instance)
+    std::lock_guard<std::mutex> lock(m_sqlMutex);
+
+    while (!m_pool.empty())
     {
-        delete m_instance;
-        m_instance = nullptr;
+        MYSQL* conn = m_pool.front();
+        m_pool.pop();
+
+        if (conn != nullptr)
+            mysql_close(conn);
     }
+
+    m_liveConnectionCount = 0;
+}
+
+void MySqlConnectionPool::Shutdown() noexcept
+{
+    MySqlConnectionPool* instance = m_instance;
+
+    // delete 전에 nullptr로 변경해야 재진입 위험이 없다.
+    m_instance = nullptr;
+
+    delete instance;
 }
 
 MySqlConnectionPool* MySqlConnectionPool::GetInstance()
@@ -112,38 +136,84 @@ MYSQL* MySqlConnectionPool::CreateConnection()
 MYSQL* MySqlConnectionPool::GetConnection()
 {
     MYSQL* conn = nullptr;
+    bool shouldCreate = false;
 
     {
         std::lock_guard<std::mutex> lock(m_sqlMutex);
 
-        if (m_pool.empty())
+        if (!m_pool.empty())
         {
-            K_LOG_ERROR("MySQL connection pool is empty");
+            conn = m_pool.front();
+            m_pool.pop();
+        }
+        else if(m_liveConnectionCount < m_targetPoolSize)
+        {
+            // 유실된 연결 슬롯을 예약한다.
+            ++m_liveConnectionCount;
+            shouldCreate = true;
+        }
+        else
+        {
+            // 연결이 유실된 게 아니라 전부 사용 중인 상태
+            K_LOG_ERROR("MySQL connection pool exhausted");
             return nullptr;
         }
+    }
 
-        conn = m_pool.front();
-        m_pool.pop();
+    if (shouldCreate)
+    {
+        conn = CreateConnection();
+
+        if (conn != nullptr)
+        {
+            K_LOG_TRACE("MySQL connection pool replenished");
+            return conn;
+        }
+
+        {
+            std::lock_guard<std::mutex> lock(m_sqlMutex);
+
+            if (m_liveConnectionCount > 0)
+                --m_liveConnectionCount;
+        }
+
+        K_LOG_ERROR("Failed to replenish MySQL connection pool");
+        return nullptr;
     }
 
     if (mysql_ping(conn) == 0)
         return conn;
 
-    K_LOG_ERROR("Dead MySQL connection detected: %s",mysql_error(conn));
+    K_LOG_ERROR(
+        "Dead MySQL connection detected: %s",
+        mysql_error(conn)
+    );
 
     mysql_close(conn);
 
+    // 기존 연결의 자리를 즉시 교체한다.
     conn = CreateConnection();
 
-    if (conn == nullptr)
+    if (conn != nullptr)
     {
-        K_LOG_ERROR("Failed to replace dead MySQL connection");
-        return nullptr;
+        K_LOG_TRACE("Dead MySQL connection replaced");
+        return conn;
     }
 
-    K_LOG_TRACE("Dead MySQL connection replaced");
+    // 교체 실패로 실제 연결 하나가 유실됐다.
+    {
+        std::lock_guard<std::mutex> lock(m_sqlMutex);
 
-    return conn;
+        if (m_liveConnectionCount > 0)
+            --m_liveConnectionCount;
+    }
+
+    K_LOG_ERROR(
+        "Failed to replace dead MySQL connection; "
+        "a later request will retry"
+    );
+
+    return nullptr;
 }
 
 int MySqlConnectionPool::ReleaseConnection(MYSQL* conn)

@@ -157,6 +157,8 @@ int main(int ac, char **av)
         // 종료 패킷 전송 및 세션 정리를 실행한다.
         server.ShutdownGracefully();
 
+        MySqlConnectionPool::Shutdown();
+
         if (runException != nullptr)
         {
             std::rethrow_exception(runException);

@@ -150,6 +150,8 @@ int main(int ac, char **av)
 
         server.ShutdownGracefully();
 
+        MySqlConnectionPool::Shutdown();
+
         if(runException != nullptr)
         {
             std::rethrow_exception(runException);

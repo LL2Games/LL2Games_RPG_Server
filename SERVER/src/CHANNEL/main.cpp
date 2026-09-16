@@ -152,6 +152,9 @@ int main(int ac, char **av)
         try
         {
             channelServer.Run();
+
+            
+            
         }
         catch (...)
         {
@@ -167,11 +170,15 @@ int main(int ac, char **av)
             signalThread.join();
         }
 
+        MySqlConnectionPool::Shutdown();
+
         if (runException != nullptr)
         {
             std::rethrow_exception(runException);
         }
         
+
+
         K_LOG_TRACE( "[%s]..................the End..............", daemonName.c_str());
         K_slog_close();
         
