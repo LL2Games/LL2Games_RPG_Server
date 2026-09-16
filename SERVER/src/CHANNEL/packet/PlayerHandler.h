@@ -22,6 +22,7 @@ public:
     void OnDamagedPacket(PacketContext* ctx);
     void UseItemPacket(PacketContext* ctx);
     void PickUpItemPacket(PacketContext* ctx);
+    void HandleRevivePacket(PacketContext * ctx);
   
     //trade
     void HandleTradeRequest(PacketContext* ctx);
@@ -29,7 +30,6 @@ public:
     void HandleTradeReady(PacketContext* ctx);
     void HandleTradeCancel(PacketContext* ctx);
     void HandleTradeAddItem(PacketContext *ctx);
-
 
 private:
     uint16_t m_type;

@@ -888,3 +888,24 @@ bool MapInstance::HasPlayer()
 	std::lock_guard<std::mutex> lock(m_playerMutex);
 	return m_has_player;
 }
+
+bool MapInstance::RevivePlayer(Player* player)
+{
+	std::lock_guard<std::mutex> lock(m_playerMutex);
+	//부활 위치 결정
+	Vec2 revivePos;
+
+	//임시 -> 안전한 지역으로 설정해서 랜덤하게 해야함
+	revivePos.xPos = 10.0;
+	revivePos.yPos = 10.0;
+
+	//player 부활 호출
+	player->Revive(revivePos);
+
+	//해당 플레이어에게 스탯 전송 (Hp등)
+	PlayerPacketSender::SendPlayerStat(player);
+
+	//같은맵 다른 player에게 패킷 전송
+
+	return true;
+}

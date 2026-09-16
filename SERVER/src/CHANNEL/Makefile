@@ -116,6 +116,7 @@ SRCS := \
 	packet/PacketProcessTask.cpp \
 	packet/PortalHandler.cpp\
 	packet/PortalPacketSender.cpp\
+	packet/RevivePacket.cpp\
 	\
 	service/MapService.cpp \
 	service/StatService.cpp \

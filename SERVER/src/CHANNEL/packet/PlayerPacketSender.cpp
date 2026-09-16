@@ -276,7 +276,7 @@ void PlayerPacketSender::SendPlayerDead(Player* player, std::unordered_map<int, 
 
     for(const auto& [id, otherPlayer] : playerList)
     {
-        if(otherPlayer == player) continue;
+        //if(otherPlayer == player) continue; //자기 자신도 전송
 
         otherPlayer->GetSession()->Send(PKT_PLAYER_DEAD, payload);
         K_LOG_TRACE( "플레이어 죽음 정보 전달 완료.\n");
