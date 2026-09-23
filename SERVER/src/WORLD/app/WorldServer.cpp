@@ -64,29 +64,37 @@ int WorldServer::Init(const int port,const RedisConfig& redisConfig)
     }
 
     K_LOG_TRACE( "[%s] Listening on %d", WORLD_DAEMON_NAME, port);
-
+    m_running.store(true, std::memory_order_release);
     return 0;
 }
 
 int WorldServer::Run()
 {
-  
     fd_set reads;
 
-    while (true)
+    while (m_running.load(std::memory_order_acquire))
     {
         FD_ZERO(&reads);
         FD_SET(m_listen_fd, &reads);
 
         int fd_max = m_listen_fd;
-        for (auto session : m_sessions)
+        for (const auto& [fd, session] : m_sessions)
         {
-            const int sFd = session.first;
-            FD_SET(sFd, &reads);
-            if (sFd > fd_max) fd_max = sFd;
+            FD_SET(fd, &reads);
+            if (fd > fd_max) fd_max = fd;
         }
 
-        int ret = select(fd_max + 1, &reads, nullptr, nullptr, nullptr);
+        //RequestStop()을 최대 1초 안에 확인
+        timeval timeout{};
+        timeout.tv_sec = 1;
+        timeout.tv_usec = 0;
+
+        const int ret = select(fd_max + 1, &reads, nullptr, nullptr, &timeout);
+        
+        //select에서 깨어난 직후 종료 요청부터 확인
+        if(!m_running.load(std::memory_order_acquire))
+            break;
+        
         if (ret < 0)
         {
             if (errno == EINTR)
@@ -96,22 +104,74 @@ int WorldServer::Run()
             break;
         }
 
+        // 타임아웃
+        if(ret == 0)
+            continue;
+
         if (FD_ISSET(m_listen_fd, &reads))
             OnAccept();
+
         std::vector<int> read2Fd;
-        for (auto session : m_sessions)
+        read2Fd.reserve(m_sessions.size());
+
+        for (const auto& [fd, session] : m_sessions)
         {
-            if (FD_ISSET(session.first, &reads))
-                read2Fd.push_back(session.first);
+            if (FD_ISSET(fd, &reads))
+                read2Fd.push_back(fd);
         }
 
         for(int fd : read2Fd)
         {
+            if(!m_running.load(std::memory_order_acquire))
+                break;
+
             OnReceive(fd);
         }
 
     }
+    K_LOG_TRACE("[WORLD] Run loop stopped");
     return 0;
+}
+
+void WorldServer::RequestStop() noexcept
+{
+    m_running.store(false, std::memory_order_release);
+}
+
+void WorldServer::ShutdownGracefully() noexcept
+{
+    RequestStop();
+
+    BroadcastServerShutdown();
+    DisconnectAllClients();
+
+    if(m_listen_fd >= 0)
+    {
+        close(m_listen_fd);
+        m_listen_fd = -1;
+    }
+
+    K_LOG_TRACE("[WORLD] Graceful shutdown completed");
+}
+
+void WorldServer::DisconnectAllClients() noexcept
+{
+    while(!m_sessions.empty())
+    {
+        const int fd = m_sessions.begin()->first;
+        OnDisconnect(fd);
+    }
+}
+
+void WorldServer::BroadcastServerShutdown()
+{
+    for(const auto& [fd, session] : m_sessions)
+    {
+        if(session == nullptr)
+            continue;
+
+        session->Send(PKT_SERVER_SHUTDOWN_NOTIFY, {});
+    }
 }
 
 int WorldServer::OnAccept()

@@ -51,7 +51,7 @@ bool Server::Init(const int port, const RedisConfig& redisConfig)
     }
 
     K_LOG_TRACE( "[CHAT] Listening on %d", port);
-
+    m_running.store(true, std::memory_order_release);
     return true;
 }
 
@@ -59,21 +59,33 @@ void Server::Run()
 {
     fd_set reads;
 
-    while (true)
+    while (m_running.load(std::memory_order_acquire))
     {
         FD_ZERO(&reads);
         FD_SET(m_listenFd, &reads);
 
         int fd_max = m_listenFd;
 
-        for (auto c : m_clients)
+        for (const auto& client : m_clients)
         {
-            FD_SET(c->GetFD(), &reads);
-            if (c->GetFD() > fd_max)
-                fd_max = c->GetFD();
+            if(client == nullptr)
+                continue;
+
+            const int fd = client->GetFD();
+            FD_SET(fd, &reads);
+            if (fd > fd_max)
+                fd_max = fd;
         }
 
-        const int ret = select(fd_max + 1, &reads, nullptr, nullptr, nullptr);
+        timeval timeout{};
+        timeout.tv_sec = 1;
+        timeout.tv_usec = 0;
+
+        const int ret = select(fd_max + 1, &reads, nullptr, nullptr, &timeout);
+        
+        if(!m_running.load(std::memory_order_acquire))
+            break;
+
         if (ret < 0)
         {
             if (errno == EINTR)
@@ -83,6 +95,8 @@ void Server::Run()
             break;
         }
 
+         if(ret == 0)
+            continue;
         // ProcessClient에서 m_clients가 변경될 수 있으므로
         // 읽기 가능한 클라이언트를 먼저 복사한다.
         std::vector<Client*> readableClients;
@@ -90,6 +104,9 @@ void Server::Run()
 
         for (Client* client : m_clients)
         {
+              if (client == nullptr)
+                continue;
+
             if (FD_ISSET(client->GetFD(), &reads))
                 readableClients.push_back(client);
         }
@@ -99,10 +116,46 @@ void Server::Run()
 
         for (Client* client : readableClients)
         {
+            if(!m_running.load(std::memory_order_acquire))
+                break;
+
             ProcessClient(client);
         }
     }
+
+    m_running.store(false, std::memory_order_release);
+
+    K_LOG_TRACE("[CHAT] Run loop stoppped");
 }
+
+void Server::RequestStop() noexcept
+{
+    m_running.store(false, std::memory_order_release);
+}
+
+void Server::DisconnectAllClients() noexcept
+{
+    while(!m_clients.empty())
+    {
+        Client* client  = m_clients.back();
+        DisconnectClient(client);
+    }
+}
+
+void Server::ShutdownGracefully()
+{
+    RequestStop();
+    DisconnectAllClients();
+
+    if(m_listenFd >= 0)
+    {
+        close(m_listenFd);
+        m_listenFd = -1;
+    }
+
+    K_LOG_TRACE("[CHAT] Graceful shutdown completed");
+}
+
 
 void Server::AcceptNewClient()
 {

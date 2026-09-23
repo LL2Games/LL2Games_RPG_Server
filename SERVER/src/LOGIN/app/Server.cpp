@@ -35,6 +35,7 @@ bool Server::Init(int port, const RedisConfig& redisConfig)
 
     K_LOG_TRACE( "[%s] Listening on port %d\n", "LOGIN", port);
 
+    m_running.store(true, std::memory_order_release);
     return true;
 }
 
@@ -42,20 +43,35 @@ void Server::Run()
 {
     fd_set reads;
 
-    while (true)
+    while (m_running.load(std::memory_order_acquire))
     {
         FD_ZERO(&reads);
         FD_SET(m_listen_fd, &reads);
+
         int fd_max = m_listen_fd;
 
-        for (auto c : m_clients)
+        for (Client* client : m_clients)
         {
-            FD_SET(c->GetFD(), &reads);
-            if (c->GetFD() > fd_max)
-                fd_max = c->GetFD();
+            if(client == nullptr)
+                continue;
+
+            const int fd = client->GetFD();
+
+            FD_SET(fd, &reads);
+
+            if (fd > fd_max)
+                fd_max = fd;
         }
 
-        int ret = select(fd_max + 1, &reads, nullptr, nullptr, nullptr);
+        timeval timeout{};
+        timeout.tv_sec = 1;
+        timeout.tv_usec = 0;
+
+        int ret = select(fd_max + 1, &reads, nullptr, nullptr, &timeout);
+        
+        if(!m_running.load(std::memory_order_acquire))
+            break;
+        
         if (ret < 0)
         {
             if (errno == EINTR)
@@ -65,6 +81,9 @@ void Server::Run()
             K_LOG_ERROR("[LOGIN] select failed errno:%d",errno);
             break;
         }
+
+        if(ret == 0)
+            continue;
 
         // 신규 접속
         if (FD_ISSET(m_listen_fd, &reads))
@@ -81,8 +100,54 @@ void Server::Run()
 
         for (Client* client : readableClients)
         {       
+            if(!m_running.load(std::memory_order_acquire))
+                break;
             ProcessClient(client);
         }
+    }
+    m_running.store(false, std::memory_order_release);
+
+    K_LOG_TRACE("[LOGIN] Run loop stoppped");
+}
+
+void Server::RequestStop() noexcept
+{
+    m_running.store(false, std::memory_order_release);
+}
+
+void Server::ShutdownGracefully()
+{
+    RequestStop();
+
+    BroadcastServerShutdown();
+    DisconnectAllClients();
+
+    if(m_listen_fd >= 0)
+    {
+        close(m_listen_fd);
+        m_listen_fd = -1;
+    }
+
+    K_LOG_TRACE("[LOGIN] Graceful shutdown completed");
+}
+
+void Server::DisconnectAllClients() noexcept
+{
+    while(!m_clients.empty())
+    {
+        Client* client = m_clients.back();
+        DisconnectClient(client);
+    }
+}
+
+void Server::BroadcastServerShutdown() noexcept
+{
+    for(const auto& client : m_clients)
+    {
+        if(client == nullptr)
+            continue;
+
+        client->Send(PKT_SERVER_SHUTDOWN_NOTIFY, {});
     }
 }
 

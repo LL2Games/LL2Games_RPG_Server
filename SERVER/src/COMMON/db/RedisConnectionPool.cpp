@@ -44,14 +44,29 @@ bool RedisConnectionPool::Init(const RedisConfig& redisConfig, std::size_t count
 
 RedisClient* RedisConnectionPool::Acquire()
 {
-    std::unique_lock<std::mutex> lock(m_mutex);
+     RedisClient* conn = nullptr;
 
-    m_cv.wait(lock, [this]() {
-        return !m_available.empty();
-    });
+    {
+        std::unique_lock<std::mutex> lock(m_mutex);
 
-    RedisClient* conn = m_available.front();
-    m_available.pop();
+        m_cv.wait(lock, [this]()
+        {
+            return !m_available.empty();
+        });
+
+        conn = m_available.front();
+        m_available.pop();
+    }
+
+    // 네트워크 작업이므로 풀 mutex를 놓은 다음 검사
+    if (!conn->EnsureConnected())
+    {
+        K_LOG_ERROR("[RedisConnectionPool] connection validation failed");
+
+        // 다음 요청에서 다시 재연결을 시도할 수 있도록 풀에 반환
+        Release(conn);
+        return nullptr;
+    }
 
     return conn;
 }

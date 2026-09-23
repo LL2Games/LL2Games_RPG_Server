@@ -5,18 +5,28 @@
 
 RedisClient::RedisClient(const RedisConfig& redisConfig) : m_ctx(nullptr)
 {
-    m_ctx = redisConnect(redisConfig.host.c_str(), redisConfig.port);
+    timeval connectTimeout{5, 0};
 
-    if (m_ctx == nullptr) {
-        K_LOG_ERROR( "Redis Connect error: ctx is null");
+    m_ctx = redisConnectWithTimeout(redisConfig.host.c_str(), redisConfig.port, connectTimeout);
+
+    if (m_ctx == nullptr)
+    {
+        K_LOG_ERROR("Redis context allocation failed");
         return;
     }
 
-    if (m_ctx->err) {
-        K_LOG_ERROR( "Redis Connect error(%d): %s", m_ctx->err, m_ctx->errstr);
+    if (m_ctx->err)
+    {
+        K_LOG_ERROR("Redis connect failed: %s",m_ctx->errstr);
+
         redisFree(m_ctx);
         m_ctx = nullptr;
+        return;
     }
+
+    timeval commandTimeout{5, 0};
+    redisSetTimeout(m_ctx, commandTimeout);
+    redisEnableKeepAlive(m_ctx);
 }
 
 RedisClient::~RedisClient()
@@ -33,6 +43,61 @@ RedisClient::~RedisClient()
 bool RedisClient::IsConnected() const
 {
     return m_ctx != nullptr;
+}
+
+bool RedisClient::EnsureConnected()
+{
+    if (m_ctx == nullptr)
+    {
+        K_LOG_ERROR("Redis context is null");
+        return false;
+    }
+
+    auto ping = [this]() -> bool
+    {
+        redisReply* reply = static_cast<redisReply*>(redisCommand(m_ctx, "PING"));
+
+        if (reply == nullptr)
+            return false;
+
+        const bool success =
+            reply->type == REDIS_REPLY_STATUS &&
+            reply->str != nullptr &&
+            std::string(reply->str, reply->len) == "PONG";
+
+        freeReplyObject(reply);
+        return success;
+    };
+
+    // 기존 연결이 살아 있으면 그대로 사용
+    if (ping())
+        return true;
+
+    K_LOG_ERROR(
+        "Redis connection lost. reconnecting. error[%d] message[%s]",
+        m_ctx->err,
+        m_ctx->errstr);
+
+    // 기존 context가 기억하고 있는 IP/포트로 재접속
+    if (redisReconnect(m_ctx) != REDIS_OK)
+    {
+        K_LOG_ERROR(
+            "Redis reconnect failed. error[%d] message[%s]",
+            m_ctx->err,
+            m_ctx->errstr);
+
+        return false;
+    }
+
+    // 재접속 성공 여부를 PING으로 다시 확인
+    if (!ping())
+    {
+        K_LOG_ERROR("Redis PING failed after reconnect");
+        return false;
+    }
+
+    K_LOG_TRACE("Redis reconnect succeeded");
+    return true;
 }
 
 //int RedisClient::Init(const RedisConfig& redisConfig)
@@ -118,75 +183,97 @@ err:
 
 int RedisClient::HSetAll(const std::string& key, std::map<std::string, std::string> redis_map, const int expire)
 {
-    int rc = EXIT_SUCCESS;
-    std::vector<const char*> value;
-    std::vector<size_t> valueLen;
-    redisReply* reply = nullptr;
-    std::string cmd = "HSET";
-
-    auto push = [&](const std::string& s)
+    if (m_ctx == nullptr)
     {
-        value.push_back(s.c_str());
-        valueLen.push_back(s.size());
+        K_LOG_ERROR("redis context is null");
+        return EXIT_FAILURE;
+    }
+
+    if (redis_map.empty())
+    {
+        K_LOG_ERROR("redis map is empty");
+        return EXIT_FAILURE;
+    }
+
+    std::vector<const char*> argv;
+    std::vector<size_t> argvLen;
+
+    const std::string command = "HSET";
+
+    argv.reserve(2 + redis_map.size() * 2);
+    argvLen.reserve(2 + redis_map.size() * 2);
+
+    auto pushArgument = [&](const std::string& argument)
+    {
+        argv.push_back(argument.c_str());
+        argvLen.push_back(argument.size());
     };
 
-    if(m_ctx == nullptr)
+    pushArgument(command);
+    pushArgument(key);
+
+    for (const auto& [field, fieldValue] : redis_map)
     {
-        K_LOG_ERROR( "redis context is null");
-        rc = EXIT_FAILURE;
-    
+        pushArgument(field);
+        pushArgument(fieldValue);
     }
 
-    if(redis_map.empty())
+    redisReply* reply = static_cast<redisReply*>(redisCommandArgv(m_ctx,static_cast<int>(argv.size()),argv.data(),argvLen.data()));
+
+    if (reply == nullptr)
     {
-        K_LOG_ERROR( "redis context is null");
-        rc = EXIT_FAILURE;
-        goto err;
+        K_LOG_ERROR("Redis HSET failed: %s",m_ctx->errstr ? m_ctx->errstr : "unknown error");
+
+        return EXIT_FAILURE;
     }
 
-    value.reserve(2 + redis_map.size() *2);
-    valueLen.reserve(2 + redis_map.size() *2);
-
-   
-
-
-    push(cmd);
-    push(key);
-
-    for(const auto& [field, value] : redis_map)
+    if (reply->type == REDIS_REPLY_ERROR)
     {
-        push(field);
-        push(value);
-    }
+        K_LOG_ERROR("Redis HSET error: %s",reply->str ? reply->str : "unknown error");
 
-    reply = (redisReply*)redisCommandArgv(m_ctx, (int)value.size(), value.data(), valueLen.data());
-
-    if(!reply)
-    {
-        K_LOG_ERROR( "redisCommandArgv is failed");
-        rc = EXIT_FAILURE;
-        goto err;
+        freeReplyObject(reply);
+        return EXIT_FAILURE;
     }
 
     freeReplyObject(reply);
     reply = nullptr;
 
-    reply = (redisReply*)redisCommand(m_ctx, "EXPIRE %s %d", key.c_str(), expire);
-     if(!reply)
+    // expire가 0 이하라면 만료를 설정하지 않는 정책
+    if (expire <= 0)
     {
-        K_LOG_ERROR( "redisCommand EXPIIRE is failed");
-        rc = EXIT_FAILURE;
-        goto err;
+        return EXIT_SUCCESS;
     }
 
-    return EXIT_SUCCESS;
-err:
-    if(reply)
+    reply = static_cast<redisReply*>(redisCommand(m_ctx,"EXPIRE %b %d",key.data(),key.size(),expire));
+
+    if (reply == nullptr)
     {
+        K_LOG_ERROR("Redis EXPIRE failed: %s",m_ctx->errstr ? m_ctx->errstr : "unknown error");
+        return EXIT_FAILURE;
+    }
+
+    if (reply->type == REDIS_REPLY_ERROR)
+    {
+        K_LOG_ERROR("Redis EXPIRE error: %s", reply->str ? reply->str : "unknown error");
+
         freeReplyObject(reply);
+        return EXIT_FAILURE;
     }
-    return rc;
 
+    // EXPIRE 결과: 1이면 적용, 0이면 키가 존재하지 않음
+    if (reply->type != REDIS_REPLY_INTEGER || reply->integer != 1)
+    {
+        K_LOG_ERROR(
+            "Redis EXPIRE was not applied. key:%s result:%lld",
+            key.c_str(),
+            reply->type == REDIS_REPLY_INTEGER ? reply->integer : -1LL);
+
+        freeReplyObject(reply);
+        return EXIT_FAILURE;
+    }
+
+    freeReplyObject(reply);
+    return EXIT_SUCCESS;
 }
 
 std::optional<std::map<std::string, std::string>> RedisClient::HGetAll(const std::string key)

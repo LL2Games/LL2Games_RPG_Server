@@ -5,6 +5,13 @@
 #include "MySQLManager.h"
 #include "ConfigLoader.h"
 
+#include <atomic>
+#include <cerrno>
+#include <csignal>
+#include <exception>
+#include <pthread.h>
+#include <thread>
+
 
 #if 1
 namespace
@@ -65,6 +72,22 @@ int main(int ac, char **av)
         }
         K_LOG_TRACE( "==============MySqlConnectionPool Count: %d==============", MySqlConnectionPool::GetInstance()->GetPoolSize());
         
+        sigset_t stopSignals{};
+
+        sigemptyset(&stopSignals);
+        sigaddset(&stopSignals, SIGINT);
+        sigaddset(&stopSignals, SIGTERM);
+
+        const int maskResult = pthread_sigmask(SIG_BLOCK, &stopSignals, nullptr);
+
+        if(maskResult != 0)
+        {
+            K_LOG_ERROR("Failed to block termination signals. error[%d]", maskResult);
+
+            K_slog_close();
+            return -1;
+        }
+
         Server server;
         bool start = server.Init(g_config.loginServer.port, g_config.redis);
         if (start == false)
@@ -73,9 +96,75 @@ int main(int ac, char **av)
             return -1;
         }
 
-        server.Run();
+        std::atomic_bool stopSignalsThread{false};
 
-        K_LOG_TRACE( "..................the End..............");
+        std::thread signalThread(
+        [&server, &stopSignals, &stopSignalsThread]()
+        {
+            while (!stopSignalsThread.load(std::memory_order_acquire))
+            {
+                timespec timeout{};
+                timeout.tv_sec = 1;
+                timeout.tv_nsec = 0;
+
+                const int signalNumber = sigtimedwait(&stopSignals, nullptr, &timeout);
+
+                if (signalNumber == SIGINT || signalNumber == SIGTERM)
+                {
+                    K_LOG_TRACE("[LOGIN] Termination signal received. signal[%d]", signalNumber);
+
+                    // 시그널 스레드에서는 종료 요청만 한다.
+                    server.RequestStop();
+                    return;
+                }
+
+                if (signalNumber == -1)
+                {
+                    // 타임아웃 또는 인터럽트는 정상적으로 재시도한다.
+                    if (errno == EAGAIN || errno == EINTR)
+                        continue;
+
+                    K_LOG_ERROR("[LOGIN] Failed to wait for termination signal. errno[%d]",errno);
+
+                    server.RequestStop();
+                    return;
+                }
+            }
+        });
+
+       std::exception_ptr runException;
+
+        try
+        {
+            server.Run();
+        }
+        catch (...)
+        {
+            // signalThread를 먼저 정리하기 위해 예외를 보관한다.
+            runException = std::current_exception();
+        }
+
+        // Run()이 시그널 외의 이유로 끝났을 때
+        // 시그널 대기 스레드도 종료한다.
+        stopSignalsThread.store(true, std::memory_order_release);
+
+        if (signalThread.joinable())
+        {
+            signalThread.join();
+        }
+
+        // Run 루프가 완전히 끝난 뒤 메인 스레드에서
+        // 종료 패킷 전송 및 세션 정리를 실행한다.
+        server.ShutdownGracefully();
+
+        MySqlConnectionPool::Shutdown();
+
+        if (runException != nullptr)
+        {
+            std::rethrow_exception(runException);
+        }
+
+        K_LOG_TRACE("..................the End..............");
         K_slog_close();
     }
     catch (const std::exception &ex)

@@ -10,6 +10,16 @@ int Client::GetFD() const { return m_fd; }
 std::string Client::GetID() const { return m_id; }
 std::string Client::GetNick() const { return m_nick; }
 
+int Client::Send(int type, const std::vector<std::string>& payload)
+{
+    std::string body = PacketParser::MakeBody(payload);
+    std::string packet = PacketParser::MakePacket(type, body);
+
+    const ssize_t sentSize = send(m_fd, packet.data(), packet.size(), MSG_NOSIGNAL);
+
+    return sentSize == static_cast<ssize_t>(packet.size()) ? EXIT_SUCCESS : EXIT_FAILURE;
+}
+
 int Client::SendOk(const int type, std::vector<std::string> payload)
 {
     payload.insert(payload.begin(), "ok");

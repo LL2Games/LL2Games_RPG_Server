@@ -105,11 +105,15 @@ enum PACKET_TYPE : uint16_t {
     PKT_TRADE_CANCEL         = 0x0105,  // 교환 취소
     PKT_TRADE_ADD_ITEM       = 0x0106,  // 아이템 추가
 
-    // 0x1000 ~ : 테스트 / UI / 특수
+    // 0x1000 ~ 0x1090: 테스트 / UI / 특수
     PKT_STAT_VIEW           = 0x1000,
     PKT_STAT_UP             = 0x1001,
     PKT_QUICKSLOT_LIST      = 0x1002,
     PKT_QUICKSLOT_SET       = 0x1003,
+
+
+    // 0x1100 ~ : 종료
+    PKT_SERVER_SHUTDOWN_NOTIFY = 0x1100,
 };
 
 struct ParsedPacket

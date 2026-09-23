@@ -15,6 +15,7 @@ public:
     int GetFD() const;
     std::string GetID() const;
     std::string GetNick() const;
+    int Send(int type, const std::vector<std::string>& payload);
     int SendOk(const int type, std::vector<std::string> payload = {});
     int SendNok(const int type, const std::string &errMsg);
     

@@ -6,6 +6,7 @@
 #include "TradeService.h"
 #include "PlayerService.h"
 #include "InventoryPacketSender.h"
+#include <stdexcept>
 
 void PlayerHandler::HandleTradeRequest(PacketContext* ctx)
 {
@@ -281,7 +282,7 @@ void PlayerHandler::HandleTradeReady(PacketContext* ctx)
     }
 
     //교환신청 요청 Player 객체 추출
-    target_player = player_manager->GetPlayer(atoi(target_player_id.c_str()));
+    target_player = trade_service->GetTargetPlayer(player);
     if (target_player == nullptr)
     {
         rc = EXIT_FAILURE;
@@ -402,6 +403,10 @@ err:
     else 
     {
         session->SendNok(PKT_TRADE_READY, errMsg);
+        if (target_player != nullptr && target_player->GetSession() != nullptr)
+        {
+            target_player->GetSession()->SendNok(PKT_TRADE_READY,errMsg);
+        }
     }
 }
 
@@ -474,7 +479,7 @@ void PlayerHandler::HandleTradeCancel(PacketContext* ctx)
     }
 
     //교환신청 상대방 Player 객체 추출
-    target_player = player_manager->GetPlayer(atoi(target_player_id.c_str()));
+    target_player = trade_service->GetTargetPlayer(player);
     if (target_player == nullptr)
     {
         rc = EXIT_FAILURE;
@@ -512,6 +517,7 @@ void PlayerHandler::HandleTradeAddItem(PacketContext* ctx)
     TradeItem trade_item;
     std::string errMsg;
     std::string item_trade_slot_index;
+    int tradeSlotIndex = -1;
 
     if (ctx == nullptr)
     {
@@ -622,20 +628,57 @@ void PlayerHandler::HandleTradeAddItem(PacketContext* ctx)
             goto err;
         }
 
-        trade_item.id = item_id;
-        {
-            std::string tmpS = item_id.substr(0, 1); //id의 첫글자로 타입 구분 ex) 2000000 -> type 2 
-            int tmpI = std::stoi(tmpS) - 1;
-            trade_item.type = std::to_string(tmpI);
-        }
-        trade_item.amount = std::stoi(item_amount);
-        trade_item.slot_index = std::stoi(item_inven_slot_index);
+        int itemId = 0;
+        int amount = 0;
+        int inventorySlotIndex = 0;
 
-        K_LOG_DEBUG( "player[%s] uploads item", player->GetName().c_str());
-        K_LOG_DEBUG( "trade_item.id: %s", trade_item.id.c_str());
-        K_LOG_DEBUG( "trade_item.type: %s", trade_item.type.c_str());
-        K_LOG_DEBUG( "trade_item.amount: %d", trade_item.amount);
-        K_LOG_DEBUG( "trade_item.slot_index: %d", trade_item.slot_index);
+        try
+        {
+            size_t parsedLength = 0;
+        
+            itemId = std::stoi(item_id, &parsedLength);
+            if (parsedLength != item_id.size())
+                throw std::invalid_argument("invalid item id");
+        
+            amount = std::stoi(item_amount, &parsedLength);
+            if (parsedLength != item_amount.size())
+                throw std::invalid_argument("invalid item amount");
+        
+            tradeSlotIndex = std::stoi(item_trade_slot_index, &parsedLength);
+            if (parsedLength != item_trade_slot_index.size())
+                throw std::invalid_argument("invalid trade slot");
+        
+            inventorySlotIndex = std::stoi(item_inven_slot_index, &parsedLength);
+            if (parsedLength != item_inven_slot_index.size())
+                throw std::invalid_argument("invalid inventory slot");
+        }
+        catch (const std::exception&)
+        {
+            rc = EXIT_FAILURE;
+            errMsg = "Invalid trade item parameter";
+            goto err;
+        }
+
+        if (itemId <= 0 || amount <= 0 || tradeSlotIndex < 0 || inventorySlotIndex < 0)
+        {
+            rc = EXIT_FAILURE;
+            errMsg = "Trade item parameter is out of range";
+            goto err;
+        }
+
+        int inventoryType = (itemId / 1000000) - 1;
+
+        if (inventoryType < 0) // 상한도 실제 인벤토리 타입 개수에 맞게 검사
+        {
+            rc = EXIT_FAILURE;
+            errMsg = "Invalid inventory type";
+            goto err;
+        }
+
+        trade_item.id = std::to_string(itemId);
+        trade_item.type = std::to_string(inventoryType);
+        trade_item.amount = amount;
+        trade_item.slot_index = inventorySlotIndex;
 
         rc = trade_service->UploadItem(player, trade_item, errMsg);
     }
@@ -647,7 +690,7 @@ err:
         std::vector<std::string> payload = {
             trade_item.id,
             std::to_string(trade_item.amount),
-            item_trade_slot_index
+            std::to_string(tradeSlotIndex)
         };
 
         target_player->GetSession()->Send(PKT_TRADE_ADD_ITEM, payload);
@@ -655,6 +698,7 @@ err:
     }
     else 
     {
-        session->SendNok(PKT_TRADE_ADD_ITEM, errMsg);
+        if (session != nullptr)
+            session->SendNok(PKT_TRADE_ADD_ITEM, errMsg);
     }
 }

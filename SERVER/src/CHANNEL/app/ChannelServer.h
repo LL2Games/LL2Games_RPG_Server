@@ -96,6 +96,10 @@ private:
     void StartWorkers();
     void StopWorkers() noexcept;
     bool TryBeginRun() noexcept;
+
+    void DisconnectAllSessions() noexcept;
+    void BroadcastServerShutdown();
+    void DrainSessionSendQueues();
 private:
     int m_channel_id;
     int m_listen_fd;
