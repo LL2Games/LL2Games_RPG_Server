@@ -66,8 +66,7 @@ int MapInstance::Init(const MapInitData& data)
 		}
 	}
 #endif
-	InitSpawnMonster();
-    return 1;
+	return InitSpawnMonster();
 }
 
 int MapInstance::Update(float deltaTime)
@@ -117,6 +116,7 @@ void MapInstance::SendMapInfo()
 int MapInstance::InitSpawnMonster()
 {
 	int instanceId = 1;
+    m_monsterList.clear();
     m_monsterList.reserve(m_monsterSpawnList.size());
 	
     for(m_monsterSpawnListIter = m_monsterSpawnList.begin(); m_monsterSpawnListIter < m_monsterSpawnList.end(); ++m_monsterSpawnListIter)
@@ -126,7 +126,7 @@ int MapInstance::InitSpawnMonster()
 		
 		if(!m_monsterManager->EnsureLoaded(m_monsterSpawnListIter->monsterId))
 		{
-			K_LOG_ERROR( "FAILED OPEN [%s] FILE", m_monsterSpawnListIter->monsterId);
+			K_LOG_ERROR( "FAILED OPEN monster [%d] FILE", m_monsterSpawnListIter->monsterId);
 			return -1;
 		}
 			
@@ -149,6 +149,9 @@ int MapInstance::InitSpawnMonster()
 		}
 
         m_monsterList.push_back(monster);
+        K_LOG_DEBUG("[MonsterSpawn] monsterId=%d instanceId=%d mapId=%u pos=(%.1f, %.1f)",
+            monster.GetId(), monster.GetInstanceId(), monster.GetMapId(),
+            monster.GetPos().xPos, monster.GetPos().yPos);
 		
     }
 

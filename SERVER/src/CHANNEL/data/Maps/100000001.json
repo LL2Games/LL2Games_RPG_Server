@@ -1,18 +1,68 @@
 {
   "mapId": 100000001,
   "name": "Forest Ground 2",
-  "respawnDelay" : 10, 
+  "respawnDelay": 10,
   "monsters": [
-   { "monsterId": 100100, "xPos":   100.0, "yPos": 700.0, "group": 1 },
-    { "monsterId": 100101, "xPos":   1000.0, "yPos": 700.0, "group": 1 },
-    { "monsterId": 100102, "xPos":   500.0, "yPos": 700.0, "group": 1 }
+    {
+      "monsterId": 100101,
+      "spawnCount": 5,
+      "spawnPoints": [
+        {
+          "xPos": 130.0,
+          "yPos": 600.0
+        },
+        {
+          "xPos": 310.0,
+          "yPos": 450.0
+        },
+        {
+          "xPos": 490.0,
+          "yPos": 650.0
+        },
+        {
+          "xPos": 670.0,
+          "yPos": 550.0
+        },
+        {
+          "xPos": 850.0,
+          "yPos": 620.0
+        }
+      ],
+      "group": 1
+    },
+    {
+      "monsterId": 100102,
+      "spawnCount": 5,
+      "spawnPoints": [
+        {
+          "xPos": 220.0,
+          "yPos": 200.0
+        },
+        {
+          "xPos": 400.0,
+          "yPos": 150.0
+        },
+        {
+          "xPos": 580.0,
+          "yPos": 350.0
+        },
+        {
+          "xPos": 760.0,
+          "yPos": 250.0
+        },
+        {
+          "xPos": 940.0,
+          "yPos": 400.0
+        }
+      ],
+      "group": 1
+    }
   ],
   "portals": [
     {
       "id": "to_map_100000000",
-      "position": 
-      { 
-        "x": 120.0, 
+      "position": {
+        "x": 120.0,
         "y": 720.0
       },
       "interactionRange": 120.0,
@@ -35,5 +85,12 @@
         "y": 850.0
       }
     }
-  ]
+  ],
+  "minSpawnSpacing": 100,
+  "spawnBounds": {
+    "minX": 100,
+    "maxX": 1000,
+    "minY": 100,
+    "maxY": 700
+  }
 }

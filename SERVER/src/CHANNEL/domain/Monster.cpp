@@ -261,31 +261,15 @@ bool Monster::CheckRespawnTime(std::chrono::steady_clock::time_point now)
 		return false;
 
 	if (!m_deadRequest)
-	{
-		K_LOG_DEBUG(
-			"[RespawnCheck] id=%d deadRequest=false",
-			m_instanceId);
 		return false;
-	}
-
-	auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_deadTime).count();
-	auto delay = std::chrono::duration_cast<std::chrono::milliseconds>(m_respawnDelay).count();
-
-	K_LOG_DEBUG(
-		"[RespawnCheck] id=%d elapsed=%lld delay=%lld hp=%d alive=%d deadRequest=%d",
-		m_instanceId,
-		elapsed,
-		delay,
-		m_hp,
-		m_isAlive,
-		m_deadRequest);
 
 	return now - m_deadTime >= m_respawnDelay;
 }
 
 int Monster::Reset()
 {
-	K_LOG_DEBUG( "monsterReset [%d]", m_instanceId);
+	K_LOG_DEBUG("[MonsterRespawn] monsterId=%d instanceId=%d mapId=%u pos=(%.1f, %.1f)",
+		m_monsterId, m_instanceId, m_mapId, m_spawnPos.xPos, m_spawnPos.yPos);
 	m_Pos.xPos = m_spawnPos.xPos;
 	m_Pos.yPos = m_spawnPos.yPos;
 	m_hp = m_maxhp;
