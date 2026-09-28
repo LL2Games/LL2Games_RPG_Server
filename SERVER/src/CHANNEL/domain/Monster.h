@@ -76,6 +76,7 @@ public:
 	std::string GetName(){return m_name;}
 	int GetInstanceId() const {return m_instanceId;}
 	int GetId() const {return m_monsterId;}
+	uint32_t GetMapId() const {return m_mapId;}
 
 	int GetCurrentHP() const {return m_hp;}
 	int GetMaxHP() const {return m_maxhp;}
@@ -140,7 +141,7 @@ private:
 	Player *m_lastAttacker;
 
 	//스폰된 맵 ID
-	uint16_t m_mapId; 
+	uint32_t m_mapId;
 	MapInstance* m_mapInstance;
 
 	/***원거리 공격 관련 변수***/

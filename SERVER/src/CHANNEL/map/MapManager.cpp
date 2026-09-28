@@ -4,6 +4,8 @@
 #include "MapUpdateTask.h"
 #include "ChannelServer.h"
 #include <algorithm>
+#include <cmath>
+#include <stdexcept>
 
 #define MAP_PATH "../src/CHANNEL/data/Maps/"
 namespace fs = std::filesystem;
@@ -207,46 +209,98 @@ bool MapManager::LoadJsonFile(int mapId, MapInitData &mapData)
         return false;
     }
     
-    // JSON 파일 파싱
-    nlohmann::json j;
     try
     {
+        nlohmann::json j;
         file >> j;
+        mapData.name = j.at("name").get<std::string>();
+        mapData.mapID = j.at("mapId").get<uint32_t>();
+        if (mapData.mapID != static_cast<uint32_t>(mapId))
+            throw std::runtime_error("mapId does not match file name");
+        LoadMonster(j, mapData.MonstersData);
+        LoadPortal(j, mapData.portals, mapData.mapID);
     }
-    catch (const nlohmann::json::parse_error &e)
+    catch (const std::exception& e)
     {
-        // JSON 문법 깨짐/파싱 실패
+        K_LOG_ERROR("[MapLoad] mapId=%d: %s", mapId, e.what());
         return false;
     }
-
-    if (j.is_null())
-        return false;
-
-    mapData.name = j.at("name").get<std::string>();
-    mapData.mapID = j.at("mapId").get<u_int32_t>();
-    // Json 파일에서 몬스터 데이터 읽어오기
-    LoadMonster(j, mapData.MonstersData);
-    LoadPortal(j, mapData.portals, mapData.mapID);
     return true;
 }
 
 void MapManager::LoadMonster(nlohmann::json &j, std::vector<MonsterSpawnData>& MonstersData)
 {
+    // Expand server-owned rules once; respawn reuses these validated positions.
+    std::vector<MonsterSpawnData> spawns;
     const auto& arr = j.at("monsters");
-    MonstersData.clear();
-    MonstersData.reserve(arr.size());
+    if (!arr.is_array())
+        throw std::runtime_error("monsters must be an array");
 
     for (const auto& m : arr)
     {
-        MonsterSpawnData data;
-        data.monsterId = m.at("monsterId").get<int>();   // 키 맞춰라
-        data.respawnDelay = j.at("respawnDelay").get<u_int32_t>();;
-        data.spawnPos.xPos = m.at("xPos").get<float>();     
-        data.spawnPos.yPos = m.at("yPos").get<float>();
-        data.ItemId = m.at("group").get<int>(); 
+        MonsterSpawnData data{};
+        data.monsterId = m.at("monsterId").get<int>();
+        data.respawnDelay = m.contains("respawnDelay")
+            ? m.at("respawnDelay").get<int>() : j.at("respawnDelay").get<int>();
+        data.ItemId = m.at("group").get<int>();
+        if (data.respawnDelay < 0)
+            throw std::runtime_error("negative respawnDelay");
+        auto* manager = MonsterManager::GetInstance();
+        if (!manager->EnsureLoaded(data.monsterId))
+            throw std::runtime_error("unknown monsterId");
+        const auto monsterTemplate = manager->GetMonsterData(data.monsterId);
+        if (!monsterTemplate || monsterTemplate->monsterId != data.monsterId)
+            throw std::runtime_error("monsterId does not match template");
 
-        MonstersData.push_back(std::move(data));
+        nlohmann::json points;
+        if (m.contains("spawnPoints"))
+        {
+            points = m.at("spawnPoints");
+            const auto& count = m.at("spawnCount");
+            if (!count.is_number_integer() || count.get<int64_t>() < 0 ||
+                !points.is_array() || static_cast<uint64_t>(count.get<int64_t>()) != points.size())
+                throw std::runtime_error("spawnCount must match spawnPoints size");
+        }
+        else
+        {
+            if (m.value("spawnCount", 1) != 1)
+                throw std::runtime_error("multiple spawns require explicit spawnPoints");
+            points = nlohmann::json::array({m}); // Existing single-point format.
+        }
+
+        for (const auto& point : points)
+        {
+            data.spawnPos.xPos = point.at("xPos").get<float>();
+            data.spawnPos.yPos = point.at("yPos").get<float>();
+            if (!std::isfinite(data.spawnPos.xPos) || !std::isfinite(data.spawnPos.yPos))
+                throw std::runtime_error("non-finite spawn position");
+            if (j.contains("spawnBounds"))
+            {
+                const auto& bounds = j.at("spawnBounds");
+                const float minX = bounds.at("minX").get<float>();
+                const float maxX = bounds.at("maxX").get<float>();
+                const float minY = bounds.at("minY").get<float>();
+                const float maxY = bounds.at("maxY").get<float>();
+                if (!(minX <= maxX && minY <= maxY) ||
+                    !(data.spawnPos.xPos >= minX && data.spawnPos.xPos <= maxX &&
+                      data.spawnPos.yPos >= minY && data.spawnPos.yPos <= maxY))
+                    throw std::runtime_error("spawn position outside spawnBounds");
+            }
+            const float minSpacing = j.value("minSpawnSpacing", 0.0f);
+            if (!std::isfinite(minSpacing) || minSpacing < 0)
+                throw std::runtime_error("invalid minSpawnSpacing");
+            for (const auto& existing : spawns)
+            {
+                const float dx = existing.spawnPos.xPos - data.spawnPos.xPos;
+                const float dy = existing.spawnPos.yPos - data.spawnPos.yPos;
+                const float distance = std::hypot(dx, dy);
+                if (distance == 0 || distance < minSpacing)
+                    throw std::runtime_error("spawn positions overlap or are too close");
+            }
+            spawns.push_back(data);
+        }
     }
+    MonstersData = std::move(spawns);
 }
 
 void MapManager::LoadPortal(nlohmann::json& j, std::vector<PortalData>& portals, u_int32_t mapId)

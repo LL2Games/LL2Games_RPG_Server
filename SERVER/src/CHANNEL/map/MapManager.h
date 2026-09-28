@@ -34,7 +34,7 @@ private:
     // key : map_id value : map
     std::unordered_map<int, MapInstance*> m_maps;
     std::unordered_map<int, MapInitData> m_maps_initData;
-    std::queue<uint16_t> m_destroyQueue;
+    std::queue<uint32_t> m_destroyQueue;
     ChannelServer* m_server;
 
 

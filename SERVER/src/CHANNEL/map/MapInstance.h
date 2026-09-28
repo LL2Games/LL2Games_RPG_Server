@@ -82,7 +82,7 @@ public:
     // 나중에 호출할 콜백 함수를 변수에 저장하는 함수
     void SetDestroyCallback(DestroyReqFn cb) {m_onDestroyReq = std::move(cb);}
 
-    uint16_t GetMapId() {return m_mapID;}
+    uint32_t GetMapId() {return m_mapID;}
 
     std::vector<Monster>& GetMonsterList(){ return m_monsterList;};
     ProjectileManager& GetProjectileManager() { return m_projectileManager; }
@@ -99,7 +99,7 @@ private:
     float m_contactCheckRadiusSq;
 	// 플레이어 수 
 	uint16_t m_playerCount;
-    uint16_t m_mapID;
+    uint32_t m_mapID;
     int m_dropId;
 
     std::unordered_map<int, Player*> m_playerList;
