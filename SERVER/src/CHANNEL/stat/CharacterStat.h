@@ -105,6 +105,7 @@ public:
 public:
     void Up(const std::string & statType);
     ExpResult AddExp(int64_t exp);
+    int64_t ReduceExp(double percent);
 private:
     BaseStat m_base;
     DerivedStat m_derived;

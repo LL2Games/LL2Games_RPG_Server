@@ -553,6 +553,7 @@ void MapInstance::ResolveSkillHit(Player* Attacker, SkillDef& skillDef, std::vec
 
 void MapInstance::ProcessContactDamage(int64_t nowMs)
 {
+	std::vector<Player*> deadPlayers;
 	std::vector<ContactDamageEvent> events;
     std::unordered_map<int, Player*> playerSnapshot;
 
@@ -596,6 +597,14 @@ void MapInstance::ProcessContactDamage(int64_t nowMs)
 			
 			//K_LOG_DEBUG( "OnDamaged");
 			player->OnDamaged(dmg,nowMs);
+
+			//사망했을 경우
+			if (!player->IsAlive())
+			{
+				deadPlayers.push_back(player);
+				break; //사망했으므로 추가 충돌처리 중단
+			}
+
 			PlayerHitResult result;
 			result.damage = dmg;
 			SetPlayerHitResult(player, monster.GetInstanceId(), result);
@@ -611,10 +620,17 @@ void MapInstance::ProcessContactDamage(int64_t nowMs)
     {
         PlayerPacketSender::SendPlayerOnDamaged(event.player, event.result, playerSnapshot);
     }
+
+	//플레이어 사망 이벤트
+	for (const auto& deadPlayer: deadPlayers)
+	{
+		PlayerPacketSender::SendPlayerDead(deadPlayer, playerSnapshot);
+	}
 }
 /*gunoo22 260223 원거리 공격 처리*/
 void MapInstance::ProcessRangedDamage(int64_t nowMs)
 {
+	std::vector<Player*> deadPlayers;
 	std::vector<ContactDamageEvent> events;
 	std::unordered_map<int, Player*> playerSnapshot;
 
@@ -651,6 +667,13 @@ void MapInstance::ProcessRangedDamage(int64_t nowMs)
 					//플레이어 온데미지
 					player->OnDamaged(dmg, nowMs);
 
+					//사망했을 경우
+					if (!player->IsAlive())
+					{
+						deadPlayers.push_back(player);
+						break; //사망했으므로 추가 충돌처리 중단
+					}
+
 					PlayerHitResult result;
 					result.damage = dmg;
 					SetPlayerHitResult(player, p->GetOwnerId(), result);
@@ -664,6 +687,12 @@ void MapInstance::ProcessRangedDamage(int64_t nowMs)
     {
         PlayerPacketSender::SendPlayerOnDamaged(event.player, event.result, playerSnapshot);
     }
+
+	//플레이어 사망 이벤트
+	for (const auto& deadPlayer: deadPlayers)
+	{
+		PlayerPacketSender::SendPlayerDead(deadPlayer, playerSnapshot);
+	}
 }
 
 void MapInstance::SetPlayerHitResult(Player* player, int monster_instanceId, PlayerHitResult& result)
@@ -858,4 +887,25 @@ bool MapInstance::HasPlayer()
 {
 	std::lock_guard<std::mutex> lock(m_playerMutex);
 	return m_has_player;
+}
+
+bool MapInstance::RevivePlayer(Player* player)
+{
+	std::lock_guard<std::mutex> lock(m_playerMutex);
+	//부활 위치 결정
+	Vec2 revivePos;
+
+	//임시 -> 안전한 지역으로 설정해서 랜덤하게 해야함
+	revivePos.xPos = 10.0;
+	revivePos.yPos = 10.0;
+
+	//player 부활 호출
+	player->Revive(revivePos);
+
+	//해당 플레이어에게 스탯 전송 (Hp등)
+	PlayerPacketSender::SendPlayerStat(player);
+
+	//같은맵 다른 player에게 패킷 전송
+
+	return true;
 }

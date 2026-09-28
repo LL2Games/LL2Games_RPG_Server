@@ -57,6 +57,8 @@ public:
     bool CanPickupByDistance(Vec2 playerPos, Vec2 ItemPos);
     bool SpawnDropItem(const Vec2& dropPos, Player* owner, const std::vector<DropResult>& dropItems);
     void CheckDropItem();
+
+    bool RevivePlayer(Player* player);
     
     std::optional<PortalData> FindPortal(const std::string& portalId) const;
 private:

@@ -14,6 +14,7 @@ public:
     static void SendPlayerEnter(Player* player, std::unordered_map<int, Player*>& playerList);
     static void SendPlayerLeave(int playerId,const std::unordered_map<int, Player*>& playerList);
     static void SendExistingPlayersToNewPlayer(Player* newPlayer ,std::unordered_map<int, Player*>& playerList);
+    static void SendPlayerDead(Player* player, std::unordered_map<int, Player*>& playerList);
 private:
 
 

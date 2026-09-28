@@ -2,7 +2,6 @@
 #include "timeUtility.h"
 #include "ItemManager.h"
 
-
 namespace
 {
     // 속도 허용 여유
@@ -344,6 +343,27 @@ void Player::Dead()
 {
     m_CurrentState = PlayerState::DEAD;
 
+    //1. 경험치 등 패널티처리
+    m_stat.ReduceExp(10.0); //10% 감소
+    // 경험치 클라 전송은 부활시 MapInstance에서 SendPlayerStat로 전송예정
+
+    //2. 클라이언트에 패킷 전송
+    //-> MapInstance.cpp 에서 PlayerPacketSender::SendPlayerDead로 전송
+
+}
+
+bool Player::Revive(const Vec2& position)
+{
+    //DEAD에서 변경
+    m_CurrentState = PlayerState::IDLE;
+
+    //임시로 부활시 경험치 맥스로
+    m_stat.SetCurHp(m_stat.GetMaxHp());
+
+    //안전한 위치 변경
+    SetPos(position);
+
+    return true;
 }
 
 ExpResult Player::AddExp(int64_t exp)
