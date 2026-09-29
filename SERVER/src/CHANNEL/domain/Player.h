@@ -195,6 +195,9 @@ public:
     void SetFacing(int facing) { if (facing == -1 || facing == 1) m_dir = facing; }
 
 private:
+    // Gameplay::gate와 m_statMutex를 이미 잡은 호출자 전용.
+    void DeadLocked();
+
     int m_char_id;
     std::string m_account_id;
     std::string m_name;

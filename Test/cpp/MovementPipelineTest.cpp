@@ -3,6 +3,9 @@
 #include "ChannelPacketFactory.h"
 #include "PacketParser.h"
 #include "GameplayGate.h"
+#include "LevelManager.h"
+#include "MapService.h"
+#include "MapManager.h"
 #include <sys/socket.h>
 #include <unistd.h>
 #include <cerrno>
@@ -10,6 +13,14 @@
 #include <iostream>
 #include <limits>
 #include <stdexcept>
+
+// DB 연결 없이 실제 경험치 감소 공식을 검증하는 테스트 데이터.
+class LevelManagerTestAccess {
+public:
+    static void Seed(int level, int64_t needExp) {
+        LevelManager::GetInstance()->m_needExpTable[level] = needExp;
+    }
+};
 
 namespace {
 int checks = 0;
@@ -221,11 +232,105 @@ void TestMonsterSnapshot() {
     Check(Find(own,1,1).fields==Find(other,1,1).fields,"몬스터 스냅샷도 본인/관찰자 일치");
     Check(Find(own,1,1).fields[14]=="100","몬스터 HP 포함");
 }
+void TestDeathReviveLifecycle() {
+    Scene scene;
+    LevelManagerTestAccess::Seed(1,100);
+    scene.player.GetStat() = CharacterStat{BaseStat{4,4,4,4},DerivedStat{100,50},
+        ExpStat{1,80,100},100,50,0};
+    const int aliveEpoch=scene.player.MovementEpoch();
+    scene.Input(1,1,0,1);
+    auto& body=scene.player.MovementBody();
+    body.vx=200; body.vy=-100; body.mode=Movement::Mode::Climbing; body.climbableId=1;
+    scene.player.OnDamaged(0,1000);
+    scene.player.OnDamaged(-10,1000);
+    Check(scene.player.GetCurHP()==100,"0/음수 피해는 무시");
+    scene.player.OnDamaged(200,1000);
+    Check(!scene.player.IsAlive() && scene.player.GetCurHP()==0,"치명타에서 DEAD 및 HP 0");
+    Check(scene.player.GetStatSnapShot().GetExp()==70,"사망 시 필요 경험치 10%를 한 번 감소");
+    Check(scene.player.MovementEpoch()==aliveEpoch+1 && body.vx==0 && body.vy==0 &&
+        body.climbableId==0 && scene.player.LastInputSequence()==0,"사망 시 속도/탑승/순번 해제 및 새 epoch");
+    const auto deadInput=scene.player.ConsumeMovement(0);
+    Check(deadInput.horizontal==0 && !deadInput.jump,"사망 시 남은 방향과 점프 해제");
+    const auto deadVersion=scene.player.MakeSaveData().saveVersion;
+    scene.player.OnDamaged(200,1001); scene.player.Dead();
+    Check(scene.player.GetStatSnapShot().GetExp()==70 &&
+        scene.player.MakeSaveData().saveVersion==deadVersion &&
+        scene.player.MovementEpoch()==aliveEpoch+1,"중복 피격/Dead 호출은 경험치와 상태를 다시 변경하지 않음");
+    Check(!scene.player.AcceptMovement(aliveEpoch,2,{1,0,true}),"사망 전 입력 거부");
+    Check(!scene.player.Revive({std::numeric_limits<float>::quiet_NaN(),0}),"잘못된 부활 좌표 거부");
+    scene.Packet(PKT_PLAYER_REVIVE,{"unexpected"}); scene.selfPeer.Read();
+    Check(!scene.player.IsAlive(),"부활 요청은 빈 payload만 허용");
+    scene.Packet(PKT_PLAYER_REVIVE,{});
+    auto own=scene.selfPeer.Read(), other=scene.otherPeer.Read();
+    const auto& revived=Find(own,0,1);
+    Check(revived.fields==Find(other,0,1).fields,"부활 위치/HP/epoch를 본인과 관찰자에게 동일하게 전달");
+    Check(revived.fields[14]=="100" && revived.fields[13]==std::to_string(static_cast<int>(PlayerState::IDLE)),
+        "부활 스냅샷에 살아 있는 상태와 최대 HP 반영");
+    Check(scene.player.MovementEpoch()==aliveEpoch+2 && Near(scene.player.GetPos().xPos,0) &&
+        Near(scene.player.GetPos().yPos,90) && body.mode==Movement::Mode::Grounded,
+        "부활 시 안전 발판 원점 및 epoch 한 번 갱신");
+    Check(scene.player.IsSaveNeeded() && scene.player.IsStatDirty(),"사망/부활 결과 저장 및 스탯 전송 필요 표시");
+    bool ok=false;
+    for(const auto& row:own) if(row.type==PKT_PLAYER_REVIVE && row.fields[0]=="ok") ok=true;
+    Check(ok,"성공한 부활에만 ok 응답");
+    const auto revivedVersion=scene.player.MakeSaveData().saveVersion;
+    scene.Packet(PKT_PLAYER_REVIVE,{}); own=scene.selfPeer.Read();
+    Check(own.size()==1 && own[0].type==PKT_PLAYER_REVIVE && own[0].fields[0]=="nok" &&
+        scene.player.MakeSaveData().saveVersion==revivedVersion,"살아 있는 상태의 중복 부활은 nok, 상태 변경 없음");
+    Check(!scene.player.AcceptMovement(aliveEpoch+1,2,{1,0,true}),"부활 이전 epoch 입력 거부");
+    scene.map.Update(0.05f); scene.selfPeer.Read(); scene.otherPeer.Read();
+    Check(Near(scene.player.GetPos().xPos,0) && Near(scene.player.GetPos().yPos,90),"부활 직후 이전 입력/속도 때문에 움직이지 않음");
+    scene.Input(1,1); scene.Step(0.05f);
+    Check(scene.player.GetPos().xPos>0,"부활 이후 새 입력으로 정상 이동");
+    scene.player.Dead(); scene.map.OnLeave(1);
+    const int leftEpoch=scene.player.MovementEpoch();
+    Check(!scene.map.RevivePlayer(&scene.player) && scene.player.MovementEpoch()==leftEpoch,
+        "현재 맵 포인터가 남아 있어도 퇴장한 플레이어는 부활 불가");
+}
+
+void TestActionRestrictionsAndMapEntry() {
+    Scene scene;
+    SkillDef skill{}; skill.category=SkillCategory::BASIC_ATTACK;
+    Check(scene.player.CanUseSkill(&skill),"지상 기본 공격 허용");
+    scene.player.MovementBody().mode=Movement::Mode::Rising;
+    Check(scene.player.CanUseSkill(&skill),"공중 공격 허용 정책 유지");
+    scene.player.MovementBody().mode=Movement::Mode::Climbing;
+    Check(!scene.player.CanUseSkill(&skill),"줄타기 중 공격 차단");
+    scene.player.Dead();
+    Check(!scene.player.CanUseSkill(&skill),"사망 중 공격 차단");
+    PlayerManager players;
+    MapManager maps(nullptr);
+    MapService service(players,maps);
+    const auto result=service.MoveByPortal(&scene.player,"any");
+    Check(!result.success && result.error=="dead player cannot use portal","사망 중 포탈 사용 차단");
+    scene.map.RevivePlayer(&scene.player); scene.selfPeer.Read(); scene.otherPeer.Read();
+    scene.player.SetState(PlayerState::STUNNED);
+    Check(!scene.player.CanUseSkill(&skill),"기존 기절 공격 제한 유지");
+    scene.player.SetState(PlayerState::IDLE);
+    scene.Input(1,1,0,1);
+    const int beforeEpoch=scene.player.MovementEpoch();
+    MapInstance destination;
+    auto data=MapData(); data.mapID=43;
+    Check(destination.Init(data)==1,"목적지 테스트 맵 초기화");
+    scene.map.OnLeave(1);
+    scene.player.SetMapId(43); scene.player.SetPos({150,90});
+    scene.player.SetCurrentMap(&destination); destination.OnEnter(1,&scene.player);
+    Check(scene.player.MovementEpoch()==beforeEpoch+1 &&
+        !scene.player.AcceptMovement(beforeEpoch,2,{1,0,true}),"맵 변경 시 epoch 갱신 및 이전 입력 거부");
+    const auto input=scene.player.ConsumeMovement(0);
+    Check(!input.jump && input.horizontal==0 && scene.player.MovementBody().vy==0,
+        "맵 변경 시 점프/방향/속도 초기화");
+    destination.OnLeave(1);
+    scene.player.SetCurrentMap(&scene.map); scene.player.SetMapId(42);
+    scene.map.OnEnter(1,&scene.player);
+}
+
 }
 int main() {
     Gameplay::Guard guard(Gameplay::gate);
     try {
         TestPacketsAndTick(); TestPlayerPhysics(); TestMonsterPhysics(); TestMonsterSnapshot();
+        TestDeathReviveLifecycle(); TestActionRestrictionsAndMapEntry();
         std::cout << "Movement pipeline checks passed: " << checks << '\n';
     } catch(const std::exception& e) { std::cerr << "[FAIL] " << e.what() << '\n'; return 1; }
 }

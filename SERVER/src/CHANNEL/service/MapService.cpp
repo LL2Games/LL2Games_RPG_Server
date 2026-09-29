@@ -47,6 +47,12 @@ PortalMoveResult MapService::MoveByPortal(Player* player, const std::string& por
         return moveResult;
     }
 
+    if (!player->IsAlive())
+    {
+        moveResult.error = "dead player cannot use portal";
+        return moveResult;
+    }
+
     MapInstance* currentMap = player->GetCurrentMap();
 
     if(currentMap == nullptr)

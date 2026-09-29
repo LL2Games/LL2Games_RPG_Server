@@ -913,23 +913,22 @@ bool MapInstance::HasPlayer()
 
 bool MapInstance::RevivePlayer(Player* player)
 {
-	std::lock_guard<std::mutex> lock(m_playerMutex);
-	//부활 위치 결정
-	Vec2 revivePos;
-
-	//임시 -> 안전한 지역으로 설정해서 랜덤하게 해야함
-	revivePos.xPos = 10.0;
-	revivePos.yPos = 10.0;
-
-	//player 부활 호출
-	player->Revive(revivePos);
-
-	//해당 플레이어에게 스탯 전송 (Hp등)
-	PlayerPacketSender::SendPlayerStat(player);
-
-	//같은맵 다른 player에게 패킷 전송
-
-	return true;
+    Gameplay::Guard guard(Gameplay::gate);
+    if (!player || player->GetCurrentMap() != this) return false;
+    {
+        std::lock_guard<std::mutex> lock(m_playerMutex);
+        const auto it = m_playerList.find(player->GetId());
+        if (it == m_playerList.end() || it->second != player) return false;
+    }
+    Vec2 origin{m_physics.safeFeet.xPos,
+                m_physics.safeFeet.yPos - player->MovementBody().footOffset};
+    if (!player->Revive(origin)) return false;
+    // Revive가 epoch를 갱신했으므로 여기서는 발판 상태만 맞춘다.
+    Movement::ResetAtOrigin(origin, player->MovementBody(), m_physics);
+    PlayerPacketSender::SendPlayerStat(player);
+    // 목록 잠금을 해제한 상태에서 호출해야 재잠금으로 멈추지 않는다.
+    BroadcastMovement();
+    return true;
 }
 void MapInstance::ResetPlayerMovement(Player* player, bool useSafePosition) {
     Gameplay::Guard guard(Gameplay::gate);
