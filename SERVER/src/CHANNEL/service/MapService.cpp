@@ -2,6 +2,7 @@
 #include "Player.h"
 #include "MapInstance.h"
 #include "MapManager.h"
+#include "GameplayGate.h"
 
 MapService::MapService(PlayerManager& playermanager, MapManager& mapManager) : m_playerManager(playermanager), m_MapManger(mapManager)
 {
@@ -12,6 +13,8 @@ int MapService::EnterMap(int playerId, int mapID)
 {
     Player* player;
     MapInstance* map;
+
+    Gameplay::Guard guard(Gameplay::gate);
     player = m_playerManager.GetPlayer(playerId);
     if(player == nullptr) 
     {
@@ -35,6 +38,8 @@ int MapService::EnterMap(int playerId, int mapID)
 PortalMoveResult MapService::MoveByPortal(Player* player, const std::string& portalId)
 {
     PortalMoveResult moveResult{};
+
+    Gameplay::Guard guard(Gameplay::gate);
 
     if(player == nullptr)
     {

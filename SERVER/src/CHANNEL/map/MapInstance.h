@@ -93,8 +93,8 @@ public:
     const Movement::Map& GetPhysicsMap() const { return m_physics; }
 private:
    	// 플레이어가 맵에 있는지 없는지 판단 변수
-    bool m_has_player;
-    bool m_destroyRequested;
+    bool m_has_player = false;
+    bool m_destroyRequested = false;
 
     // 플레이어-몬스터 접촉 판정용 거리 임계값(반지름^2). 거리^2와 비교한다.
     float m_contactCheckRadiusSq;

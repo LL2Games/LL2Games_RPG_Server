@@ -10,6 +10,7 @@
 #include "PlayerPacketSender.h"
 #include "ItemPacketSender.h"
 #include "StatInfoPacket.h"
+#include "GameplayGate.h"
 
 
 #define MAPDELETELIMIT 5
@@ -73,6 +74,8 @@ int MapInstance::Init(const MapInitData& data)
 
 int MapInstance::Update(float deltaTime)
 {
+	Gameplay::Guard guard(Gameplay::gate);
+	
 	//K_LOG_TRACE( "MapInstance Pointer[%p]", this);
 	if(!HasPlayer())
 	{
@@ -225,7 +228,9 @@ int MapInstance::SpawnMonster()
 
 void MapInstance::OnEnter(int PlayerID, Player* player)
 {
-	 if (player == nullptr)
+	Gameplay::Guard guard(Gameplay::gate);
+
+	if (player == nullptr)
     {
         return;
     }
@@ -254,7 +259,8 @@ void MapInstance::OnEnter(int PlayerID, Player* player)
 
 void MapInstance::OnLeave(int PlayerID)
 {
-    std::unordered_map<int, Player*> remainingPlayers;
+	std::unordered_map<int, Player*> remainingPlayers;
+	Gameplay::Guard guard(Gameplay::gate);
 
     {
         std::lock_guard<std::mutex> lock(m_playerMutex);

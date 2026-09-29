@@ -1,6 +1,9 @@
 #include "Player.h"
 #include "timeUtility.h"
 #include "ItemManager.h"
+#include <cmath>
+#include <limits>
+#include <stdexcept>
 
 namespace
 {
@@ -28,6 +31,8 @@ Player::Player() : m_char_id(0),
     m_collider.rect.offset = {-6.f, -20.f};
     m_collider.rect.halfW = 18.f;
     m_collider.rect.halfH = 30.f;
+    // 충돌체가 완성되는 공통 초기화 지점. 두 SetInitData 경로 모두 사용한다.
+    m_movement.footOffset = m_collider.rect.offset.yPos + m_collider.rect.halfH;
     m_quickSlotManager.Init();
 }
 
@@ -568,3 +573,55 @@ Vec2 Player::GetPos() const
 
 
 
+
+
+void Player::ResetMovement()
+{
+    // epoch를 재사용하면 오래된 입력을 새 입력으로 오인할 수 있다.
+    if (m_movementEpoch == std::numeric_limits<int>::max())
+        throw std::overflow_error("movement epoch exhausted");
+
+    Movement::Reset(m_movement);
+    m_moveInput = {};
+    m_inputAge = 0.0f;
+    m_inputSequence = 0;
+    ++m_movementEpoch;
+}
+
+bool Player::AcceptMovement(int epoch, int sequence, Movement::Input input)
+{
+    const PlayerState state = GetState();
+    if (state == PlayerState::DEAD || state == PlayerState::STUNNED ||
+        epoch != m_movementEpoch || sequence <= m_inputSequence ||
+        input.horizontal < -1 || input.horizontal > 1 ||
+        input.vertical < -1 || input.vertical > 1)
+    {
+        return false;
+    }
+
+    m_inputSequence = sequence;
+    m_moveInput.horizontal = input.horizontal;
+    m_moveInput.vertical = input.vertical;
+    // 물리 갱신 전에 키 해제 입력이 와도 점프 누름 1회는 보존한다.
+    m_moveInput.jump = m_moveInput.jump || input.jump;
+    m_inputAge = 0.0f;
+    return true;
+}
+
+Movement::Input Player::ConsumeMovement(float dt)
+{
+    // 잘못된 시간이 timeout을 무력화하지 않도록 입력을 해제한다.
+    if (!std::isfinite(dt) || dt < 0.0f)
+    {
+        m_moveInput = {};
+        return {};
+    }
+
+    m_inputAge += dt;
+    if (m_inputAge > 0.3f)
+        m_moveInput = {};
+
+    const Movement::Input result = m_moveInput;
+    m_moveInput.jump = false;
+    return result;
+}

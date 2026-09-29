@@ -8,7 +8,7 @@
 namespace Movement {
     constexpr float StepSeconds = 1.0f / 60.0f;
     constexpr float Gravity = 1800.0f;
-    constexpr float maxFall = 1000.0f;
+    constexpr float MaxFall = 1000.0f;
     constexpr float JumpSpeed = 650.0f;
     constexpr float ClimbSpeed = 180.0f;
     constexpr float Epsilon = 0.05f;
@@ -177,7 +177,7 @@ namespace Movement {
             body.platformId = 0;
         }
 
-        body.vy = std::min(body.vy + Gravity * dt, maxFall);
+        body.vy = std::min(body.vy + Gravity * dt, MaxFall);
         const float nextY = before.yPos + body.vy * dt;
         const float oldFeet = before.yPos + body.footOffset;
         const float newFeet = nextY + body.footOffset;

@@ -6,7 +6,7 @@
 #include "MapInstance.h"
 #include "K_slog.h"
 #include "PacketParser.h"
-
+#include "GameplayGate.h"
 
 
 
@@ -20,6 +20,7 @@ PlayerHandler::PlayerHandler(uint16_t type) : m_type(type)
 
 void PlayerHandler::Execute(PacketContext * ctx)
 {
+     Gameplay::Guard guard(Gameplay::gate);
      switch(ctx->type)
      {
           case PKT_PLAYER_MOVE:

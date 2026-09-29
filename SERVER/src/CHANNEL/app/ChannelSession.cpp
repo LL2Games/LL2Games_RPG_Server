@@ -7,6 +7,7 @@
 #include "PlayerManager.h"
 #include "ChannelAuthTask.h"
 #include "PacketProcessTask.h"
+#include "GameplayGate.h"
 
 ChannelSession::ChannelSession(int fd, ChannelServer* server, uint64_t sessionId, uint64_t generation)
     : m_fd(fd),
@@ -21,6 +22,7 @@ ChannelSession::ChannelSession(int fd, ChannelServer* server, uint64_t sessionId
 
 ChannelSession::~ChannelSession()
 {
+    Gameplay::Guard guard(Gameplay::gate);
     if (m_player != nullptr)
     {
         m_player->SetSession(nullptr);
@@ -296,6 +298,8 @@ bool ChannelSession::IsAuthenticated() const
 
 void ChannelSession::FinalizePlayer()
 {
+    Gameplay::Guard guard(Gameplay::gate);
+
     if (m_player == nullptr)
     {
         return;

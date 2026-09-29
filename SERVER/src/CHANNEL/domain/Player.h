@@ -15,6 +15,7 @@
 #include "StatInfoPacket.h"
 #include "PlayerSaveData.h"
 #include "Math.h"
+#include "MovementPhysics.h"
 
 #include <mutex>
 #include <atomic>
@@ -183,6 +184,16 @@ public:
     bool TryApplyMove(const Vec2& requestedPosition, std::string& errMsg);
     void ResetMoveValidation();
 
+    // 초기화 이후에는 Gameplay::gate 안에서 접근한다 (참조 접근자 포함).
+    Movement::Body& MovementBody() { return m_movement; }
+    const Movement::Body& MovementBody() const { return m_movement; }
+    int MovementEpoch() const { return m_movementEpoch; }
+    int LastInputSequence() const { return m_inputSequence; }
+    bool AcceptMovement(int epoch, int sequence, Movement::Input input);
+    Movement::Input ConsumeMovement(float dt);
+    void ResetMovement();
+    void SetFacing(int facing) { if (facing == -1 || facing == 1) m_dir = facing; }
+
 private:
     int m_char_id;
     std::string m_account_id;
@@ -196,14 +207,14 @@ private:
     int m_map_id;
     float m_xPos;
     float m_yPos;
-    int m_dir;
+    int m_dir = 1;
 
     Collider2D m_collider;
 
     MapInstance* m_current_map;
     ChannelSession* m_session;
 
-    PlayerState m_CurrentState;
+    PlayerState m_CurrentState = PlayerState::IDLE;
 
     // 플레이어가 배운 스킬들 저장 key는 skillID,
     std::unordered_map<int , LearnedSkill> m_learnedSkills;
@@ -236,4 +247,10 @@ private:
     bool m_moveValidationInitialized = false;
     float m_availableMoveDistance = 0.0F;
     float m_moveSpeed = MovementLimits::kDefaultMoveSpeed;
+
+    Movement::Body m_movement;
+    Movement::Input m_moveInput;
+    int m_movementEpoch = 0;
+    int m_inputSequence = 0;
+    float m_inputAge = 0.0f;
 };
