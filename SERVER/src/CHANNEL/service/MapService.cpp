@@ -115,7 +115,7 @@ PortalMoveResult MapService::MoveByPortal(Player* player, const std::string& por
 
     moveResult.success = true;
     moveResult.destinationMapId = portal->destinationMapId;
-    moveResult.spawnPosition = portal->spawnPosition;
+    moveResult.spawnPosition = player->GetPos();
 
     return moveResult;
 

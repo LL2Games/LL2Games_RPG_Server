@@ -141,6 +141,8 @@ bool MonsterManager::LoadJsonFile(int monster_id, MonsterTemplate& monsterTempla
     monsterTemplate.attackDamage  = j.at("attackDamage").get<int>();
     monsterTemplate.exp           = j.at("exp").get<int64_t>();
     monsterTemplate.moveSpeed     = j.at("moveSpeed").get<float>();
+    monsterTemplate.avoidCliff = j.value("avoidCliff", true);
+    monsterTemplate.canJump = j.value("canJump", false);
 
     monsterTemplate.common_drop_group_id = j.at("common_drop_group_id").get<std::string>();
     monsterTemplate.unique_drop_group_id = j.at("unique_drop_group_id").get<std::string>();

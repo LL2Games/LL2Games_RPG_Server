@@ -78,6 +78,11 @@ enum PACKET_TYPE : uint16_t {
     PKT_PLAYER_PICKUP_ITEM  = 0x0029,
     PKT_PLAYER_DEAD         = 0x002A,
     PKT_PLAYER_REVIVE       = 0x002B,
+    // INPUT: mapId, epoch, sequence, horizontal, vertical, jumpPressed
+    PKT_MOVEMENT_INPUT      = 0x002C,
+    // SNAPSHOT: mapId, kind, id, epoch, tick, lastInputSeq, x, y, vx, vy,
+    //           moveMode, facing, climbId, lifeState, hp, maxHp (ok 접두사 없음)
+    PKT_MOVEMENT_SNAPSHOT   = 0x002D,
 
     PKT_OTHERPLAYER_ENTER   = 0x0030,
     PKT_OTHERPLAYER_SNAPSHOT = 0x0031,

@@ -17,6 +17,7 @@ public:
     void HandleStatUp(PacketContext* ctx);
 
     void MovePacket(PacketContext* ctx);
+    void MovementInputPacket(PacketContext* ctx);
     void SkillAttackPacket(PacketContext* ctx);
     void BasicAttackPacket(PacketContext* ctx);
     void OnDamagedPacket(PacketContext* ctx);

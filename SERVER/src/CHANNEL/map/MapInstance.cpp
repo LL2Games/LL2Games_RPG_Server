@@ -72,33 +72,34 @@ int MapInstance::Init(const MapInitData& data)
 	return InitSpawnMonster();
 }
 
-int MapInstance::Update(float deltaTime)
-{
-	Gameplay::Guard guard(Gameplay::gate);
-	
-	//K_LOG_TRACE( "MapInstance Pointer[%p]", this);
-	if(!HasPlayer())
-	{
-		RemoveMap();
-	}
-	else
-	{
-		SpawnMonster();
-		UpdateMonster(deltaTime);
-		m_projectileManager.Update(deltaTime); //투사체 업데이트
-		SendMapInfo();
-		ProcessRangedDamage(NowMs()); //원거리 공격 판정 및 데미지 처리
-		ProcessContactDamage(NowMs()); //플레이어-몬스터 접촉 판정 및 데미지 처리
-	}
-
+int MapInstance::Update(float deltaTime) {
+    Gameplay::Guard guard(Gameplay::gate);
+    if (!HasPlayer()) {
+        m_physicsAccumulator = 0;
+        RemoveMap(); // MapInstance의 빈 맵 삭제 예약 함수
+        return 1;
+    }
+    if (!std::isfinite(deltaTime) || deltaTime < 0) return 1;
+    SpawnMonster();
+    m_physicsAccumulator += std::min(deltaTime, 0.25f);
+    int steps = 0;
+    constexpr double fixedStep = 1.0 / 60.0;
+    while (m_physicsAccumulator >= fixedStep && steps < 15) {
+        SimulateStep(Movement::StepSeconds);
+        m_physicsAccumulator -= fixedStep;
+        ++steps;
+    }
+    // 서버가 오래 멈추면 밀린 시간을 무한 재생하지 않고 버린다.
+    if (steps == 15) m_physicsAccumulator = 0;
+    SendMapInfo(); // 투사체 정보는 기존 패킷 유지
+    BroadcastMovement(); // 약 20Hz, 멈춘 객체도 보냄
     return 1;
 }
 //맵내에 있는 모든사용자에게 Update시 보내주는 정보
 void MapInstance::SendMapInfo()
 {
 	std::vector<Player*> players;
-	// 락 안에서 SnedMonster까지 보낼려면 너무 오랜시간 Lock을 잡고 있어 별로라서
-	// 락 안에서 PlayerList를 복사하고 복사본을 가지고 SendMonsterMove 하는 것이 좋다.
+	// 목록 잠금 밖에서 송신한다. Gameplay::gate가 수신자 수명을 보호한다.
 	{
         std::lock_guard<std::mutex> lock(m_playerMutex);
 
@@ -112,7 +113,7 @@ void MapInstance::SendMapInfo()
 	//Broadcast
 	for (Player* player : players)
     {
-        SendMonsterMove(player);
+        // 이동 결과는 PKT_MOVEMENT_SNAPSHOT으로 일원화한다.
 		SendProjectileMove(player);
     }
 	//BroadcastProjectileMove(players);
@@ -253,8 +254,12 @@ void MapInstance::OnEnter(int PlayerID, Player* player)
         m_emptyTime = {};
     }
 
-    // DB 또는 맵 이동으로 설정된 현재 좌표부터 검증 시작
-    player->ResetMoveValidation();
+    // 새 맵에서는 이전 입력/속도를 버리고 현재 원점의 발판부터 판정한다.
+    const auto pos = player->GetPos();
+    const bool invalid = !std::isfinite(pos.xPos) || !std::isfinite(pos.yPos) ||
+        pos.xPos < m_physics.minX || pos.xPos > m_physics.maxX ||
+        pos.yPos + player->MovementBody().footOffset > m_physics.killY;
+    ResetPlayerMovement(player, invalid);
 }
 
 void MapInstance::OnLeave(int PlayerID)
@@ -284,6 +289,10 @@ void MapInstance::OnLeave(int PlayerID)
         }
     }
 
+    {
+        std::lock_guard<std::mutex> lock(m_monsterMutex);
+        for (auto& monster : m_monsterList) monster.ClearTarget(PlayerID);
+    }
     PlayerPacketSender::SendPlayerLeave(PlayerID,remainingPlayers);
 }
 
@@ -441,6 +450,7 @@ void MapInstance::SendMonsterSnapshot(Player* player)
 
 void MapInstance::SendEnterPackets(Player* player)
 {
+    Gameplay::Guard guard(Gameplay::gate);
 	 if (player == nullptr)
     {
         return;
@@ -464,6 +474,7 @@ void MapInstance::SendEnterPackets(Player* player)
     );
 
     SendMonsterSnapshot(player);
+    BroadcastMovement();
 } 
 
 // 맵이 사라지는 경우 호출
@@ -919,4 +930,93 @@ bool MapInstance::RevivePlayer(Player* player)
 	//같은맵 다른 player에게 패킷 전송
 
 	return true;
+}
+void MapInstance::ResetPlayerMovement(Player* player, bool useSafePosition) {
+    Gameplay::Guard guard(Gameplay::gate);
+    if (!player) return;
+    player->ResetMovement();
+    Vec2 pos = player->GetPos();
+    auto& body = player->MovementBody();
+    if (useSafePosition) Movement::PlaceOnFeet(pos, body, m_physics, m_physics.safeFeet);
+    else Movement::ResetAtOrigin(pos, body, m_physics);
+    const auto before = player->GetPos();
+    if (pos.xPos != before.xPos || pos.yPos != before.yPos) player->SetPos(pos);
+}
+
+void MapInstance::UpdatePlayerPhysics(float dt) {
+    // 호출자는 gameplay gate를 보유. map 목록의 기존 잠금도 유지.
+    std::lock_guard<std::mutex> lock(m_playerMutex);
+    for (const auto& entry : m_playerList) {
+        Player* player = entry.second;
+        if (!player || !player->IsAlive()) continue;
+        auto input = player->ConsumeMovement(dt);
+        if (player->GetState() == PlayerState::STUNNED) input = {};
+        Vec2 pos = player->GetPos();
+        const Vec2 before = pos;
+        auto& body = player->MovementBody();
+        const auto result = Movement::Step(pos, body, m_physics, input, player->GetMoveSpeed(), dt);
+        player->SetFacing(body.facing);
+        if (result.fellOut) {
+            ResetPlayerMovement(player, true);
+        } else if (pos.xPos != before.xPos || pos.yPos != before.yPos) {
+            player->SetPos(pos);
+        }
+    }
+}
+
+void MapInstance::SimulateStep(float dt) {
+    ++m_physicsTick;
+    UpdatePlayerPhysics(dt);
+    UpdateMonster(dt); // AI 이동 의도를 공통 물리로 계산
+    m_projectileManager.Update(dt);
+    // 충돌 판정은 물리 이동 이후에 한다.
+    ProcessRangedDamage(NowMs());
+    ProcessContactDamage(NowMs());
+}
+
+void MapInstance::BroadcastMovement() {
+    Gameplay::Guard guard(Gameplay::gate);
+    struct Row { std::vector<std::string> fields; };
+    std::vector<Row> rows;
+    auto add = [&](int kind, int id, int epoch, int seq, Vec2 pos,
+                   const Movement::Body& b, int lifeState, int hp, int maxHp) {
+        rows.push_back({{
+            std::to_string(m_mapID), std::to_string(kind), std::to_string(id),
+            std::to_string(epoch), std::to_string(m_physicsTick), std::to_string(seq),
+            std::to_string(pos.xPos), std::to_string(pos.yPos),
+            std::to_string(b.vx), std::to_string(b.vy),
+            std::to_string(static_cast<int>(b.mode)), std::to_string(b.facing),
+            std::to_string(b.climbableId), std::to_string(lifeState),
+            std::to_string(hp), std::to_string(maxHp)
+        }});
+    };
+    std::vector<Player*> recipients;
+    {
+        std::lock_guard<std::mutex> lock(m_playerMutex);
+        for (const auto& entry : m_playerList) {
+            auto* p = entry.second;
+            if (!p) continue;
+            recipients.push_back(p);
+            add(0, p->GetId(), p->MovementEpoch(), p->LastInputSequence(), p->GetPos(),
+                p->MovementBody(), static_cast<int>(p->GetState()), p->GetCurHP(), p->GetMaxHP());
+        }
+    }
+    {
+        std::lock_guard<std::mutex> lock(m_monsterMutex);
+        for (const auto& m : m_monsterList) {
+            add(1, m.GetInstanceId(), m.MovementEpoch(), 0, m.GetPos(), m.MovementBody(),
+                static_cast<int>(m.GetState()), m.GetCurrentHP(), m.GetMaxHP());
+        }
+    }
+    // gameplay gate가 퇴장/destructor를 막는 동안만 raw pointer 사용.
+    for (auto* p : recipients) {
+        if (auto* session = p->GetSession())
+            for (const auto& row : rows) session->Send(PKT_MOVEMENT_SNAPSHOT, row.fields);
+    }
+}
+
+int MapInstance::checkPlayer(int playerId)
+{
+    std::lock_guard<std::mutex> lock(m_playerMutex);
+    return m_playerList.count(playerId) != 0;
 }

@@ -2,12 +2,13 @@ import argparse
 import socket
 import struct
 import time
-from collections import Counter
+from collections import Counter, deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 PKT_CHANNEL_AUTH = 0x0009
 PKT_ENTER_MAP = 0x000A
-PKT_PLAYER_MOVE = 0x0020
+PKT_MOVEMENT_INPUT = 0x002C
+PKT_MOVEMENT_SNAPSHOT = 0x002D
 HEADER_SIZE = 4
 
 
@@ -15,14 +16,14 @@ def make_body(*fields):
     body = b""
     for field in fields:
         data = str(field).encode("utf-8")
-        body += struct.pack("<H", len(data))
+        body += struct.pack("!H", len(data))
         body += data
     return body
 
 
 def make_packet(packet_type, body):
     total_length = HEADER_SIZE + len(body)
-    return struct.pack("<HH", total_length, packet_type) + body
+    return struct.pack("!HH", total_length, packet_type) + body
 
 
 def parse_fields(body):
@@ -30,15 +31,17 @@ def parse_fields(body):
     offset = 0
 
     while offset + 2 <= len(body):
-        field_len = struct.unpack_from("<H", body, offset)[0]
+        field_len = struct.unpack_from("!H", body, offset)[0]
         offset += 2
 
         if offset + field_len > len(body):
-            break
+            raise ValueError("truncated field")
 
         fields.append(body[offset:offset + field_len].decode("utf-8", errors="replace"))
         offset += field_len
 
+    if offset != len(body):
+        raise ValueError("trailing field header")
     return fields
 
 
@@ -47,10 +50,10 @@ def parse_packets(buffer):
     offset = 0
 
     while offset + HEADER_SIZE <= len(buffer):
-        packet_length, packet_type = struct.unpack_from("<HH", buffer, offset)
+        packet_length, packet_type = struct.unpack_from("!HH", buffer, offset)
 
-        if packet_length < HEADER_SIZE:
-            break
+        if packet_length < HEADER_SIZE or packet_length > 16 * 1024:
+            raise ValueError("invalid packet length")
 
         if offset + packet_length > len(buffer):
             break
@@ -136,155 +139,128 @@ def load_ticket_entries(file_path):
 
     return entries
 
-def wait_for_result(sock, target_packet_type, timeout):
-    received = b""
-    packets_seen = 0
-    bytes_seen = 0
-    deadline = time.perf_counter() + timeout
+class PacketReader:
+    """한 recv에 여러 패킷이 와도 대기 중인 패킷과 부분 바이트를 보존한다."""
+    def __init__(self, sock):
+        self.sock = sock
+        self.buffer = b""
+        self.pending = deque()
+        self.packets_seen = 0
+        self.bytes_seen = 0
 
-    while time.perf_counter() < deadline:
-        remaining = max(0.001, deadline - time.perf_counter())
-        sock.settimeout(remaining)
+    def next(self, timeout):
+        deadline = time.perf_counter() + timeout
+        while not self.pending:
+            remaining = deadline - time.perf_counter()
+            if remaining <= 0:
+                raise socket.timeout()
+            self.sock.settimeout(remaining)
+            chunk = self.sock.recv(8192)
+            if not chunk:
+                raise ConnectionError("server disconnected")
+            self.bytes_seen += len(chunk)
+            self.buffer += chunk
+            packets, self.buffer = parse_packets(self.buffer)
+            self.packets_seen += len(packets)
+            self.pending.extend(packets)
+        packet_type, body = self.pending.popleft()
+        return packet_type, parse_fields(body)
 
-        try:
-            chunk = sock.recv(4096)
-        except socket.timeout:
-            break
-
-        if chunk == b"":
-            break
-
-        received += chunk
-        bytes_seen += len(chunk)
-        packets, received = parse_packets(received)
-        packets_seen += len(packets)
-
-        for packet_type, body in packets:
-            if packet_type != target_packet_type:
-                continue
-
-            fields = parse_fields(body)
-            if fields and fields[0] in ("ok", "nok"):
-                return {
-                    "success": fields[0] == "ok",
-                    "result": fields[0],
-                    "fields": fields,
-                    "packets_seen": packets_seen,
-                    "bytes_seen": bytes_seen,
-                }
-
-    return {
-        "success": False,
-        "result": "timeout",
-        "fields": [],
-        "packets_seen": packets_seen,
-        "bytes_seen": bytes_seen,
-    }
+    def wait_result(self, packet_type, timeout):
+        deadline = time.perf_counter() + timeout
+        while time.perf_counter() < deadline:
+            received_type, fields = self.next(max(0.001, deadline-time.perf_counter()))
+            if received_type == packet_type and fields and fields[0] in ("ok", "nok"):
+                if fields[0] != "ok":
+                    raise RuntimeError(f"packet {packet_type:#x}: {fields}")
+                return fields
+        raise TimeoutError(f"packet {packet_type:#x}")
 
 
-def make_move_packet(x, y, speed, direction):
-    return make_packet(
-        PKT_PLAYER_MOVE,
-        make_body(f"{x:.3f}", f"{y:.3f}", f"{speed:.3f}", str(direction)),
-    )
+def make_move_packet(map_id, epoch, sequence, horizontal, vertical=0, jump=False):
+    return make_packet(PKT_MOVEMENT_INPUT,
+        make_body(map_id, epoch, sequence, horizontal, vertical, int(jump)))
 
 
 def run_client(args, character_id, ticket, client_index):
     start = time.perf_counter()
-
+    reader = None
     result = {
-        "character_id": character_id,
-        "success": False,
-        "auth_success": False,
-        "enter_success": False,
-        "auth_ms": 0.0,
-        "enter_ms": 0.0,
-        "move_sent": 0,
-        "move_recv": 0,
-        "packets_recv": 0,
-        "bytes_recv": 0,
-        "elapsed_ms": 0.0,
-        "error": "",
+        "character_id": character_id, "success": False,
+        "auth_success": False, "enter_success": False,
+        "auth_ms": 0.0, "enter_ms": 0.0, "move_sent": 0, "move_recv": 0,
+        "packets_recv": 0, "bytes_recv": 0, "elapsed_ms": 0.0, "error": "",
     }
-
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.settimeout(args.timeout)
-            sock.connect((args.host, args.port))
-
+        with socket.create_connection((args.host,args.port),args.timeout) as sock:
+            reader = PacketReader(sock)
             auth_start = time.perf_counter()
-            sock.sendall(make_packet(PKT_CHANNEL_AUTH,  make_body(ticket)))
-            auth_result = wait_for_result(sock, PKT_CHANNEL_AUTH, args.timeout)
-            result["auth_ms"] = (time.perf_counter() - auth_start) * 1000
-            result["packets_recv"] += auth_result["packets_seen"]
-            result["bytes_recv"] += auth_result["bytes_seen"]
-
-            if not auth_result["success"]:
-                result["error"] = f"auth_{auth_result['result']}"
-                return result
-
+            sock.sendall(make_packet(PKT_CHANNEL_AUTH,make_body(ticket)))
+            reader.wait_result(PKT_CHANNEL_AUTH,args.timeout)
+            result["auth_ms"] = (time.perf_counter()-auth_start)*1000
             result["auth_success"] = True
-
             enter_start = time.perf_counter()
-            sock.sendall(make_packet(PKT_ENTER_MAP, b""))
-            enter_result = wait_for_result(sock, PKT_ENTER_MAP, args.timeout)
-            result["enter_ms"] = (time.perf_counter() - enter_start) * 1000
-            result["packets_recv"] += enter_result["packets_seen"]
-            result["bytes_recv"] += enter_result["bytes_seen"]
-
-            if not enter_result["success"]:
-                result["error"] = f"enter_{enter_result['result']}"
-                return result
-
+            sock.sendall(make_packet(PKT_ENTER_MAP,b""))
+            fields = reader.wait_result(PKT_ENTER_MAP,args.timeout)
+            map_id = int(fields[1])
+            result["enter_ms"] = (time.perf_counter()-enter_start)*1000
             result["enter_success"] = True
 
-            recv_buffer = b""
-            sock.settimeout(args.recv_timeout)
+            # 최초 내 스냅샷의 epoch를 알아야 입력할 수 있다.
+            epoch = None
+            deadline = time.perf_counter()+args.timeout
+            while epoch is None:
+                kind, fields = reader.next(max(0.001,deadline-time.perf_counter()))
+                if kind == PKT_MOVEMENT_SNAPSHOT and len(fields)==16 and \
+                        int(fields[0])==map_id and fields[1]=="0" and int(fields[2])==character_id:
+                    epoch = int(fields[3])
+                if time.perf_counter() >= deadline and epoch is None:
+                    raise TimeoutError("initial movement snapshot")
 
-            x = args.start_x + client_index * args.spawn_gap
-            y = args.start_y
-            direction = 1
-            interval = 1.0 / args.moves_per_sec if args.moves_per_sec > 0 else args.duration
-            end_at = time.perf_counter() + args.duration
+            sequence = 0
+            acknowledged = False
+            interval = 1.0/args.moves_per_sec if args.moves_per_sec>0 else args.duration
             next_send = time.perf_counter()
-
-            while time.perf_counter() < end_at:
+            end_at = next_send+args.duration
+            while time.perf_counter()<end_at:
                 now = time.perf_counter()
-
-                if args.moves_per_sec > 0 and now >= next_send:
-                    x += args.step_x
-                    y += args.step_y
-                    sock.sendall(make_move_packet(x, y, args.speed, direction))
+                if args.moves_per_sec>0 and now>=next_send:
+                    sequence += 1
+                    # 좌우를 번갈아 이동. 좌표나 속도는 보내지 않는다.
+                    direction = 1 if (int(now-start)+client_index)%2==0 else -1
+                    sock.sendall(make_move_packet(map_id,epoch,sequence,direction))
                     result["move_sent"] += 1
-                    direction = (direction + 1) % 8
-                    next_send += interval
-
+                    next_send = now+interval
                 try:
-                    chunk = sock.recv(8192)
-                    if chunk == b"":
-                        break
-
-                    result["bytes_recv"] += len(chunk)
-                    recv_buffer += chunk
-                    packets, recv_buffer = parse_packets(recv_buffer)
-                    result["packets_recv"] += len(packets)
-
-                    for packet_type, _ in packets:
-                        if packet_type == PKT_PLAYER_MOVE:
-                            result["move_recv"] += 1
-
+                    kind, fields = reader.next(args.recv_timeout)
                 except socket.timeout:
-                    pass
-
+                    continue
+                if kind == PKT_MOVEMENT_INPUT and fields and fields[0]=="nok":
+                    raise RuntimeError(f"movement rejected: {fields}")
+                if kind != PKT_MOVEMENT_SNAPSHOT or len(fields)!=16:
+                    continue
+                result["move_recv"] += 1
+                if int(fields[0])!=map_id or fields[1]!="0" or int(fields[2])!=character_id:
+                    continue
+                if int(fields[14])<=0:
+                    raise RuntimeError("player died during movement test")
+                new_epoch = int(fields[3])
+                if new_epoch != epoch:
+                    epoch = new_epoch
+                    sequence = 0
+                if int(fields[5])>0:
+                    acknowledged = True
+            if args.moves_per_sec>0 and not acknowledged:
+                raise RuntimeError("no input acknowledged by own snapshot")
             result["success"] = True
-            return result
-
-    except Exception as e:
-        result["error"] = repr(e)
-        return result
-
+    except Exception as exception:
+        result["error"] = repr(exception)
     finally:
-        result["elapsed_ms"] = (time.perf_counter() - start) * 1000
+        result["elapsed_ms"] = (time.perf_counter()-start)*1000
+        if reader is not None:
+            result["packets_recv"] = reader.packets_seen
+            result["bytes_recv"] = reader.bytes_seen
+    return result
 
 
 def print_latency(name, values):
@@ -315,14 +291,10 @@ def main():
     parser.add_argument("--recv-timeout", type=float, default=0.001)
     parser.add_argument("--duration", type=float, default=30.0)
     parser.add_argument("--moves-per-sec", type=float, default=5.0)
-    parser.add_argument("--start-x", type=float, default=0.0)
-    parser.add_argument("--start-y", type=float, default=0.0)
-    parser.add_argument("--spawn-gap", type=float, default=0.1)
-    parser.add_argument("--step-x", type=float, default=0.1)
-    parser.add_argument("--step-y", type=float, default=0.0)
-    parser.add_argument("--speed", type=float, default=5.0)
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
+    if args.duration <= 0 or args.moves_per_sec < 0 or args.timeout <= 0 or args.recv_timeout <= 0:
+        parser.error("duration/timeout/recv-timeout must be positive; moves-per-sec must be nonnegative")
 
     try:
         ticket_entries = load_ticket_entries(
@@ -423,8 +395,8 @@ def main():
     print_latency("enter_ms", enter_values)
     print(f"move_sent_total={move_sent_total}")
     print(f"move_sent_per_sec={move_sent_total / elapsed_sec:.3f}")
-    print(f"move_broadcast_recv_total={move_recv_total}")
-    print(f"move_broadcast_recv_per_sec={move_recv_total / elapsed_sec:.3f}")
+    print(f"movement_snapshot_recv_total={move_recv_total}")
+    print(f"movement_snapshot_recv_per_sec={move_recv_total / elapsed_sec:.3f}")
     print(f"packets_recv_total={packets_recv_total}")
     print(f"bytes_recv_total={bytes_recv_total}")
     print(f"bytes_recv_per_sec={bytes_recv_total / elapsed_sec:.3f}")

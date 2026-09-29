@@ -53,6 +53,8 @@ struct MonsterTemplate {
     int attackDamage;
     int64_t exp;
     float moveSpeed;
+    bool avoidCliff = true;
+    bool canJump = false;
     std::string name;
     std::string common_drop_group_id;
     std::string unique_drop_group_id;

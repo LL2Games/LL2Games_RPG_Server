@@ -2,6 +2,7 @@
 #include "common.h"
 #include "CommonEnum.h"
 #include "Collider.h"
+#include "MovementPhysics.h"
 //#include "Player.h"
 
 class Player;
@@ -98,7 +99,19 @@ public:
 	bool TryRangedAttack(const Vec2& dir);
 	MonsterState GetState() const { return m_state; }
 
+    // Gameplay::gate 또는 맵 갱신 문맥 안에서 사용한다.
+    const Movement::Body& MovementBody() const { return m_movement; }
+    int MovementEpoch() const { return m_movementEpoch; }
+    void ClearTarget(int playerId);
+
 private:
+    void ResetPhysicsAtSpawn();
+    Movement::Body m_movement;
+    int m_movementEpoch = 1;
+    int m_moveAxis = 0;
+    bool m_avoidCliff = true;
+    bool m_canJump = false;
+
     MonsterType m_type;
 	Collider2D m_collider;
 
