@@ -62,24 +62,24 @@
     {
       "id": "to_map_100000001",
       "position": {
-        "x": 120.0,
-        "y": 720.0
+        "x": 150.0,
+        "y": 660.0
       },
       "interactionRange": 120.0,
-      "destinationMapId": 100000000,
+      "destinationMapId": 100000001,
       "spawnPosition": {
         "x": 1400.0,
-        "y": 800.0
+        "y": 820.0
       }
     },
     {
       "id": "to_map_100000003",
       "position": {
         "x": 1400.0,
-        "y": 700.0
+        "y": 660.0
       },
       "interactionRange": 120.0,
-      "destinationMapId": 100000002,
+      "destinationMapId": 100000003,
       "spawnPosition": {
         "x": 100.0,
         "y": 850.0

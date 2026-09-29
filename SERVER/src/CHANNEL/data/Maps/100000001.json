@@ -62,26 +62,26 @@
     {
       "id": "to_town_pending",
       "position": {
-        "x": 100.0,
-        "y": 60.0
+        "x": 120.0,
+        "y": 740.0
       },
       "interactionRange": 120.0,
       "destinationMapId": 100000000,
       "spawnPosition": {
-        "x": 100.0,
-        "y": 500.0
+        "x": 1450.0,
+        "y": 630.0
       }
     },
     {
-      "id": "to_map_100000001",
+      "id": "to_map_100000002",
       "position": {
         "x": 1400.0,
-        "y": 770.0
+        "y": 740.0
       },
       "interactionRange": 120.0,
-      "destinationMapId": 100000001,
+      "destinationMapId": 100000002,
       "spawnPosition": {
-        "x": 120.0,
+        "x": 100.0,
         "y": 730.0
       }
     }

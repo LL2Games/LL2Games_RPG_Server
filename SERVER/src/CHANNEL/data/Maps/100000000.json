@@ -6,16 +6,16 @@
   "monsters": [],
   "portals": [
     {
-      "id": "to_town_pending",
+      "id": "to_map_100000001",
       "position": {
-        "x": 100.0,
-        "y": 60.0
+        "x": 1450.0,
+        "y": 550.0
       },
       "interactionRange": 120.0,
       "destinationMapId": 100000001,
       "spawnPosition": {
-        "x": 100.0,
-        "y": 500.0
+        "x": 120.0,
+        "y": 820.0
       }
     }
   ],
