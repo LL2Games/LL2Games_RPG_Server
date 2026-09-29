@@ -90,6 +90,7 @@ public:
     bool HasPlayer();
 
     std::unordered_map<int, Player*>& GetPlayerList(){return m_playerList;}
+    const Movement::Map& GetPhysicsMap() const { return m_physics; }
 private:
    	// 플레이어가 맵에 있는지 없는지 판단 변수
     bool m_has_player;
@@ -132,4 +133,5 @@ private:
     MonsterManager* m_monsterManager;
     CombatService* m_combatService;
     DropManager* m_dropManager;
+    Movement::Map m_physics;
 };

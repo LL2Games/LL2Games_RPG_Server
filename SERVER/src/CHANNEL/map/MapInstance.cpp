@@ -66,6 +66,8 @@ int MapInstance::Init(const MapInitData& data)
 		}
 	}
 #endif
+
+	m_physics = data.physics;
 	return InitSpawnMonster();
 }
 

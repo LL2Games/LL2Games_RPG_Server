@@ -92,5 +92,23 @@
     "maxX": 1000,
     "minY": 100,
     "maxY": 700
-  }
+  },
+
+  "physics": {
+  "minX": 0,
+  "maxX": 1600,
+  "killY": 1200,
+  "safeFeet": { "x": 100, "y": 700 },
+  "platforms": [
+    { "id": 1, "left": 0, "right": 1600, "y": 700 },
+    { "id": 2, "left": 300, "right": 650, "y": 500 },
+    { "id": 3, "left": 850, "right": 1200, "y": 350 }
+  ],
+  "climbables": [
+    { "id": 1, "kind": "ladder", "x": 450, "top": 500,
+      "bottom": 700, "grabRange": 16, "topPlatformId": 2 },
+    { "id": 2, "kind": "rope", "x": 1000, "top": 350,
+      "bottom": 700, "grabRange": 16, "topPlatformId": 3 }
+  ]
+}
 }

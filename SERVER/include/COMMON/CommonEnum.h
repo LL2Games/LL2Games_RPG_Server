@@ -5,6 +5,7 @@
 #include <optional>
 #include "Collider.h"
 #include "MapData.h"
+#include "MovementPhysics.h"
 
 class MapInstance;
 class Player;
@@ -117,6 +118,7 @@ typedef struct MapInitData{
    
     std::vector<MonsterSpawnData> MonstersData;
     std::vector<PortalData> portals;
+    Movement::Map physics;
 }mapData;
 
 struct ProjectileSnapshotInfo

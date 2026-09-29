@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
+#include "MovementMapLoader.h"
+
 
 #define MAP_PATH "../src/CHANNEL/data/Maps/"
 namespace fs = std::filesystem;
@@ -219,6 +221,7 @@ bool MapManager::LoadJsonFile(int mapId, MapInitData &mapData)
             throw std::runtime_error("mapId does not match file name");
         LoadMonster(j, mapData.MonstersData);
         LoadPortal(j, mapData.portals, mapData.mapID);
+        mapData.physics = Movement::LoadMap(j);
     }
     catch (const std::exception& e)
     {
