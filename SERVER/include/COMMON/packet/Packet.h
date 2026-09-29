@@ -90,6 +90,9 @@ enum PACKET_TYPE : uint16_t {
     PKT_MONSTER_RESPAWN     = 0x0043,
     PKT_PROJECTILE_MOVE     = 0x0044,
 
+    PKT_NPC_SNAPSHOT        = 0x0050,
+    PKT_NPC_INTERACT        = 0x0051,
+
     // 0x0060 ~ 0x007F : 드롭
     PKT_DROPITEMS           = 0x0060,
     PKT_REMOVEITEMS         = 0x0061,

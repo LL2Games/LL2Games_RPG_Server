@@ -1,0 +1,18 @@
+{
+  "item_id": 4100000,
+  "name": "숲의 정수 조각",
+  "type": "etc",
+
+  "stackable": true,
+  "max_stack": 999,
+  "sell_price": 3,
+
+  "consume_rules": {
+    "decrease_on_skill": true
+  },
+
+  "reagent": {
+    "allowed_by": ["skill"],
+    "tags": ["forest_essence", "reagent", "common"]
+  }
+}

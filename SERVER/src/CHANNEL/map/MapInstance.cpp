@@ -10,6 +10,7 @@
 #include "PlayerPacketSender.h"
 #include "ItemPacketSender.h"
 #include "StatInfoPacket.h"
+#include "NPCPacketSender.h"
 
 
 #define MAPDELETELIMIT 5
@@ -32,7 +33,16 @@ namespace
 }
 
 
-MapInstance::MapInstance() : m_playerCount(0), m_limit(std::chrono::minutes{MAPDELETELIMIT}), m_combatService(nullptr)
+MapInstance::MapInstance() : m_has_player(false),
+      						 m_destroyRequested(false),
+      						 m_playerCount(0),
+      						 m_mapID(0),
+      						 m_dropId(0),
+      						 m_emptyTime(std::chrono::steady_clock::now()),
+      						 m_limit(std::chrono::minutes{MAPDELETELIMIT}),
+      						 m_monsterManager(MonsterManager::GetInstance()),
+      						 m_combatService(nullptr),
+      						 m_dropManager(DropManager::GetInstance())
 {
 	m_monsterManager = MonsterManager::GetInstance();
 	m_dropManager = DropManager::GetInstance();
@@ -47,6 +57,7 @@ MapInstance::~MapInstance()
 int MapInstance::Init(const MapInitData& data)
 {
     this->m_mapID = data.mapID;
+	this->m_persistent = data.persistent;
 	// 여기서 Map Json 파일에서 읽어온 몬스터 정보 저장
     this->m_monsterSpawnList = data.MonstersData;
 
@@ -54,6 +65,8 @@ int MapInstance::Init(const MapInitData& data)
 	{
 		m_portals.emplace(portal.portalId, portal);
 	}
+
+	m_npcSpawns = data.npcs;
 
 #if 0 //guno22_TEST
 	{
@@ -381,7 +394,6 @@ void MapInstance::SendMonsterSnapshot(Player* player)
 	MonsterPacketSender::SendMonsterMove(player, aliveMonsters);
  }
 
- //void MapInstance::BroadcastProjectileMove(std::vector<Player*> players)
  void MapInstance::SendProjectileMove(Player* player)
  {
 	if (player == nullptr)
@@ -399,36 +411,6 @@ void MapInstance::SendMonsterSnapshot(Player* player)
 	}
 
 	MonsterPacketSender::SendProjectileMove(player, projectileInfos);
-
-    // std::vector<MonsterMoveInfo> aliveMonsters;
-	// {
-	// 	std::lock_guard<std::mutex> lock(m_monsterMutex);
-    // 	aliveMonsters.reserve(m_monsterList.size());
-    // 	for (auto& monster : m_monsterList)
-    // 	{
-    //     	if (!monster.IsAlive())
-    //     	    continue;
-
-    //     	//monster.SetState(MonsterState::E_Move); //gunoo22 260712 여기서 SetState를 재정의해서 Chase, Patrol다 안되고있었음
-
-    //     	MonsterMoveInfo info;
-    //     	info.instanceId = monster.GetInstanceId();
-    //     	info.state = static_cast<int>(monster.GetState());
-    //     	info.dirX = static_cast<int>(monster.GetDir().xPos);
-    //     	info.xPos = monster.GetPos().xPos;
-    //     	info.yPos = monster.GetPos().yPos;
-    //     	info.currentHp = monster.GetCurrentHP();
-    //     	info.maxHp = monster.GetMaxHP();
-
-    //     	aliveMonsters.push_back(info);
-    // 	}
-	// }
-	//for (auto player : players)
-	//{
-		//SendProjectileInfo
-	//}
-
-	//MonsterPacketSender::SendMonsterMove(player, aliveMonsters);
  }
 
 void MapInstance::SendEnterPackets(Player* player)
@@ -456,11 +438,17 @@ void MapInstance::SendEnterPackets(Player* player)
     );
 
     SendMonsterSnapshot(player);
+
+	// NPC 스냅샷
+    NPCPacketSender::SendNPCSnapshot(player, m_npcSpawns);
 } 
 
 // 맵이 사라지는 경우 호출
 void MapInstance::RemoveMap()
 {
+	if (m_persistent)
+        return;
+
 	auto now = std::chrono::steady_clock::now();
 
     std::function<void(int)> destroyCallback;

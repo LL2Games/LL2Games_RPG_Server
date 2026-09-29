@@ -1,0 +1,18 @@
+{
+  "item_id": 4100104,
+  "name": "가시덤불 엄니",
+  "type": "etc",
+
+  "stackable": true,
+  "max_stack": 999,
+  "sell_price": 22,
+
+  "consume_rules": {
+    "decrease_on_skill": true
+  },
+  "reagent": {
+    "allowed_by": ["skill"],
+    "tags": ["briar", "boar", "tusk", "reagent"]
+  }
+
+}

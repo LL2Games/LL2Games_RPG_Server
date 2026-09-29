@@ -33,3 +33,13 @@ struct PortalMoveResult
     int destinationMapId = 0;
     Vec2 spawnPosition;
 };
+
+struct NPCSpawnData
+{
+    int spawnId = 0;
+    int npcId = 0;
+
+    Vec2 position;
+
+    float interactionRange = 100.0f;
+};

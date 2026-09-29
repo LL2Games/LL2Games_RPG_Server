@@ -57,7 +57,7 @@ channel:
 	@echo "===== Build CHANNEL Server ====="
 	@$(MAKE) -C src/CHANNEL
 
-test:
+test:~
 	@echo "===== Run Regression Tests ====="
 	@$(MAKE) -C ../Test run
 

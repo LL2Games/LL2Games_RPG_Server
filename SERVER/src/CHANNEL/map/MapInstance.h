@@ -94,6 +94,8 @@ private:
    	// 플레이어가 맵에 있는지 없는지 판단 변수
     bool m_has_player;
     bool m_destroyRequested;
+    
+    bool m_persistent;
 
     // 플레이어-몬스터 접촉 판정용 거리 임계값(반지름^2). 거리^2와 비교한다.
     float m_contactCheckRadiusSq;
@@ -105,6 +107,7 @@ private:
     std::unordered_map<int, Player*> m_playerList;
     std::unordered_map<int, DropItems> m_dropItems;
     std::unordered_map<std::string, PortalData> m_portals;
+    std::vector<NPCSpawnData> m_npcSpawns;
    
     std::vector<MonsterSpawnData> m_monsterSpawnList;
     std::vector<MonsterSpawnData>::iterator m_monsterSpawnListIter;
