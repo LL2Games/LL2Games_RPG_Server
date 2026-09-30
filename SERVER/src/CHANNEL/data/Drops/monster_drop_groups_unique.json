@@ -48,6 +48,14 @@
       "entries": [
         { "item_id": 4100105, "drop_weight": 1000, "min_count": 1, "max_count": 1, "tag": "moss_golem_core" }
       ]
+    },
+     "UNIQUE_CORRUPTED_GUARDIAN": {
+      "min_drop": 1,
+      "max_drop": 1,
+      "allow_duplicate": false,
+      "entries": [
+        { "item_id": 4100200, "drop_weight": 1000, "min_count": 1, "max_count": 1, "tag": "corrupted_guardian_heart_core" }
+      ]
     }
   }
 }

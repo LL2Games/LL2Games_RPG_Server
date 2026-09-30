@@ -70,6 +70,8 @@ struct MonsterTemplate {
     //투사체 정보
     bool isRanged;
     MonsterProjectileData projectileData;
+
+    std::string behavior = "NORMAL";
 };
 
 struct MonsterMoveInfo

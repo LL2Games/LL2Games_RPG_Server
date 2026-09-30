@@ -71,6 +71,19 @@
         "x": 1400.0,
         "y": 700.0
       }
+    },
+    {
+      "id": "to_map_100000004",
+      "position": {
+        "x": 1400.0,
+        "y": 770.0
+      },
+      "interactionRange": 120.0,
+      "destinationMapId": 100000004,
+      "spawnPosition": {
+        "x": 120.0,
+        "y": 730.0
+      }
     }
   ],
   "minSpawnSpacing": 100,

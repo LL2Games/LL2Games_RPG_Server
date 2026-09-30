@@ -134,38 +134,38 @@ int MapInstance::InitSpawnMonster()
 	
     for(m_monsterSpawnListIter = m_monsterSpawnList.begin(); m_monsterSpawnListIter < m_monsterSpawnList.end(); ++m_monsterSpawnListIter)
     {
-        Monster monster;
-       
-		
 		if(!m_monsterManager->EnsureLoaded(m_monsterSpawnListIter->monsterId))
 		{
 			K_LOG_ERROR( "FAILED OPEN monster [%d] FILE", m_monsterSpawnListIter->monsterId);
 			return -1;
 		}
 			
-		
 		auto monsterTemplate = m_monsterManager->GetMonsterData(m_monsterSpawnListIter->monsterId);
 		
 		// 맵에 스폰된 몬스터들 끼리 구별하기 위한 값
 		m_monsterSpawnListIter->instanceId = instanceId;
 		instanceId++;
 
-		
 		if(monsterTemplate.has_value())
 		{
 			(*monsterTemplate).mapId = m_mapID;
 			(*monsterTemplate).mapInstance = this;
-			monster.Init(*monsterTemplate, *m_monsterSpawnListIter);
+			m_monsterList.emplace_back();
+    		Monster& monster = m_monsterList.back();
+
+    		if (monster.Init(*monsterTemplate, *m_monsterSpawnListIter) < 0)
+    		{
+    		    m_monsterList.pop_back();
+    		    return -1;
+    		}
+		
+    		K_LOG_DEBUG("[MonsterSpawn] monsterId=%d instanceId=%d mapId=%u pos=(%.1f, %.1f)",
+    		    monster.GetId(), monster.GetInstanceId(), monster.GetMapId(),
+    		    monster.GetPos().xPos, monster.GetPos().yPos);
 		}else {
 			K_LOG_ERROR( "MonsterTemplate Get Failed Monster_Id[%d] FILE", m_monsterSpawnListIter->monsterId);
 			return -1;
 		}
-
-        m_monsterList.push_back(monster);
-        K_LOG_DEBUG("[MonsterSpawn] monsterId=%d instanceId=%d mapId=%u pos=(%.1f, %.1f)",
-            monster.GetId(), monster.GetInstanceId(), monster.GetMapId(),
-            monster.GetPos().xPos, monster.GetPos().yPos);
-		
     }
 
 
@@ -174,17 +174,40 @@ int MapInstance::InitSpawnMonster()
 
 int MapInstance::UpdateMonster(float deltaTime)
 {
-	//K_LOG_ERROR( "몬스터 업데이트 시작");
-	std::lock_guard<std::mutex> lock(m_monsterMutex);
-	for(auto& monster : m_monsterList) 
+	std::vector<MonsterAction> actions;
+
+    {
+        std::lock_guard<std::mutex> lock(m_monsterMutex);
+
+        for (auto& monster : m_monsterList)
+        {
+            if (!monster.IsAlive())
+                continue;
+
+            monster.Update(deltaTime);
+
+            auto newActions = monster.TakeActions();
+            for (const auto& action : newActions)
+                actions.push_back(action);
+        }
+    }
+
+	std::unordered_map<int, Player*> playerSnapshot;
 	{
-		if(monster.IsAlive())
-		{
-			monster.Update(deltaTime);
-		}
+	    std::lock_guard<std::mutex> lock(m_playerMutex);
+	    playerSnapshot = m_playerList;
 	}
 
-	return 1;
+	for (const MonsterAction& action : actions)
+	{
+	    if (action.type == MonsterAction::Type::PatternStart)
+	    {
+	        MonsterPacketSender::SendBossPatternStart(action, playerSnapshot);
+	    }
+	}
+
+    ApplyMonsterActions(actions);
+    return 1;
 }
 
 int MapInstance::SpawnMonster()
@@ -292,10 +315,64 @@ void MapInstance::OnLeave(int PlayerID)
     PlayerPacketSender::SendPlayerLeave(PlayerID,remainingPlayers);
 }
 
-void MapInstance::GiveExp(int playerID, float exp)
+void MapInstance::ApplyMonsterActions(const std::vector<MonsterAction>& actions)
 {
-	(void)playerID;
-	(void)exp;
+	 if (actions.empty())
+        return;
+
+    const int64_t nowMs = NowMs();
+    std::vector<ContactDamageEvent> hitEvents;
+    std::vector<Player*> deadPlayers;
+    std::unordered_map<int, Player*> playerSnapshot;
+
+    {
+        std::lock_guard<std::mutex> lock(m_playerMutex);
+        playerSnapshot = m_playerList;
+
+        for (const MonsterAction& action : actions)
+        {
+            if (action.type != MonsterAction::Type::AreaAttack)
+                continue;
+
+            for (const auto& [playerId, player] : m_playerList)
+            {
+                if (!player || !player->IsAlive())
+                    continue;
+
+                if (!player->CanTakeAnyContactDamage(nowMs))
+                    continue;
+
+                const Vec2 pos = player->GetPos();
+                const float dx = pos.xPos - action.center.xPos;
+                const float dy = pos.yPos - action.center.yPos;
+
+                if (dx * dx + dy * dy > action.radius * action.radius)
+                    continue;
+
+                player->OnDamaged(action.damage, nowMs);
+
+                PlayerHitResult result{};
+                result.damage = action.damage;
+                SetPlayerHitResult(player, action.attackerInstanceId, result);
+
+                hitEvents.push_back({player, result});
+
+                if (!player->IsAlive())
+                    deadPlayers.push_back(player);
+            }
+        }
+    }
+
+    // 패킷은 playerMutex 잠금을 해제한 뒤 전송한다.
+    for (const auto& event : hitEvents)
+    {
+        PlayerPacketSender::SendPlayerOnDamaged(event.player, event.result, playerSnapshot);
+    }
+
+    for (Player* player : deadPlayers)
+    {
+        PlayerPacketSender::SendPlayerDead(player, playerSnapshot);
+    }
 }
 
 void MapInstance::HandleMove(Player* sender, Vec2& pos, float speed, int dir)

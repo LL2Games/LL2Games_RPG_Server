@@ -1,0 +1,18 @@
+{
+  "item_id": 4100200,
+  "name": "타락한 수호자의 심장핵",
+  "type": "etc",
+
+  "stackable": true,
+  "max_stack": 999,
+  "sell_price": 500,
+
+  "consume_rules": {
+    "decrease_on_skill": true
+  },
+  "reagent": {
+    "allowed_by": ["skill"],
+    "tags": ["forest", "guardian", "heart_core", "boss","reagent"]
+  }
+
+}

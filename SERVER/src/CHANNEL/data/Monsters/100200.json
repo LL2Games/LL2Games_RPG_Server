@@ -1,0 +1,21 @@
+{
+    "monster_id"    : 100200,
+    "name"          : "타락한 숲의 수호자",
+    "behavior"      : "CORRUPTED_GUARDIAN",
+    "hp"            : 2500,
+    "attackDamage"  : 25,
+    "level"         : 16,
+    "exp"           : 1500,
+    "moveSpeed"     : 20,
+
+    "common_drop_group_id": "FIELD_COMMON_LV11_20",
+    "unique_drop_group_id": "UNIQUE_CORRUPTED_GUARDIAN",
+
+    "collider" :[{
+        "type" : "Rect2D",
+        "offset" :  {"x": 0, "y": -82 },
+        "half":     {"w": 62, "h": 82}
+    }],
+
+    "isRanged" : false
+}
