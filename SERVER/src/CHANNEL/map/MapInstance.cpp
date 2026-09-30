@@ -256,9 +256,19 @@ void MapInstance::OnEnter(int PlayerID, Player* player)
 
     // 새 맵에서는 이전 입력/속도를 버리고 현재 원점의 발판부터 판정한다.
     const auto pos = player->GetPos();
+    const float feetY = pos.yPos + player->MovementBody().footOffset;
+    bool hasLandingPlatform = false;
+    for (const auto& platform : m_physics.platforms) {
+        if (pos.xPos >= platform.left && pos.xPos <= platform.right &&
+            feetY <= platform.y + Movement::Epsilon) {
+            hasLandingPlatform = true;
+            break;
+        }
+    }
+    // 포탈 도착/저장 좌표가 모든 발판 아래면 추락 후 복귀하지 않고 즉시 보정한다.
     const bool invalid = !std::isfinite(pos.xPos) || !std::isfinite(pos.yPos) ||
         pos.xPos < m_physics.minX || pos.xPos > m_physics.maxX ||
-        pos.yPos + player->MovementBody().footOffset > m_physics.killY;
+        feetY > m_physics.killY || !hasLandingPlatform;
     ResetPlayerMovement(player, invalid);
 }
 

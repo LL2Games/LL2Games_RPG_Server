@@ -320,6 +320,23 @@ void TestActionRestrictionsAndMapEntry() {
     const auto input=scene.player.ConsumeMovement(0);
     Check(!input.jump && input.horizontal==0 && scene.player.MovementBody().vy==0,
         "맵 변경 시 점프/방향/속도 초기화");
+    Check(Near(scene.player.GetPos().xPos,150) && Near(scene.player.GetPos().yPos,90),
+        "정상 지상 도착 좌표 유지");
+    destination.OnLeave(1);
+    scene.player.SetPos({150,120}); // 발은 130: 바닥 100 아래지만 killY 500 위.
+    const int belowFloorEpoch=scene.player.MovementEpoch();
+    destination.OnEnter(1,&scene.player);
+    Check(Near(scene.player.GetPos().xPos,0) && Near(scene.player.GetPos().yPos,90) &&
+        scene.player.MovementBody().mode==Movement::Mode::Grounded,
+        "바닥 아래 도착 좌표는 즉시 안전 발판으로 보정");
+    Check(scene.player.MovementEpoch()==belowFloorEpoch+1,
+        "잘못된 도착 좌표 보정도 epoch는 한 번만 갱신");
+    destination.OnLeave(1);
+    scene.player.SetPos({150,0});
+    destination.OnEnter(1,&scene.player);
+    Check(Near(scene.player.GetPos().xPos,150) && Near(scene.player.GetPos().yPos,0) &&
+        scene.player.MovementBody().mode==Movement::Mode::Falling,
+        "착지 가능한 공중 도착 좌표 유지");
     destination.OnLeave(1);
     scene.player.SetCurrentMap(&scene.map); scene.player.SetMapId(42);
     scene.map.OnEnter(1,&scene.player);
