@@ -1,7 +1,8 @@
 #pragma once
 
 #include "IMonsterBehavior.h"
-#include <cstdint>
+#include <array>
+#include <vector>
 
 class CorruptedGuardianBehavior final : public IMonsterBehavior
 {
@@ -18,9 +19,23 @@ private:
         Recovery,   // 공격 후딜레이
     };
 
+      enum class RootPattern
+    {
+        Single = 1,
+        HorizontalTriple = 2,
+    };
+
+    void BeginRootPattern(Monster& monster, const Vec2& targetPos);
+
+
     State m_state = State::Idle;
-    int64_t m_stateEndTime = 0;
+    RootPattern m_nextPattern = RootPattern::Single;
+
     float m_timer = 0.0f;
-    Vec2 m_slamCenter{};
+
+    // 한 번 예고한 위치는 공격이 끝날 때까지 유지한다.
+    std::array<Vec2, 3> m_attackCenters{};
+    int m_attackCount = 0;
+
     std::vector<MonsterAction> m_actions;
 };
