@@ -2,6 +2,7 @@
 #include "Player.h"
 #include "MapInstance.h"
 #include "MapManager.h"
+#include "GameplayGate.h"
 
 MapService::MapService(PlayerManager& playermanager, MapManager& mapManager) : m_playerManager(playermanager), m_MapManger(mapManager)
 {
@@ -12,6 +13,8 @@ int MapService::EnterMap(int playerId, int mapID)
 {
     Player* player;
     MapInstance* map;
+
+    Gameplay::Guard guard(Gameplay::gate);
     player = m_playerManager.GetPlayer(playerId);
     if(player == nullptr) 
     {
@@ -36,9 +39,17 @@ PortalMoveResult MapService::MoveByPortal(Player* player, const std::string& por
 {
     PortalMoveResult moveResult{};
 
+    Gameplay::Guard guard(Gameplay::gate);
+
     if(player == nullptr)
     {
         moveResult.error = "player is nullptr";
+        return moveResult;
+    }
+
+    if (!player->IsAlive())
+    {
+        moveResult.error = "dead player cannot use portal";
         return moveResult;
     }
 
@@ -110,7 +121,7 @@ PortalMoveResult MapService::MoveByPortal(Player* player, const std::string& por
 
     moveResult.success = true;
     moveResult.destinationMapId = portal->destinationMapId;
-    moveResult.spawnPosition = portal->spawnPosition;
+    moveResult.spawnPosition = player->GetPos();
 
     return moveResult;
 

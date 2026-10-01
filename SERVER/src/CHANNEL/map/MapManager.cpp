@@ -6,6 +6,9 @@
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
+#include "MovementMapLoader.h"
+#include "GameplayGate.h"
+
 #include <unordered_set>
 
 #define MAP_PATH "../src/CHANNEL/data/Maps/"
@@ -83,20 +86,16 @@ void MapManager::Update()
         // 디버깅 중단 등으로 dt가 너무 커지는 것 방지
         deltaTime = std::clamp(deltaTime, 0.0f, 0.25f);
 
-        for (auto iter = m_maps.begin(); iter != m_maps.end(); ++iter)
         {
-            if (!m_running.load(std::memory_order_acquire))
-                break;
-
-            if (iter->second != nullptr)
-            {
-                MapInstance *map = iter->second;
-
-                auto task = std::make_unique<MapUpdateTask>(map, deltaTime);
-                m_server->GetThreadPool()->Submit(std::move(task));
+            Gameplay::Guard guard(Gameplay::gate);
+            // GetOrCreate/RemoveMap도 같은 gate를 잡으므로 순회 중 변경되지 않는다.
+            for (auto& entry : m_maps) {
+                if (!m_running.load(std::memory_order_acquire)) break;
+                if (entry.second) entry.second->Update(deltaTime);
             }
+            RemoveMap();
         }
-        RemoveMap();
+        // 기존 wait_for는 이 아래: gate를 잡은 채 기다리지 않는다.
         std::unique_lock<std::mutex> lock(m_updateWaitMutex);
         m_updateWaitCv.wait_for(lock,updateInterval,[this] { return !m_running.load(std::memory_order_acquire); });
     }
@@ -107,6 +106,7 @@ void MapManager::Update()
 
 MapInstance *MapManager::GetOrCreate(int mapId)
 {
+    Gameplay::Guard guard(Gameplay::gate);
     {
         std::lock_guard<std::mutex> lock(m_mapsMutex);
 
@@ -221,6 +221,7 @@ bool MapManager::LoadJsonFile(int mapId, MapInitData &mapData)
             throw std::runtime_error("mapId does not match file name");
         LoadMonster(j, mapData.MonstersData);
         LoadPortal(j, mapData.portals, mapData.mapID);
+        mapData.physics = Movement::LoadMap(j);
         LoadNPC(j, mapData.npcs);
     }
     catch (const std::exception& e)
@@ -380,6 +381,7 @@ void MapManager::LoadNPC(nlohmann::json& json,std::vector<NPCSpawnData>& npcs)
 
 void MapManager::RemoveMap()
 {
+    Gameplay::Guard guard(Gameplay::gate);
     // m_maps, m_destroyQueue 접근은 mutex로 보호했고, 
     // MapInstance 수명 문제는 shared_ptr 기반 관리 또는 삭제 지연 큐로 개선할 수 있도록 식별했다.
     std::scoped_lock(m_destroyQueueMutex, m_mapsMutex);
@@ -392,6 +394,9 @@ void MapManager::RemoveMap()
         if (it != m_maps.end())
         {
             K_LOG_TRACE( "Map Delete [%d]", mapId);
+            //삭제 직전 빈맵인지 재검사(삭제 예약후 재입장한 경우를 막는다.)
+            if (it->second && it->second->HasPlayer()) continue;
+            
             delete it->second;
             it->second = nullptr;
             m_maps.erase(it);

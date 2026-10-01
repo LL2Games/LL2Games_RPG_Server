@@ -5,6 +5,7 @@
 #include <optional>
 #include "Collider.h"
 #include "MapData.h"
+#include "MovementPhysics.h"
 
 class MapInstance;
 class Player;
@@ -52,6 +53,8 @@ struct MonsterTemplate {
     int attackDamage;
     int64_t exp;
     float moveSpeed;
+    bool avoidCliff = true;
+    bool canJump = false;
     std::string name;
     std::string common_drop_group_id;
     std::string unique_drop_group_id;
@@ -121,6 +124,7 @@ typedef struct MapInitData{
    
     std::vector<MonsterSpawnData> MonstersData;
     std::vector<PortalData> portals;
+    Movement::Map physics;
     std::vector<NPCSpawnData> npcs;
 }mapData;
 

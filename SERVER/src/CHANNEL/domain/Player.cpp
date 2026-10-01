@@ -1,6 +1,10 @@
 #include "Player.h"
 #include "timeUtility.h"
 #include "ItemManager.h"
+#include "GameplayGate.h"
+#include <cmath>
+#include <limits>
+#include <stdexcept>
 
 namespace
 {
@@ -28,6 +32,8 @@ Player::Player() : m_char_id(0),
     m_collider.rect.offset = {-6.f, -20.f};
     m_collider.rect.halfW = 18.f;
     m_collider.rect.halfH = 30.f;
+    // 충돌체가 완성되는 공통 초기화 지점. 두 SetInitData 경로 모두 사용한다.
+    m_movement.footOffset = m_collider.rect.offset.yPos + m_collider.rect.halfH;
     m_quickSlotManager.Init();
 }
 
@@ -91,6 +97,7 @@ void Player::SetInitData(const PlayerInitData playerInitData, const CharacterSta
 
 bool Player::CanUseSkill(SkillDef* skillDef)
 {
+    Gameplay::Guard guard(Gameplay::gate);
     if (skillDef == nullptr)
     {
         K_LOG_TRACE( "skillDef is null\n");
@@ -98,9 +105,11 @@ bool Player::CanUseSkill(SkillDef* skillDef)
     }
 
     // 먼저 플레이어가 공격 가능한 상태인지 확인
-    if (m_CurrentState == PlayerState::STUNNED)
+    const auto state = GetState();
+    if (state == PlayerState::DEAD || state == PlayerState::STUNNED ||
+        m_movement.mode == Movement::Mode::Climbing)
     {
-        K_LOG_TRACE( "현재 스턴 상태 입니다. 플레이어가 공격 가능한 상태가 아닙니다.\n");
+        K_LOG_TRACE( "현재 생명/이동 상태에서는 공격할 수 없습니다.\n");
         return false;
     }
 
@@ -320,7 +329,9 @@ bool Player::CanTakeAnyContactDamage(int64_t nowMs)
 
 void Player::OnDamaged(int dmg,int64_t nowMs)
 {
+    Gameplay::Guard guard(Gameplay::gate);
     std::lock_guard<std::mutex> lock(m_statMutex);
+    if (m_CurrentState == PlayerState::DEAD || dmg <= 0) return;
     int cur_hp = 0; 
     cur_hp = m_stat.GetCurHp();
     cur_hp -= dmg;
@@ -329,7 +340,7 @@ void Player::OnDamaged(int dmg,int64_t nowMs)
 
     if(cur_hp <= 0){
         cur_hp = 0;
-        Dead();
+        DeadLocked();
     }
     m_stat.SetCurHp(cur_hp);
 
@@ -341,28 +352,36 @@ void Player::OnDamaged(int dmg,int64_t nowMs)
 
 void Player::Dead()
 {
+    Gameplay::Guard guard(Gameplay::gate);
+    std::lock_guard<std::mutex> lock(m_statMutex);
+    DeadLocked();
+}
+
+void Player::DeadLocked()
+{
+    if (m_CurrentState == PlayerState::DEAD) return;
+    ResetMovement();
     m_CurrentState = PlayerState::DEAD;
-
-    //1. 경험치 등 패널티처리
-    m_stat.ReduceExp(10.0); //10% 감소
-    // 경험치 클라 전송은 부활시 MapInstance에서 SendPlayerStat로 전송예정
-
-    //2. 클라이언트에 패킷 전송
-    //-> MapInstance.cpp 에서 PlayerPacketSender::SendPlayerDead로 전송
-
+    m_stat.SetCurHp(0);
+    m_stat.ReduceExp(10.0); // 기존 정책: 필요 경험치의 10%, 보유 경험치까지 감소
+    m_statDirty = true;
+    MarkSaveNeeded();
+    // 사망 패킷은 기존 MapInstance의 피격 처리에서 전송한다.
 }
 
 bool Player::Revive(const Vec2& position)
 {
-    //DEAD에서 변경
+    Gameplay::Guard guard(Gameplay::gate);
+    if (!std::isfinite(position.xPos) || !std::isfinite(position.yPos)) return false;
+    std::lock_guard<std::mutex> lock(m_statMutex);
+    if (m_CurrentState != PlayerState::DEAD) return false;
+
+    ResetMovement(); // 이전 생명의 입력을 거부하도록 epoch도 변경한다.
     m_CurrentState = PlayerState::IDLE;
-
-    //임시로 부활시 경험치 맥스로
     m_stat.SetCurHp(m_stat.GetMaxHp());
-
-    //안전한 위치 변경
     SetPos(position);
-
+    m_statDirty = true;
+    MarkSaveNeeded();
     return true;
 }
 
@@ -568,3 +587,55 @@ Vec2 Player::GetPos() const
 
 
 
+
+
+void Player::ResetMovement()
+{
+    // epoch를 재사용하면 오래된 입력을 새 입력으로 오인할 수 있다.
+    if (m_movementEpoch == std::numeric_limits<int>::max())
+        throw std::overflow_error("movement epoch exhausted");
+
+    Movement::Reset(m_movement);
+    m_moveInput = {};
+    m_inputAge = 0.0f;
+    m_inputSequence = 0;
+    ++m_movementEpoch;
+}
+
+bool Player::AcceptMovement(int epoch, int sequence, Movement::Input input)
+{
+    const PlayerState state = GetState();
+    if (state == PlayerState::DEAD || state == PlayerState::STUNNED ||
+        epoch != m_movementEpoch || sequence <= m_inputSequence ||
+        input.horizontal < -1 || input.horizontal > 1 ||
+        input.vertical < -1 || input.vertical > 1)
+    {
+        return false;
+    }
+
+    m_inputSequence = sequence;
+    m_moveInput.horizontal = input.horizontal;
+    m_moveInput.vertical = input.vertical;
+    // 물리 갱신 전에 키 해제 입력이 와도 점프 누름 1회는 보존한다.
+    m_moveInput.jump = m_moveInput.jump || input.jump;
+    m_inputAge = 0.0f;
+    return true;
+}
+
+Movement::Input Player::ConsumeMovement(float dt)
+{
+    // 잘못된 시간이 timeout을 무력화하지 않도록 입력을 해제한다.
+    if (!std::isfinite(dt) || dt < 0.0f)
+    {
+        m_moveInput = {};
+        return {};
+    }
+
+    m_inputAge += dt;
+    if (m_inputAge > 0.3f)
+        m_moveInput = {};
+
+    const Movement::Input result = m_moveInput;
+    m_moveInput.jump = false;
+    return result;
+}

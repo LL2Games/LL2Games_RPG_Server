@@ -8,6 +8,7 @@
 #include <memory>
 #include <utility>
 #include <exception>
+#include "GameplayGate.h"
 
 PacketProcessTask::PacketProcessTask(ChannelServer* server, ChannelSession* session, int fd, uint64_t sessionId, uint64_t generation, uint16_t type, std::string payload)
     : m_server(server),
@@ -42,6 +43,7 @@ void PacketProcessTask::Execute()
 
     try
     {
+        Gameplay::Guard guard(Gameplay::gate);
         auto handler = m_factory.Create(m_type);
         if (!handler)
             return;

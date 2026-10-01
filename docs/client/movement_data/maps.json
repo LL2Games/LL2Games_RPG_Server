@@ -1,0 +1,452 @@
+{
+  "description": "2026-10-01 local server working tree export; not automatically synchronized",
+  "maps": [
+    {
+      "mapId": 100000000,
+      "source": "SERVER/src/CHANNEL/data/Maps/100000000.json",
+      "sourceSha256": "21e5bb1504d4a48c2152ab4870d122259808e77eb192270843c7da9e7edfa4f7",
+      "physics": {
+        "minX": 0,
+        "maxX": 1536,
+        "killY": 1200,
+        "safeFeet": {
+          "x": 150,
+          "y": 820
+        },
+        "platforms": [
+          {
+            "id": 1,
+            "left": 55,
+            "right": 1480,
+            "y": 820
+          },
+          {
+            "id": 2,
+            "left": 548,
+            "right": 1478,
+            "y": 625
+          },
+          {
+            "id": 3,
+            "left": 60,
+            "right": 626,
+            "y": 530
+          },
+          {
+            "id": 4,
+            "left": 924,
+            "right": 1363,
+            "y": 485
+          },
+          {
+            "id": 5,
+            "left": 57,
+            "right": 1480,
+            "y": 325
+          },
+          {
+            "id": 6,
+            "left": 58,
+            "right": 1480,
+            "y": 120
+          }
+        ],
+        "climbables": [
+          {
+            "id": 1,
+            "kind": "ladder",
+            "x": 939,
+            "top": 625,
+            "bottom": 790,
+            "grabRange": 16,
+            "topPlatformId": 2
+          },
+          {
+            "id": 2,
+            "kind": "ladder",
+            "x": 210,
+            "top": 530,
+            "bottom": 676,
+            "grabRange": 16,
+            "topPlatformId": 3
+          },
+          {
+            "id": 3,
+            "kind": "ladder",
+            "x": 1139,
+            "top": 485,
+            "bottom": 616,
+            "grabRange": 16,
+            "topPlatformId": 4
+          },
+          {
+            "id": 4,
+            "kind": "ladder",
+            "x": 842,
+            "top": 325,
+            "bottom": 491,
+            "grabRange": 16,
+            "topPlatformId": 5
+          },
+          {
+            "id": 5,
+            "kind": "ladder",
+            "x": 1146,
+            "top": 325,
+            "bottom": 460,
+            "grabRange": 16,
+            "topPlatformId": 5
+          },
+          {
+            "id": 6,
+            "kind": "ladder",
+            "x": 437,
+            "top": 120,
+            "bottom": 263,
+            "grabRange": 16,
+            "topPlatformId": 6
+          },
+          {
+            "id": 7,
+            "kind": "ladder",
+            "x": 1309,
+            "top": 120,
+            "bottom": 282,
+            "grabRange": 16,
+            "topPlatformId": 6
+          }
+        ]
+      },
+      "portals": [
+        {
+          "id": "to_town_pending",
+          "position": {
+            "x": 100.0,
+            "y": 60.0
+          },
+          "interactionRange": 120.0,
+          "destinationMapId": 100000001,
+          "spawnPosition": {
+            "x": 100.0,
+            "y": 500.0
+          }
+        },
+        {
+          "id": "to_map_100000001",
+          "position": {
+            "x": 1400.0,
+            "y": 770.0
+          },
+          "interactionRange": 120.0,
+          "destinationMapId": 100000001,
+          "spawnPosition": {
+            "x": 120.0,
+            "y": 730.0
+          }
+        }
+      ]
+    },
+    {
+      "mapId": 100000001,
+      "source": "SERVER/src/CHANNEL/data/Maps/100000001.json",
+      "sourceSha256": "d68dd72883ea22dd789026a243adaf18d8274ede28852ef0345a1dc06fe77678",
+      "physics": {
+        "minX": 0,
+        "maxX": 1536,
+        "killY": 1200,
+        "safeFeet": {
+          "x": 150,
+          "y": 739
+        },
+        "platforms": [
+          {
+            "id": 1,
+            "left": 82,
+            "right": 1450,
+            "y": 739
+          },
+          {
+            "id": 2,
+            "left": 86,
+            "right": 410,
+            "y": 611
+          },
+          {
+            "id": 3,
+            "left": 585,
+            "right": 755,
+            "y": 612
+          },
+          {
+            "id": 4,
+            "left": 932,
+            "right": 1180,
+            "y": 612
+          },
+          {
+            "id": 5,
+            "left": 84,
+            "right": 1448,
+            "y": 491
+          },
+          {
+            "id": 6,
+            "left": 346,
+            "right": 1447,
+            "y": 376
+          },
+          {
+            "id": 7,
+            "left": 88,
+            "right": 410,
+            "y": 283
+          },
+          {
+            "id": 8,
+            "left": 1117,
+            "right": 1312,
+            "y": 285
+          },
+          {
+            "id": 9,
+            "left": 438,
+            "right": 1088,
+            "y": 197
+          },
+          {
+            "id": 10,
+            "left": 346,
+            "right": 754,
+            "y": 94
+          }
+        ],
+        "climbables": [
+          {
+            "id": 1,
+            "kind": "ladder",
+            "x": 314,
+            "top": 611,
+            "bottom": 735,
+            "grabRange": 16,
+            "topPlatformId": 2
+          },
+          {
+            "id": 2,
+            "kind": "ladder",
+            "x": 507,
+            "top": 491,
+            "bottom": 596,
+            "grabRange": 16,
+            "topPlatformId": 5
+          },
+          {
+            "id": 3,
+            "kind": "ladder",
+            "x": 1057,
+            "top": 491,
+            "bottom": 606,
+            "grabRange": 16,
+            "topPlatformId": 5
+          },
+          {
+            "id": 4,
+            "kind": "ladder",
+            "x": 1057,
+            "top": 376,
+            "bottom": 486,
+            "grabRange": 16,
+            "topPlatformId": 6
+          },
+          {
+            "id": 5,
+            "kind": "ladder",
+            "x": 152,
+            "top": 283,
+            "bottom": 381,
+            "grabRange": 16,
+            "topPlatformId": 7
+          },
+          {
+            "id": 6,
+            "kind": "ladder",
+            "x": 661,
+            "top": 94,
+            "bottom": 192,
+            "grabRange": 16,
+            "topPlatformId": 10
+          }
+        ]
+      },
+      "portals": [
+        {
+          "id": "to_map_100000000",
+          "position": {
+            "x": 120.0,
+            "y": 720.0
+          },
+          "interactionRange": 120.0,
+          "destinationMapId": 100000000,
+          "spawnPosition": {
+            "x": 1400.0,
+            "y": 800.0
+          }
+        },
+        {
+          "id": "to_map_100000002",
+          "position": {
+            "x": 1400.0,
+            "y": 700.0
+          },
+          "interactionRange": 120.0,
+          "destinationMapId": 100000002,
+          "spawnPosition": {
+            "x": 100.0,
+            "y": 850.0
+          }
+        }
+      ]
+    },
+    {
+      "mapId": 100000002,
+      "source": "SERVER/src/CHANNEL/data/Maps/100000002.json",
+      "sourceSha256": "f7c8f6036d8129547d73022a1e7fe1c0bc9f467fe644d82c28d2c72bd1730b87",
+      "physics": {
+        "minX": 0,
+        "maxX": 1536,
+        "killY": 1200,
+        "safeFeet": {
+          "x": 150,
+          "y": 850
+        },
+        "platforms": [
+          {
+            "id": 1,
+            "left": 45,
+            "right": 1490,
+            "y": 850
+          },
+          {
+            "id": 2,
+            "left": 46,
+            "right": 630,
+            "y": 630
+          },
+          {
+            "id": 3,
+            "left": 1080,
+            "right": 1490,
+            "y": 608
+          },
+          {
+            "id": 4,
+            "left": 47,
+            "right": 927,
+            "y": 462
+          },
+          {
+            "id": 5,
+            "left": 795,
+            "right": 1487,
+            "y": 341
+          },
+          {
+            "id": 6,
+            "left": 361,
+            "right": 799,
+            "y": 236
+          },
+          {
+            "id": 7,
+            "left": 48,
+            "right": 453,
+            "y": 154
+          }
+        ],
+        "climbables": [
+          {
+            "id": 1,
+            "kind": "ladder",
+            "x": 315,
+            "top": 850,
+            "bottom": 990,
+            "grabRange": 16,
+            "topPlatformId": 1
+          },
+          {
+            "id": 2,
+            "kind": "ladder",
+            "x": 579,
+            "top": 630,
+            "bottom": 850,
+            "grabRange": 16,
+            "topPlatformId": 2
+          },
+          {
+            "id": 3,
+            "kind": "ladder",
+            "x": 1147,
+            "top": 608,
+            "bottom": 772,
+            "grabRange": 16,
+            "topPlatformId": 3
+          },
+          {
+            "id": 4,
+            "kind": "ladder",
+            "x": 565,
+            "top": 462,
+            "bottom": 624,
+            "grabRange": 16,
+            "topPlatformId": 4
+          },
+          {
+            "id": 5,
+            "kind": "ladder",
+            "x": 866,
+            "top": 462,
+            "bottom": 653,
+            "grabRange": 16,
+            "topPlatformId": 4
+          },
+          {
+            "id": 6,
+            "kind": "ladder",
+            "x": 1130,
+            "top": 341,
+            "bottom": 505,
+            "grabRange": 16,
+            "topPlatformId": 5
+          }
+        ]
+      },
+      "portals": [
+        {
+          "id": "to_map_100000001",
+          "position": {
+            "x": 100.0,
+            "y": 790.0
+          },
+          "interactionRange": 120.0,
+          "destinationMapId": 100000001,
+          "spawnPosition": {
+            "x": 1400.0,
+            "y": 740.0
+          }
+        },
+        {
+          "id": "to_map_100000003",
+          "position": {
+            "x": 1400.0,
+            "y": 700.0
+          },
+          "interactionRange": 120.0,
+          "destinationMapId": 100000002,
+          "spawnPosition": {
+            "x": 1000.0,
+            "y": 520.0
+          }
+        }
+      ]
+    }
+  ]
+}

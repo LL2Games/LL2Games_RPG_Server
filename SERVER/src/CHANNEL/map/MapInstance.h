@@ -59,12 +59,16 @@ public:
     void CheckDropItem();
 
     bool RevivePlayer(Player* player);
+    void ResetPlayerMovement(Player* player, bool useSafePosition);
+    void BroadcastMovement();
     
     std::optional<PortalData> FindPortal(const std::string& portalId) const;
 private:
     void BroadcastDropSpawn(std::vector<DropSpawnInfo> spawnedInfos);
     void BroadcastRemoveItem(std::vector<int> removeItems);
     void SendMapInfo();
+    void UpdatePlayerPhysics(float dt);
+    void SimulateStep(float dt);
     void SendMonsterSnapshot(Player* Enter_player);  
     void SendMonsterMove(Player* player);
     void SendProjectileMove(Player* player);
@@ -91,6 +95,7 @@ public:
     bool HasPlayer();
 
     std::unordered_map<int, Player*>& GetPlayerList(){return m_playerList;}
+    const Movement::Map& GetPhysicsMap() const { return m_physics; }
 private:
    	// 플레이어가 맵에 있는지 없는지 판단 변수
     bool m_has_player;
@@ -136,4 +141,7 @@ private:
     MonsterManager* m_monsterManager;
     CombatService* m_combatService;
     DropManager* m_dropManager;
+    Movement::Map m_physics;
+    double m_physicsAccumulator = 0;
+    std::uint64_t m_physicsTick = 0;
 };

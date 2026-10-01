@@ -20,6 +20,7 @@ std::unique_ptr<IPacketHandler> ChannelPacketFactory::Create(uint16_t type)
         case PKT_ENTER_MAP:
             return std::make_unique<MapHandler>();
             break;
+        case PKT_MOVEMENT_INPUT:
         case PKT_PLAYER_MOVE:
         case PKT_PLAYER_SKILL_ATTACK:
         case PKT_PLAYER_BASIC_ATTACK:

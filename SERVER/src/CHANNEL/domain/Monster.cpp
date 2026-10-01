@@ -6,6 +6,8 @@
 #include "timeUtility.h"
 #include "Projectile.h"
 #include "ProjectileManager.h"
+#include <limits>
+#include <stdexcept>
 
 #include "behavior/IMonsterBehavior.h"
 #include "behavior/MonsterBehaviorFactory.h"
@@ -32,6 +34,8 @@ int Monster::Init(const MonsterTemplate &monsterTemplate, const MonsterSpawnData
 	m_attackDamage = monsterTemplate.attackDamage;
 	m_level = monsterTemplate.level;
 	m_moveSpeed = monsterTemplate.moveSpeed;
+    m_avoidCliff = monsterTemplate.avoidCliff;
+    m_canJump = monsterTemplate.canJump;
 	m_isAlive = true;
 	m_deadRequest = false;
 
@@ -44,8 +48,8 @@ int Monster::Init(const MonsterTemplate &monsterTemplate, const MonsterSpawnData
 
 	m_dir.xPos = 1.0f;
 	m_dir.yPos = 0.0f;
-	m_rightBound = m_Pos.xPos + 3.0f;
-	m_leftBound = m_Pos.xPos - 3.0f;
+	m_rightBound = m_Pos.xPos + 100.0f;
+	m_leftBound = m_Pos.xPos - 100.0f;
 
 	m_spawnPos.xPos = monsterspawnData.spawnPos.xPos;
 	m_spawnPos.yPos = monsterspawnData.spawnPos.yPos;
@@ -106,12 +110,21 @@ int Monster::Init(const MonsterTemplate &monsterTemplate, const MonsterSpawnData
 		m_behavior->Initialize(*this);
 	}
 
-	return 1;
+    m_movement.footOffset = m_collider.type == ColliderType::Rect2D
+        ? m_collider.rect.offset.yPos + m_collider.rect.halfH
+        : m_collider.type == ColliderType::Circle2D
+            ? m_collider.circle.offset.yPos + m_collider.circle.radius : 0.0f;
+    if (!m_mapInstance) return -1;
+    Movement::ResetAtOrigin(m_Pos, m_movement, m_mapInstance->GetPhysicsMap());
+    m_movementEpoch = 1;
+    m_moveAxis = 0;
+    return 1;
 }
 
-int Monster::Update(float dt)
-{
-	if (m_behavior)
+int Monster::Update(float dt) {
+    if (!m_isAlive || !m_mapInstance || !std::isfinite(dt) || dt <= 0) return 0;
+    m_moveAxis = 0;
+    if (m_behavior)
 	{
 	    m_behavior->Update(*this, dt);
 	    return 0;
@@ -140,29 +153,39 @@ int Monster::Update(float dt)
 	default:
 			break;
 	}
-	return 0;
+    const auto& map = m_mapInstance->GetPhysicsMap();
+    Movement::Input input{m_moveAxis, 0, false};
+    const float nextX = m_Pos.xPos + input.horizontal * m_moveSpeed * dt;
+    const auto* floor = Movement::FindPlatform(map, m_movement.platformId);
+    if (m_movement.mode == Movement::Mode::Grounded && floor && !Movement::Covers(*floor, nextX)) {
+        if (m_canJump) {
+            input.jump = true; // 첫 정책: 가장자리에서 1회 점프. 길찾기는 별도 기능.
+        } else if (m_avoidCliff) {
+            input.horizontal = 0;
+            m_dir.xPos = -m_dir.xPos;
+            if (m_state == E_Chase || m_state == E_RangeAttack) {
+                m_lastAttacker = nullptr;
+                m_lastAttackerId = 0;
+                m_state = E_Patrol;
+            }
+        }
+    }
+    const auto result = Movement::Step(m_Pos, m_movement, map, input,
+                                       static_cast<float>(m_moveSpeed), dt);
+    if (result.fellOut) {
+        ResetPhysicsAtSpawn();
+    }
+    m_movement.facing = m_dir.xPos < 0 ? -1 : 1;
+    return 0;
 }
 
 //x축만 이동
-int Monster::UpdatePatrol(float dt)
-{
-	m_Pos.xPos += m_dir.xPos * m_moveSpeed * dt;
-
-	//오른쪽 경계 도달
-	if (m_Pos.xPos >= m_rightBound)
-	{
-		m_Pos.xPos = m_rightBound;
-		m_dir.xPos = -1.0f; //방향전환
-	}
-
-	//왼쪽 경계 도달
-	if (m_Pos.xPos <= m_leftBound)
-	{
-		m_Pos.xPos = m_leftBound;
-		m_dir.xPos = 1.0f; // 방향 전환
-	}
-
-	return 0;
+int Monster::UpdatePatrol(float dt) {
+    (void)dt;
+    if (m_Pos.xPos >= m_rightBound) m_dir.xPos = -1;
+    if (m_Pos.xPos <= m_leftBound) m_dir.xPos = 1;
+    m_moveAxis = m_dir.xPos < 0 ? -1 : 1;
+    return 0;
 }
 
 bool Monster::IsAttackOnCooldown()
@@ -195,70 +218,37 @@ bool Monster::TryRangedAttack(const Vec2& dir)
 
 	//마지막 공격 시간 업데이트
 	m_lastAttackTime = NowMs();
-	K_LOG_TRACE( "원거리 공격 시도. 방향: %f", dir);
+	K_LOG_TRACE("Projectile dir: (%f, %f)", dir.xPos, dir.yPos);
 
 	m_state = E_RangeAttack; //공격 상태로 전환
 
 	return true;
 }
 
-int Monster::UpdateChase(float dt)
-{
-	//m_lastAttackerId가 막타 맞은 플레이어이므로 해당 플레이어 chase모드
-	Player *player = m_lastAttacker;
-
-	if (!player) //막타플레이어 없을경우 예외처리
-	{
-		K_LOG_TRACE( "No attacker to chase.");
-		return 0;
-	}
-
-	Vec2 playerPos = player->GetPos();
-
-	//플레이어가 몬스터와 같은 맵에 없는경우 예외처리
-	if (player->GetCurrentMap() && (player->GetCurrentMap()->GetMapId() != m_mapId))
-	{
-		K_LOG_TRACE( "Attacker is on a different map.");
-		return UpdatePatrol(dt);
-	}
-
-	//플레이어와 몬스터 거리 계산 (X축만 사용)
-	float dx = playerPos.xPos - m_Pos.xPos;
-	float dy = playerPos.yPos - m_Pos.yPos;
-
-	//방향 결정
-	if (dx > 0)
-		m_dir.xPos = 1.0f; //오른쪽
-	else
-		m_dir.xPos = -1.0f; //왼쪽
-
-	if (dy > 0)
-		m_dir.yPos = 1.0f; //위
-	else
-		m_dir.yPos = -1.0f; //아래
-
-	//공격 범위 내에 플레이어가 있다면 공격
-	if (m_isRangedAttack && fabs(dx) <= m_ragedAttackRange)
-	{
-		K_LOG_TRACE( "Player is within ranged attack range. Attempting attack.");
-		if (TryRangedAttack(m_dir))
-		{
-			//공격 성공시에만 마지막 공격시간 업데이트
-			m_lastAttackTime = NowMs();
-		}
-		return 0;
-	}
-
-	//너무 가까우면 이동하지 않음
-	if (fabs(dx) < 5.0f)
-		return 0;
-
-	//이동
-	m_Pos.xPos += m_dir.xPos * m_moveSpeed * dt;
-	m_Pos.yPos += m_dir.yPos * m_moveSpeed * dt;
-	K_LOG_TRACE( "Chasing player. New position: (%f, %f)", m_Pos.xPos, m_Pos.yPos);
-	
-	return 0;
+int Monster::UpdateChase(float dt) {
+    Player* player = m_lastAttacker;
+    if (!player || !player->IsAlive() || !player->GetCurrentMap() ||
+        player->GetCurrentMap()->GetMapId() != m_mapId) {
+        m_lastAttacker = nullptr;
+        m_lastAttackerId = 0;
+        m_state = E_Patrol;
+        return UpdatePatrol(dt);
+    }
+    const Vec2 target = player->GetPos();
+    const float dx = target.xPos - m_Pos.xPos;
+    const float dy = target.yPos - m_Pos.yPos;
+    if (std::fabs(dx) > 0.01f) m_dir.xPos = dx < 0 ? -1.0f : 1.0f;
+    m_dir.yPos = 0; // 걸음 방향에는 수직 추적을 사용하지 않는다.
+    const float distance = std::sqrt(dx*dx + dy*dy);
+    if (m_isRangedAttack && distance <= m_ragedAttackRange) {
+        const Vec2 aim = distance > 0.01f
+            ? Vec2{dx/distance, dy/distance} : Vec2{m_dir.xPos, 0};
+        TryRangedAttack(aim);
+        return 0;
+    }
+    if (std::fabs(dx) < 5.0f) return 0;
+    m_moveAxis = dx < 0 ? -1 : 1;
+    return 0;
 }
 
 int Monster::Dead()
@@ -270,6 +260,8 @@ int Monster::Dead()
 		m_deadTime = std::chrono::steady_clock::now();
 		m_isAlive = false;
 		m_state = E_Die;
+        Movement::Reset(m_movement);
+        m_moveAxis = 0;
 	}
 
 	return 0;
@@ -298,8 +290,7 @@ int Monster::Reset()
 {
 	K_LOG_DEBUG("[MonsterRespawn] monsterId=%d instanceId=%d mapId=%u pos=(%.1f, %.1f)",
 		m_monsterId, m_instanceId, m_mapId, m_spawnPos.xPos, m_spawnPos.yPos);
-	m_Pos.xPos = m_spawnPos.xPos;
-	m_Pos.yPos = m_spawnPos.yPos;
+	ResetPhysicsAtSpawn();
 	m_hp = m_maxhp;
 	m_isAlive = true;
 	m_deadRequest = false;
@@ -349,4 +340,22 @@ bool Monster::OnDamaged(Player *Attacker, int damage)
 
 	K_LOG_TRACE( "End");
 	return false;
+}
+
+void Monster::ResetPhysicsAtSpawn()
+{
+    if (m_movementEpoch == std::numeric_limits<int>::max())
+        throw std::overflow_error("monster movement epoch exhausted");
+    m_Pos = m_spawnPos;
+    Movement::ResetAtOrigin(m_Pos, m_movement, m_mapInstance->GetPhysicsMap());
+    m_moveAxis = 0;
+    ++m_movementEpoch;
+}
+
+void Monster::ClearTarget(int playerId)
+{
+    if (m_lastAttackerId != playerId) return;
+    m_lastAttacker = nullptr;
+    m_lastAttackerId = 0;
+    if (m_isAlive) m_state = E_Patrol;
 }

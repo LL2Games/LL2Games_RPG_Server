@@ -19,6 +19,7 @@ public:
 
     static LevelManager *GetInstance();
 private:
+    friend class LevelManagerTestAccess;
     std::unordered_map<int, int64_t> m_needExpTable;
 
     static LevelManager *m_instance;
