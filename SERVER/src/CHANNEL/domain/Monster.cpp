@@ -9,11 +9,20 @@
 #include <limits>
 #include <stdexcept>
 
+#include "behavior/IMonsterBehavior.h"
+#include "behavior/MonsterBehaviorFactory.h"
+
 
 Monster::Monster() : m_deadRequest(false),m_lastAttacker(nullptr)
 {
 
 }
+
+Monster::Monster(Monster&&) noexcept = default;
+
+// unique_ptr가 가리키는 타입을 헤더에서 전방 선언했기 때문에 소멸자를 cpp로 이동
+// 이렇게 옮겨야 unique_ptr이 객체를 삭제하는 순간에 전체 정의를 읽을 수 있음
+Monster::~Monster() = default;
 
 int Monster::Init(const MonsterTemplate &monsterTemplate, const MonsterSpawnData &monsterspawnData)
 {
@@ -94,6 +103,12 @@ int Monster::Init(const MonsterTemplate &monsterTemplate, const MonsterSpawnData
 		m_collider.circle.radius = monsterTemplate.radius;
 	}
 
+	m_behavior = MonsterBehaviorFactory::Create(monsterTemplate.behavior);
+
+	if(m_behavior != nullptr)
+	{
+		m_behavior->Initialize(*this);
+	}
 
     m_movement.footOffset = m_collider.type == ColliderType::Rect2D
         ? m_collider.rect.offset.yPos + m_collider.rect.halfH
@@ -109,11 +124,35 @@ int Monster::Init(const MonsterTemplate &monsterTemplate, const MonsterSpawnData
 int Monster::Update(float dt) {
     if (!m_isAlive || !m_mapInstance || !std::isfinite(dt) || dt <= 0) return 0;
     m_moveAxis = 0;
-    switch (m_state) {
-    case E_Idle: case E_Move: case E_Patrol: UpdatePatrol(dt); break;
-    case E_Chase: case E_RangeAttack: UpdateChase(dt); break;
-    default: break;
-    }
+    if (m_behavior)
+	{
+	    m_behavior->Update(*this, dt);
+	    return 0;
+	}
+	switch (m_state)
+	{
+		case E_Idle:
+		case E_Move: //gunoo22 260712 E_Move가 UpdatePatrol을 안하고있어서 몬스터가 안움직이고 있었음
+		case E_Patrol:
+		UpdatePatrol(dt);
+		break;
+
+	case E_Chase:
+		UpdateChase(dt);
+		break;
+
+	case E_RangeAttack:
+		UpdateChase(dt);
+		break;
+		
+	case E_Dead:
+		break;
+    case E_Die:
+	case E_Hit:
+	case E_NONE:
+	default:
+			break;
+	}
     const auto& map = m_mapInstance->GetPhysicsMap();
     Movement::Input input{m_moveAxis, 0, false};
     const float nextX = m_Pos.xPos + input.horizontal * m_moveSpeed * dt;
@@ -239,6 +278,14 @@ bool Monster::CheckRespawnTime(std::chrono::steady_clock::time_point now)
 	return now - m_deadTime >= m_respawnDelay;
 }
 
+std::vector<MonsterAction> Monster::TakeActions()
+{
+	if (!m_behavior)
+        return {};
+
+    return m_behavior->TakeActions();
+}
+
 int Monster::Reset()
 {
 	K_LOG_DEBUG("[MonsterRespawn] monsterId=%d instanceId=%d mapId=%u pos=(%.1f, %.1f)",
@@ -251,6 +298,8 @@ int Monster::Reset()
 	m_lastAttackTime = 0.0f;
 	m_lastAttacker = nullptr;
 	m_lastAttackerId = 0;
+	if (m_behavior)
+    	m_behavior->Initialize(*this);
 	return 1;
 }
 
@@ -274,7 +323,8 @@ bool Monster::OnDamaged(Player *Attacker, int damage)
 	m_lastAttackerId = Attacker->GetId();
 	m_lastAttacker = Attacker;
 	//한대 맞으면 해당 chase 모드로 전환
-	m_state = E_Chase;
+	if (m_state != E_RangeAttack)
+    	m_state = E_Chase;
 	K_LOG_TRACE( "몬스터가 플레이어 %s에게 공격당했습니다. 남은 HP: %d", Attacker->GetName().c_str(), m_hp - damage);
 	K_LOG_TRACE( "몬스터 상태[%d]", m_state);
 

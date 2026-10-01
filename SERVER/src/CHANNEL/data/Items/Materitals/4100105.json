@@ -1,18 +1,18 @@
 {
-  "item_id": 4000000,
-  "name": "Blue Snail Shell",
+  "item_id": 4100105,
+  "name": "이끼 골렘 핵",
   "type": "etc",
 
   "stackable": true,
   "max_stack": 999,
-  "sell_price": 2,
+  "sell_price": 35,
 
   "consume_rules": {
     "decrease_on_skill": true
   },
-
   "reagent": {
     "allowed_by": ["skill"],
-    "tags": ["shell", "reagent", "Blue"]
+    "tags": ["moss", "golem", "core", "reagent"]
   }
+
 }

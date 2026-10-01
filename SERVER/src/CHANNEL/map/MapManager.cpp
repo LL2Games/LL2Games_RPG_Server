@@ -9,6 +9,7 @@
 #include "MovementMapLoader.h"
 #include "GameplayGate.h"
 
+#include <unordered_set>
 
 #define MAP_PATH "../src/CHANNEL/data/Maps/"
 namespace fs = std::filesystem;
@@ -215,11 +216,13 @@ bool MapManager::LoadJsonFile(int mapId, MapInitData &mapData)
         file >> j;
         mapData.name = j.at("name").get<std::string>();
         mapData.mapID = j.at("mapId").get<uint32_t>();
+        mapData.persistent = j.value("persistent", false);
         if (mapData.mapID != static_cast<uint32_t>(mapId))
             throw std::runtime_error("mapId does not match file name");
         LoadMonster(j, mapData.MonstersData);
         LoadPortal(j, mapData.portals, mapData.mapID);
         mapData.physics = Movement::LoadMap(j);
+        LoadNPC(j, mapData.npcs);
     }
     catch (const std::exception& e)
     {
@@ -329,6 +332,50 @@ void MapManager::LoadPortal(nlohmann::json& j, std::vector<PortalData>& portals,
         data.spawnPosition.yPos = spawnPosition.at("y").get<float>();
         data.interactionRange =portalJson.value("interactionRange",100.0f);
         portals.push_back(std::move(data));
+    }
+}
+
+void MapManager::LoadNPC(nlohmann::json& json,std::vector<NPCSpawnData>& npcs)
+{
+    npcs.clear();
+
+     if (!json.contains("npcs"))
+        return;
+
+    const auto& npcArray = json.at("npcs");
+
+    if (!npcArray.is_array())
+        throw std::runtime_error("npcs must be an array");
+
+    std::unordered_set<int> spawnIds;
+
+     for (const auto& npcJson : npcArray)
+    {
+        NPCSpawnData data{};
+
+        data.spawnId = npcJson.at("spawnId").get<int>();
+        data.npcId = npcJson.at("npcId").get<int>();
+        data.position.xPos = npcJson.at("x").get<float>();
+        data.position.yPos = npcJson.at("y").get<float>();
+        data.interactionRange = npcJson.value("interactionRange", 100.0f);
+
+        if (data.spawnId <= 0 || data.npcId <= 0)
+            throw std::runtime_error("invalid NPC ID");
+
+        if (!spawnIds.insert(data.spawnId).second)
+            throw std::runtime_error("duplicated NPC spawnId");
+
+        if (!std::isfinite(data.position.xPos) || !std::isfinite(data.position.yPos))
+        {
+            throw std::runtime_error("invalid NPC position");
+        }
+
+        if (!std::isfinite(data.interactionRange) || data.interactionRange <= 0.0f)
+        {
+            throw std::runtime_error("invalid NPC interactionRange");
+        }
+
+        npcs.push_back(std::move(data));
     }
 }
 

@@ -73,6 +73,8 @@ struct MonsterTemplate {
     //투사체 정보
     bool isRanged;
     MonsterProjectileData projectileData;
+
+    std::string behavior = "NORMAL";
 };
 
 struct MonsterMoveInfo
@@ -115,12 +117,15 @@ struct MonsterRespawnInfo
 
 
 typedef struct MapInitData{
-    uint32_t mapID;
+    uint32_t mapID = 0;
 	std::string name;
+
+    bool persistent = false;
    
     std::vector<MonsterSpawnData> MonstersData;
     std::vector<PortalData> portals;
     Movement::Map physics;
+    std::vector<NPCSpawnData> npcs;
 }mapData;
 
 struct ProjectileSnapshotInfo

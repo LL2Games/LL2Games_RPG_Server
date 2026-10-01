@@ -78,6 +78,9 @@ SRCS := \
 	domain/Item.cpp \
 	domain/Inventory.cpp \
 	domain/Projectile.cpp \
+	domain/behavior/MonsterBehaviorFactory.cpp \
+	domain/behavior/NormalMonsterBehavior.cpp \
+	domain/behavior/CorruptedGuardianBehavior.cpp \
 	\
 	ipc/CommandReceiver.cpp \
 	ipc/CommandMsgQueue.cpp \
@@ -117,6 +120,7 @@ SRCS := \
 	packet/PortalHandler.cpp\
 	packet/PortalPacketSender.cpp\
 	packet/RevivePacket.cpp\
+	packet/NPCPacketSender.cpp\
 	\
 	service/MapService.cpp \
 	service/StatService.cpp \

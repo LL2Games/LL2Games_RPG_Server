@@ -3,11 +3,14 @@
 #include "CommonEnum.h"
 #include "Collider.h"
 #include "MovementPhysics.h"
+#include "behavior/MonsterAction.h"
+
+#include <memory>
 //#include "Player.h"
 
 class Player;
 class MapInstance;
-
+class IMonsterBehavior;
 
 
 enum MonsterState {
@@ -34,8 +37,12 @@ class Monster
 {
 public:
     Monster();
-    ~Monster(){};
+    ~Monster();
 	
+	Monster(const Monster&) = delete;
+	Monster& operator=(const Monster&) = delete;
+	Monster(Monster&&) noexcept;
+
 	// 몬스터 정보와 스폰 정보 설정 
 	int Init(const MonsterTemplate& monsterTemplate, const MonsterSpawnData& monsterspawnData);
 	
@@ -55,6 +62,7 @@ public:
 	// 죽고난 후 시간 확인 
 	bool CheckRespawnTime(std::chrono::steady_clock::time_point now);
 	
+	std::vector<MonsterAction> TakeActions();
 public:
 	// 몬스터 위치 설정
     void SetPos(Vec2 Pos){this->m_Pos.xPos = Pos.xPos; this->m_Pos.yPos = Pos.yPos;}
@@ -172,4 +180,8 @@ private:
 	int64_t m_lastAttackTime; //마지막 공격 시간
 	/***원거리 공격 관련 변수***/
 
+	
+
+private:
+	std::unique_ptr<IMonsterBehavior> m_behavior;
 };

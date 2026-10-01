@@ -1,0 +1,20 @@
+{
+    "monster_id"    : 100105,
+    "name"          : "가시 새싹",
+    "hp"            : 35,
+    "attackDamage"  : 3,
+    "level"         : 2,
+    "exp"           : 5,
+    "moveSpeed"     : 20,
+
+    "common_drop_group_id": "FIELD_COMMON_LV1_5",
+    "unique_drop_group_id": "UNIQUE_THORN_SPROUT",
+
+    "collider" :[{
+        "type" : "Rect2D",
+        "offset" :  {"x": 1, "y": 32 },
+        "half":     {"w": 15, "h": 26}
+    }],
+
+    "isRanged" : false
+}

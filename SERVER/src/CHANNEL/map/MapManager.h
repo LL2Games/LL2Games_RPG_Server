@@ -26,6 +26,7 @@ public:
     bool PreLoadAll();
     void LoadMonster(nlohmann::json& j, std::vector<MonsterSpawnData>& MonstersData);
     void LoadPortal(nlohmann::json& j, std::vector<PortalData>& portals, u_int32_t mapId);
+    void LoadNPC(nlohmann::json& json,std::vector<NPCSpawnData>& npcs);
     bool LoadJsonFile(int mapId, MapInitData& mapData);
     void RemoveMap();
 
