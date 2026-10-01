@@ -1,0 +1,96 @@
+{
+  "mapId": 100000003,
+  "name": "Forest Ground 3",
+  "respawnDelay": 10,
+  "monsters": [
+    {
+      "monsterId": 100102,
+      "spawnCount": 5,
+      "spawnPoints": [
+        {
+          "xPos": 150.0,
+          "yPos": 350.0
+        },
+        {
+          "xPos": 330.0,
+          "yPos": 150.0
+        },
+        {
+          "xPos": 510.0,
+          "yPos": 250.0
+        },
+        {
+          "xPos": 690.0,
+          "yPos": 180.0
+        },
+        {
+          "xPos": 870.0,
+          "yPos": 380.0
+        }
+      ],
+      "group": 1
+    },
+    {
+      "monsterId": 100100,
+      "spawnCount": 5,
+      "spawnPoints": [
+        {
+          "xPos": 240.0,
+          "yPos": 650.0
+        },
+        {
+          "xPos": 420.0,
+          "yPos": 450.0
+        },
+        {
+          "xPos": 600.0,
+          "yPos": 550.0
+        },
+        {
+          "xPos": 780.0,
+          "yPos": 620.0
+        },
+        {
+          "xPos": 960.0,
+          "yPos": 500.0
+        }
+      ],
+      "group": 1
+    }
+  ],
+  "portals": [
+    {
+      "id": "to_map_100000002",
+      "position": {
+        "x": 100.0,
+        "y": 770.0
+      },
+      "interactionRange": 120.0,
+      "destinationMapId": 100000002,
+      "spawnPosition": {
+        "x": 1400.0,
+        "y": 700.0
+      }
+    },
+    {
+      "id": "to_map_100000004",
+      "position": {
+        "x": 1400.0,
+        "y": 770.0
+      },
+      "interactionRange": 120.0,
+      "destinationMapId": 100000004,
+      "spawnPosition": {
+        "x": 120.0,
+        "y": 730.0
+      }
+    }
+  ],
+  "minSpawnSpacing": 100,
+  "spawnBounds": {
+    "minX": 100,
+    "maxX": 1000,
+    "minY": 100,
+    "maxY": 700
+  }
+}

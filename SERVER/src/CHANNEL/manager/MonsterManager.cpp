@@ -136,6 +136,7 @@ bool MonsterManager::LoadJsonFile(int monster_id, MonsterTemplate& monsterTempla
                                   //= j["monster_id"];
 	monsterTemplate.monsterId     = j.at("monster_id").get<int>();
     monsterTemplate.name          = j.at("name").get<std::string>();
+    monsterTemplate.behavior      = j.value("behavior", std::string("NORMAL"));
     monsterTemplate.level         = j.at("level").get<int>();
     monsterTemplate.hp            = j.at("hp").get<int>();
     monsterTemplate.attackDamage  = j.at("attackDamage").get<int>();
@@ -201,7 +202,6 @@ bool MonsterManager::LoadJsonFile(int monster_id, MonsterTemplate& monsterTempla
         }
         // K_LOG_TRACE( "gunoo22_TEST");
     }
-    
 	return true;
 }
 

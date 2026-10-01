@@ -1,96 +1,90 @@
 {
   "mapId": 100000000,
-  "name": "Forest Ground 1",
-  "respawnDelay": 10,
-  "monsters": [
-    {
-      "monsterId": 100100,
-      "spawnCount": 5,
-      "spawnPoints": [
-        {
-          "xPos": 140.0,
-          "yPos": 150.0
-        },
-        {
-          "xPos": 320.0,
-          "yPos": 250.0
-        },
-        {
-          "xPos": 500.0,
-          "yPos": 350.0
-        },
-        {
-          "xPos": 680.0,
-          "yPos": 200.0
-        },
-        {
-          "xPos": 860.0,
-          "yPos": 300.0
-        }
-      ],
-      "group": 1
-    },
-    {
-      "monsterId": 100101,
-      "spawnCount": 5,
-      "spawnPoints": [
-        {
-          "xPos": 230.0,
-          "yPos": 450.0
-        },
-        {
-          "xPos": 410.0,
-          "yPos": 600.0
-        },
-        {
-          "xPos": 590.0,
-          "yPos": 650.0
-        },
-        {
-          "xPos": 770.0,
-          "yPos": 500.0
-        },
-        {
-          "xPos": 950.0,
-          "yPos": 550.0
-        }
-      ],
-      "group": 1
-    }
-  ],
+  "name": "잎새마을",
+  "persistent": true,
+  "respawnDelay": 0,
+  "monsters": [],
   "portals": [
-    {
-      "id": "to_town_pending",
-      "position": {
-        "x": 100.0,
-        "y": 60.0
-      },
-      "interactionRange": 120.0,
-      "destinationMapId": 100000001,
-      "spawnPosition": {
-        "x": 100.0,
-        "y": 500.0
-      }
-    },
     {
       "id": "to_map_100000001",
       "position": {
-        "x": 1400.0,
-        "y": 770.0
+        "x": 1450.0,
+        "y": 550.0
       },
       "interactionRange": 120.0,
       "destinationMapId": 100000001,
       "spawnPosition": {
         "x": 120.0,
-        "y": 730.0
+        "y": 820.0
       }
     }
   ],
-  "minSpawnSpacing": 100,
-  "spawnBounds": {
-    "minX": 100,
-    "maxX": 1000,
-    "minY": 100,
-    "maxY": 700
-  }
+  "npcs": [
+    {
+      "spawnId": 1,
+      "npcId": 200100,
+      "mapId": 100000000,
+      "key": "innkeeper",
+      "name": "로제",
+      "role": "여관주인",
+      "x": 210,
+      "y": 630,
+      "dialogue": ["먼 길 오느라 지쳤지요? 따뜻한 차 한 잔 마시고 가세요."]
+    },
+    {
+      "spawnId": 2,
+      "npcId": 200101,
+      "mapId": 100000000,
+      "key": "herbalist",
+      "name": "리프",
+      "role": "약초상",
+      "x": 505,
+      "y": 630,
+      "dialogue": ["아침 이슬을 머금은 약초가 가장 좋아요. 숲에서는 발밑도 살펴보세요."]
+    },
+    {
+      "spawnId": 3,
+      "npcId": 200102,
+      "mapId": 100000000,
+      "key": "elder",
+      "name": "오르",
+      "role": "촌장",
+      "x": 785,
+      "y": 630,
+      "dialogue": ["잎새마을에 온 것을 환영하네. 저 오래된 나무가 우릴 지켜 주고 있지."]
+    },
+    {
+      "spawnId": 4,
+      "npcId": 200105,
+      "mapId": 100000000,
+      "key": "merchant",
+      "name": "토비",
+      "role": "잡화상",
+      "x": 940,
+      "y": 630,
+      "dialogue": ["여행에 필요한 물건들을 모으고 있어요. 새로운 이야기도 언제나 환영이죠!"]
+    },
+    {
+      "spawnId": 5,
+      "npcId": 200103,
+      "mapId": 100000000,
+      "key": "blacksmith",
+      "name": "브람",
+      "role": "대장장이",
+      "x": 1140,
+      "y": 630,
+      "dialogue": ["튼튼한 장비는 모험의 시작이지. 오늘도 대장간의 불은 꺼지지 않는다네!"]
+    },
+    {
+      "spawnId": 6,
+      "npcId": 200104,
+      "mapId": 100000000,
+      "key": "ranger",
+      "name": "세린",
+      "role": "숲지기",
+      "x": 1380,
+      "y": 630,
+      "dialogue": ["마을 밖은 깊은 숲이야. 준비가 됐다면 동쪽 길로 나가면 돼."]
+    }
+  ]
 }

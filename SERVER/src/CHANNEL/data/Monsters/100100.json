@@ -1,32 +1,32 @@
 {
     "monster_id"    : 100100,
-    "name"          : "Green Slime",
-    "hp"            : 100,
-    "attackDamage"  : 20,
-    "level"         : 10,
-    "exp"           : 5,
-    "moveSpeed"     : 30,
+    "name"          : "이끼 골렘",
+    "hp"            : 260,
+    "attackDamage"  : 16,
+    "level"         : 15,
+    "exp"           : 350,
+    "moveSpeed"     : 18,
 
-    "common_drop_group_id": "FIELD_COMMON_LV1_20",
-    "unique_drop_group_id": "UNIQUE_GREEN_SNAIL",
+    "common_drop_group_id": "FIELD_COMMON_LV11_20",
+    "unique_drop_group_id": "UNIQUE_MOSS_GOLEM",
 
     "collider" :[{
         "type"      :   "Rect2D",
-        "offset"    :   {"x" : 0, "y" : 12},
-        "half"      :   {"w" :18, "h": 12}
+        "offset"    :   {"x": 0, "y": 4},
+        "half"      :   {"w": 18, "h": 20}
     }],
 
     "isRanged" : true,
     "projectile" :[{
         "id" : 1,
-        "damage" : 3,
-        "speed" : 30,
-        "range" : 100,
-        "coolDown" : 2000,
+        "damage" : 14,
+        "speed" : 45,
+        "range" : 220,
+        "coolDown" : 2500,
         "collider" : [{
             "type" : "Circle2D",
             "offset" : {"x" : -8, "y" : 7},
-            "radius": 6
+            "radius": 8
         }]
     }]
 }

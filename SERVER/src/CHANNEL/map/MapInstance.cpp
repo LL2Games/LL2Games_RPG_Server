@@ -10,6 +10,7 @@
 #include "PlayerPacketSender.h"
 #include "ItemPacketSender.h"
 #include "StatInfoPacket.h"
+#include "NPCPacketSender.h"
 
 
 #define MAPDELETELIMIT 5
@@ -32,7 +33,16 @@ namespace
 }
 
 
-MapInstance::MapInstance() : m_playerCount(0), m_limit(std::chrono::minutes{MAPDELETELIMIT}), m_combatService(nullptr)
+MapInstance::MapInstance() : m_has_player(false),
+      						 m_destroyRequested(false),
+      						 m_playerCount(0),
+      						 m_mapID(0),
+      						 m_dropId(0),
+      						 m_emptyTime(std::chrono::steady_clock::now()),
+      						 m_limit(std::chrono::minutes{MAPDELETELIMIT}),
+      						 m_monsterManager(MonsterManager::GetInstance()),
+      						 m_combatService(nullptr),
+      						 m_dropManager(DropManager::GetInstance())
 {
 	m_monsterManager = MonsterManager::GetInstance();
 	m_dropManager = DropManager::GetInstance();
@@ -47,6 +57,7 @@ MapInstance::~MapInstance()
 int MapInstance::Init(const MapInitData& data)
 {
     this->m_mapID = data.mapID;
+	this->m_persistent = data.persistent;
 	// 여기서 Map Json 파일에서 읽어온 몬스터 정보 저장
     this->m_monsterSpawnList = data.MonstersData;
 
@@ -54,6 +65,8 @@ int MapInstance::Init(const MapInitData& data)
 	{
 		m_portals.emplace(portal.portalId, portal);
 	}
+
+	m_npcSpawns = data.npcs;
 
 #if 0 //guno22_TEST
 	{
@@ -121,38 +134,38 @@ int MapInstance::InitSpawnMonster()
 	
     for(m_monsterSpawnListIter = m_monsterSpawnList.begin(); m_monsterSpawnListIter < m_monsterSpawnList.end(); ++m_monsterSpawnListIter)
     {
-        Monster monster;
-       
-		
 		if(!m_monsterManager->EnsureLoaded(m_monsterSpawnListIter->monsterId))
 		{
 			K_LOG_ERROR( "FAILED OPEN monster [%d] FILE", m_monsterSpawnListIter->monsterId);
 			return -1;
 		}
 			
-		
 		auto monsterTemplate = m_monsterManager->GetMonsterData(m_monsterSpawnListIter->monsterId);
 		
 		// 맵에 스폰된 몬스터들 끼리 구별하기 위한 값
 		m_monsterSpawnListIter->instanceId = instanceId;
 		instanceId++;
 
-		
 		if(monsterTemplate.has_value())
 		{
 			(*monsterTemplate).mapId = m_mapID;
 			(*monsterTemplate).mapInstance = this;
-			monster.Init(*monsterTemplate, *m_monsterSpawnListIter);
+			m_monsterList.emplace_back();
+    		Monster& monster = m_monsterList.back();
+
+    		if (monster.Init(*monsterTemplate, *m_monsterSpawnListIter) < 0)
+    		{
+    		    m_monsterList.pop_back();
+    		    return -1;
+    		}
+		
+    		K_LOG_DEBUG("[MonsterSpawn] monsterId=%d instanceId=%d mapId=%u pos=(%.1f, %.1f)",
+    		    monster.GetId(), monster.GetInstanceId(), monster.GetMapId(),
+    		    monster.GetPos().xPos, monster.GetPos().yPos);
 		}else {
 			K_LOG_ERROR( "MonsterTemplate Get Failed Monster_Id[%d] FILE", m_monsterSpawnListIter->monsterId);
 			return -1;
 		}
-
-        m_monsterList.push_back(monster);
-        K_LOG_DEBUG("[MonsterSpawn] monsterId=%d instanceId=%d mapId=%u pos=(%.1f, %.1f)",
-            monster.GetId(), monster.GetInstanceId(), monster.GetMapId(),
-            monster.GetPos().xPos, monster.GetPos().yPos);
-		
     }
 
 
@@ -161,17 +174,40 @@ int MapInstance::InitSpawnMonster()
 
 int MapInstance::UpdateMonster(float deltaTime)
 {
-	//K_LOG_ERROR( "몬스터 업데이트 시작");
-	std::lock_guard<std::mutex> lock(m_monsterMutex);
-	for(auto& monster : m_monsterList) 
+	std::vector<MonsterAction> actions;
+
+    {
+        std::lock_guard<std::mutex> lock(m_monsterMutex);
+
+        for (auto& monster : m_monsterList)
+        {
+            if (!monster.IsAlive())
+                continue;
+
+            monster.Update(deltaTime);
+
+            auto newActions = monster.TakeActions();
+            for (const auto& action : newActions)
+                actions.push_back(action);
+        }
+    }
+
+	std::unordered_map<int, Player*> playerSnapshot;
 	{
-		if(monster.IsAlive())
-		{
-			monster.Update(deltaTime);
-		}
+	    std::lock_guard<std::mutex> lock(m_playerMutex);
+	    playerSnapshot = m_playerList;
 	}
 
-	return 1;
+	for (const MonsterAction& action : actions)
+	{
+	    if (action.type == MonsterAction::Type::PatternStart)
+	    {
+	        MonsterPacketSender::SendBossPatternStart(action, playerSnapshot);
+	    }
+	}
+
+    ApplyMonsterActions(actions);
+    return 1;
 }
 
 int MapInstance::SpawnMonster()
@@ -279,10 +315,64 @@ void MapInstance::OnLeave(int PlayerID)
     PlayerPacketSender::SendPlayerLeave(PlayerID,remainingPlayers);
 }
 
-void MapInstance::GiveExp(int playerID, float exp)
+void MapInstance::ApplyMonsterActions(const std::vector<MonsterAction>& actions)
 {
-	(void)playerID;
-	(void)exp;
+	 if (actions.empty())
+        return;
+
+    const int64_t nowMs = NowMs();
+    std::vector<ContactDamageEvent> hitEvents;
+    std::vector<Player*> deadPlayers;
+    std::unordered_map<int, Player*> playerSnapshot;
+
+    {
+        std::lock_guard<std::mutex> lock(m_playerMutex);
+        playerSnapshot = m_playerList;
+
+        for (const MonsterAction& action : actions)
+        {
+            if (action.type != MonsterAction::Type::AreaAttack)
+                continue;
+
+            for (const auto& [playerId, player] : m_playerList)
+            {
+                if (!player || !player->IsAlive())
+                    continue;
+
+                if (!player->CanTakeAnyContactDamage(nowMs))
+                    continue;
+
+                const Vec2 pos = player->GetPos();
+                const float dx = pos.xPos - action.center.xPos;
+                const float dy = pos.yPos - action.center.yPos;
+
+                if (dx * dx + dy * dy > action.radius * action.radius)
+                    continue;
+
+                player->OnDamaged(action.damage, nowMs);
+
+                PlayerHitResult result{};
+                result.damage = action.damage;
+                SetPlayerHitResult(player, action.attackerInstanceId, result);
+
+                hitEvents.push_back({player, result});
+
+                if (!player->IsAlive())
+                    deadPlayers.push_back(player);
+            }
+        }
+    }
+
+    // 패킷은 playerMutex 잠금을 해제한 뒤 전송한다.
+    for (const auto& event : hitEvents)
+    {
+        PlayerPacketSender::SendPlayerOnDamaged(event.player, event.result, playerSnapshot);
+    }
+
+    for (Player* player : deadPlayers)
+    {
+        PlayerPacketSender::SendPlayerDead(player, playerSnapshot);
+    }
 }
 
 void MapInstance::HandleMove(Player* sender, Vec2& pos, float speed, int dir)
@@ -381,7 +471,6 @@ void MapInstance::SendMonsterSnapshot(Player* player)
 	MonsterPacketSender::SendMonsterMove(player, aliveMonsters);
  }
 
- //void MapInstance::BroadcastProjectileMove(std::vector<Player*> players)
  void MapInstance::SendProjectileMove(Player* player)
  {
 	if (player == nullptr)
@@ -399,36 +488,6 @@ void MapInstance::SendMonsterSnapshot(Player* player)
 	}
 
 	MonsterPacketSender::SendProjectileMove(player, projectileInfos);
-
-    // std::vector<MonsterMoveInfo> aliveMonsters;
-	// {
-	// 	std::lock_guard<std::mutex> lock(m_monsterMutex);
-    // 	aliveMonsters.reserve(m_monsterList.size());
-    // 	for (auto& monster : m_monsterList)
-    // 	{
-    //     	if (!monster.IsAlive())
-    //     	    continue;
-
-    //     	//monster.SetState(MonsterState::E_Move); //gunoo22 260712 여기서 SetState를 재정의해서 Chase, Patrol다 안되고있었음
-
-    //     	MonsterMoveInfo info;
-    //     	info.instanceId = monster.GetInstanceId();
-    //     	info.state = static_cast<int>(monster.GetState());
-    //     	info.dirX = static_cast<int>(monster.GetDir().xPos);
-    //     	info.xPos = monster.GetPos().xPos;
-    //     	info.yPos = monster.GetPos().yPos;
-    //     	info.currentHp = monster.GetCurrentHP();
-    //     	info.maxHp = monster.GetMaxHP();
-
-    //     	aliveMonsters.push_back(info);
-    // 	}
-	// }
-	//for (auto player : players)
-	//{
-		//SendProjectileInfo
-	//}
-
-	//MonsterPacketSender::SendMonsterMove(player, aliveMonsters);
  }
 
 void MapInstance::SendEnterPackets(Player* player)
@@ -456,11 +515,17 @@ void MapInstance::SendEnterPackets(Player* player)
     );
 
     SendMonsterSnapshot(player);
+
+	// NPC 스냅샷
+    NPCPacketSender::SendNPCSnapshot(player, m_npcSpawns);
 } 
 
 // 맵이 사라지는 경우 호출
 void MapInstance::RemoveMap()
 {
+	if (m_persistent)
+        return;
+
 	auto now = std::chrono::steady_clock::now();
 
     std::function<void(int)> destroyCallback;

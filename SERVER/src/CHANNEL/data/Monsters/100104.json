@@ -1,0 +1,20 @@
+{
+    "monster_id"    : 100104,
+    "name"          : "가시덤불 멧돼지",
+    "hp"            : 170,
+    "attackDamage"  : 12,
+    "level"         : 12,
+    "exp"           : 180,
+    "moveSpeed"     : 50,
+
+    "common_drop_group_id": "FIELD_COMMON_LV11_20",
+    "unique_drop_group_id": "UNIQUE_BRIAR_BOAR",
+
+    "collider" :[{
+        "type" : "Rect2D",
+        "offset" :  {"x": 1, "y": 35 },
+        "half":     {"w": 27, "h": 22}
+    }],
+
+    "isRanged" : false
+}

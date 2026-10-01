@@ -15,6 +15,7 @@
 #include "DropInfos.h"
 #include "ProjectileManager.h"
 #include "MapData.h"
+#include "behavior/MonsterAction.h"
 
 #include <nlohmann/json.hpp>
 #include <functional>
@@ -47,8 +48,7 @@ public:
     void SendEnterPackets(Player* player);
 	// 플레이어 나갔을 때 처리 함수
 	void OnLeave(int PlayerID);
-
-    void GiveExp(int platerID, float exp);
+    
     void HandleMove(Player* sender, Vec2& pos, float speed);
     void HandleMove(Player* sender, Vec2& pos, float speed, int dir);
     void ResolveSkillHit(Player* Attacker, SkillDef& skillDef, std::vector<std::pair<Monster*, int>>& hits);
@@ -74,6 +74,7 @@ private:
     // 몬스터와 플레이어의 접촉 시 
     void ProcessContactDamage(int64_t nowMs);
     void ProcessRangedDamage(int64_t nowMs);
+    void ApplyMonsterActions(const std::vector<MonsterAction>& actions);
 public:
 
     // int 매개변수를 받는 콜백 함수 이름 지정
@@ -94,6 +95,8 @@ private:
    	// 플레이어가 맵에 있는지 없는지 판단 변수
     bool m_has_player;
     bool m_destroyRequested;
+    
+    bool m_persistent;
 
     // 플레이어-몬스터 접촉 판정용 거리 임계값(반지름^2). 거리^2와 비교한다.
     float m_contactCheckRadiusSq;
@@ -105,6 +108,7 @@ private:
     std::unordered_map<int, Player*> m_playerList;
     std::unordered_map<int, DropItems> m_dropItems;
     std::unordered_map<std::string, PortalData> m_portals;
+    std::vector<NPCSpawnData> m_npcSpawns;
    
     std::vector<MonsterSpawnData> m_monsterSpawnList;
     std::vector<MonsterSpawnData>::iterator m_monsterSpawnListIter;

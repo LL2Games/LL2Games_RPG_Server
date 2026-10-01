@@ -1,0 +1,18 @@
+{
+  "item_id": 4100100,
+  "name": "가시 새싹 잎",
+  "type": "etc",
+
+  "stackable": true,
+  "max_stack": 999,
+  "sell_price": 4,
+
+  "consume_rules": {
+    "decrease_on_skill": true
+  },
+  
+  "reagent": {
+    "allowed_by": ["skill"],
+    "tags": ["thorn_sprout", "leaf", "plant", "reagent"]
+  }
+}

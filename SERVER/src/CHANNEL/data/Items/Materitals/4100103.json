@@ -1,18 +1,18 @@
 {
-  "item_id": 4000019,
-  "name": "Green Snail Shell",
+  "item_id": 4100103,
+  "name": "빛나는 버섯 포자",
   "type": "etc",
 
   "stackable": true,
   "max_stack": 999,
-  "sell_price": 2,
+  "sell_price": 14,
 
   "consume_rules": {
     "decrease_on_skill": true
   },
-
   "reagent": {
     "allowed_by": ["skill"],
-    "tags": ["shell", "reagent", "green"]
+    "tags": ["luminous", "mushroom", "spore", "reagent"]
   }
+
 }

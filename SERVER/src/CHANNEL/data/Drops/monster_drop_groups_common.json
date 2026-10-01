@@ -1,29 +1,38 @@
 {
   "version": 1,
   "drop_groups": {
-    "FIELD_COMMON_LV1_20": {
+    "FIELD_COMMON_LV1_5": {
+      "min_drop": 0,
+      "max_drop": 2,
+      "allow_duplicate": true,
+      "entries": [
+        { "type": "item", "item_id": 38071931, "weight": 0,   "min": 12, "max": 28, "tag": "gold" },
+        { "type": "item", "item_id": 2000000,  "weight": 330, "min_count": 1, "max_count": 1, "tag": "hp_potion" },
+        { "type": "item", "item_id": 2000003,  "weight": 170, "min_count": 1, "max_count": 1, "tag": "mp_potion" },
+        { "type": "item", "item_id": 4100000,  "weight": 500, "min_count": 1, "max_count": 2, "tag": "forest_essence" }
+      ]
+    },
+
+    "FIELD_COMMON_LV6_10": {
       "min_drop": 0,
       "max_drop": 3,
       "allow_duplicate": true,
       "entries": [
-        { "type": "item", "item_id": 38071931, "weight": 0, "min": 500,  "max": 1000, "tag": "gold" },
-        { "type": "item", "item_id": 2000000, "weight": 180, "min_count": 1, "max_count": 2, "tag": "hp_potion" },
-        { "type": "item", "item_id": 2000003, "weight": 600, "min_count": 1, "max_count": 2, "tag": "mp_potion" },
-        { "type": "item", "item_id": 4010000, "weight": 220, "min_count": 1, "max_count": 3, "tag": "junk_material" },
-        { "type": "item", "item_id": 2010009, "weight": 40,  "min_count": 1, "max_count": 1, "tag": "green_apple" }
+        { "type": "item", "item_id": 38071931, "weight": 0,   "min": 28, "max": 60, "tag": "gold" },
+        { "type": "item", "item_id": 2000000,  "weight": 260, "min_count": 1, "max_count": 2, "tag": "hp_potion" },
+        { "type": "item", "item_id": 2000003,  "weight": 190, "min_count": 1, "max_count": 1, "tag": "mp_potion" },
+        { "type": "item", "item_id": 4100000,  "weight": 550, "min_count": 1, "max_count": 3, "tag": "forest_essence" }
       ]
     },
-
-    "FIELD_COMMON_LV21_50": {
+    "FIELD_COMMON_LV11_20": {
       "min_drop": 1,
-      "max_drop": 4,
+      "max_drop": 3,
       "allow_duplicate": true,
       "entries": [
-        { "type": "item", "item_id": 38071931, "weight": 0, "min": 500,  "max": 1000, "tag": "gold" },
-        { "type": "item", "item_id": 2000002, "weight": 160, "min_count": 1, "max_count": 2, "tag": "hp_potion" },
-        { "type": "item", "item_id": 2000003, "weight": 600, "min_count": 1, "max_count": 2, "tag": "mp_potion" },
-        { "type": "item", "item_id": 4000001, "weight": 220, "min_count": 1, "max_count": 4, "tag": "junk_material" },
-        { "type": "item", "item_id": 4010001, "weight": 50,  "min_count": 1, "max_count": 1, "tag": "ore" }
+        { "type": "item", "item_id": 38071931, "weight": 0,   "min": 60, "max": 120, "tag": "gold" },
+        { "type": "item", "item_id": 2000001,  "weight": 260, "min_count": 1, "max_count": 2, "tag": "hp_potion" },
+        { "type": "item", "item_id": 2000003,  "weight": 210, "min_count": 1, "max_count": 2, "tag": "mp_potion" },
+        { "type": "item", "item_id": 4100000,  "weight": 530, "min_count": 2, "max_count": 4, "tag": "forest_essence" }
       ]
     }
   }

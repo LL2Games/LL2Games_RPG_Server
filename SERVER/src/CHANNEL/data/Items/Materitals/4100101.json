@@ -1,11 +1,11 @@
 {
-  "item_id": 4000016,
-  "name": "Red Snail Shell",
+  "item_id": 4100101,
+  "name": "도토리 갑각",
   "type": "etc",
 
   "stackable": true,
   "max_stack": 999,
-  "sell_price": 2,
+  "sell_price": 6,
 
   "consume_rules": {
     "decrease_on_skill": true
@@ -13,6 +13,6 @@
 
   "reagent": {
     "allowed_by": ["skill"],
-    "tags": ["shell", "reagent", "Red"]
+    "tags": ["acorn", "beetle", "carapace", "reagent"]
   }
 }

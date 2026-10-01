@@ -168,3 +168,29 @@ void MonsterPacketSender::SendMonsterRespawn(std::unordered_map<int, Player *> &
 		session->Send(PKT_MONSTER_RESPAWN, payload);
 	}
 }
+
+
+void MonsterPacketSender::SendBossPatternStart(const MonsterAction& action, const std::unordered_map<int,Player*>& players)
+{
+     std::vector<std::string> payload{
+        std::to_string(action.attackerInstanceId),
+        std::to_string(action.patternId),
+        std::to_string(action.center.xPos),
+        std::to_string(action.center.yPos),
+        std::to_string(action.radius),
+        std::to_string(action.telegraphMs)
+    };
+
+
+     for (const auto& [playerId, player] : players)
+    {
+        if (!player)
+            continue;
+
+        auto session = player->GetSession();
+        if (!session)
+            continue;
+
+        session->Send(PKT_BOSS_PATTERN_START, payload);
+    }
+}

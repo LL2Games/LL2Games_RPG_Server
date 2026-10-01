@@ -1,0 +1,42 @@
+{
+  "mapId": 100000004,
+  "name": "세계수 심장부",
+  "respawnDelay": 300,
+  "monsters": [
+    {
+      "monsterId": 100200,
+      "spawnCount": 1,
+      "spawnPoints": [
+        {
+          "xPos": 900.0,
+          "yPos": 730.0
+        }
+      ],
+      "group": 1
+    }
+  ],
+  "portals": [
+    {
+      "id": "to_map_100000003",
+      "position": {
+        "x": 120.0,
+        "y": 650.0
+      },
+      "interactionRange": 120.0,
+      "destinationMapId": 100000003,
+      "spawnPosition": {
+        "x": 1400.0,
+        "y": 850.0
+      }
+    }
+  ],
+  "npcs": [],
+
+  "minSpawnSpacing": 100,
+  "spawnBounds": {
+    "minX": 300,
+    "maxX": 1250,
+    "minY": 650,
+    "maxY": 760
+  }
+}

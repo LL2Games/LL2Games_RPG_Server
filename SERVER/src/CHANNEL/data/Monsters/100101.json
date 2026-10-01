@@ -1,14 +1,14 @@
 {
     "monster_id"    : 100101,
-    "name"          : "Bule_Snail",
-    "hp"            : 100,
-    "attackDamage"  : 2,
-    "level"         : 10,
-    "exp"           : 5,
-    "moveSpeed"     : 50,
+    "name"          : "도토리 딱정벌레",
+    "hp"            : 50,
+    "attackDamage"  : 4,
+    "level"         : 4,
+    "exp"           : 10,
+    "moveSpeed"     : 25,
 
-    "common_drop_group_id": "FIELD_COMMON_LV1_20",
-    "unique_drop_group_id": "UNIQUE_BLUE_SNAIL",
+    "common_drop_group_id": "FIELD_COMMON_LV1_5",
+    "unique_drop_group_id": "UNIQUE_ACORN_BEETLE",
 
     "collider" :[{
         "type" : "Rect2D",
@@ -19,14 +19,14 @@
     "isRanged" : true,
     "projectile" :[{
         "id" : 1,
-        "damage" : 3,
-        "speed" : 45,
-        "range" : 30,
+        "damage" : 4,
+        "speed" : 70,
+        "range" : 160,
         "coolDown" : 1800,
         "collider" : [{
             "type" : "Circle2D",
-            "offset" : {"x" : 0, "y" : 0},
-            "radius": 2
+            "offset" : {"x": -8, "y": 7},
+            "radius": 5
         }]
     }]
 }

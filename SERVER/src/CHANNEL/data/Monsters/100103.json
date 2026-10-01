@@ -1,0 +1,20 @@
+{
+    "monster_id"    : 100103,
+    "name"          : "버섯 파수꾼",
+    "hp"            : 105,
+    "attackDamage"  : 8,
+    "level"         : 9,
+    "exp"           : 80,
+    "moveSpeed"     : 28,
+
+    "common_drop_group_id": "FIELD_COMMON_LV6_10",
+    "unique_drop_group_id": "UNIQUE_MUSHROOM_SENTRY",
+
+    "collider" :[{
+        "type" : "Rect2D",
+        "offset" :  {"x": 0, "y": 32},
+        "half":     {"w": 20, "h": 26}
+    }],
+
+    "isRanged" : false
+}

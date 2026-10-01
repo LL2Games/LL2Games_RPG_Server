@@ -1,62 +1,61 @@
 {
   "version": 1,
   "drop_groups": {
-    "UNIQUE_GREEN_SNAIL": {
+    "UNIQUE_THORN_SPROUT": {
       "min_drop": 0,
       "max_drop": 1,
       "allow_duplicate": false,
       "entries": [
-        {
-          "item_id": 4000019,
-          "drop_weight": 1000,
-          "min_count": 1,
-          "max_count": 1,
-          "tag": "snail_shell"
-        }
+        { "item_id": 4100100, "drop_weight": 1000, "min_count": 1, "max_count": 2, "tag": "thorn_sprout_leaf" }
       ]
     },
-
-    "UNIQUE_BLUE_SNAIL": {
+    "UNIQUE_ACORN_BEETLE": {
       "min_drop": 0,
       "max_drop": 1,
       "allow_duplicate": false,
       "entries": [
-        {
-          "item_id": 4000000,
-          "drop_weight": 1000,
-          "min_count": 1,
-          "max_count": 1,
-          "tag": "snail_shell"
-        }
+        { "item_id": 4100101, "drop_weight": 1000, "min_count": 1, "max_count": 1, "tag": "acorn_carapace" }
       ]
     },
-    "UNIQUE_RED_SNAIL": {
+    "UNIQUE_VIOLET_FOREST_BAT": {
       "min_drop": 0,
       "max_drop": 1,
       "allow_duplicate": false,
       "entries": [
-        {
-          "item_id": 4000016,
-          "drop_weight": 1000,
-          "min_count": 1,
-          "max_count": 1,
-          "tag": "snail_shell"
-        }
+        { "item_id": 4100102, "drop_weight": 1000, "min_count": 1, "max_count": 1, "tag": "violet_wing_membrane" }
       ]
     },
-    "UNIQUE_ORANGE_MUSHROOM": {
+    "UNIQUE_MUSHROOM_SENTRY": {
       "min_drop": 0,
       "max_drop": 1,
       "allow_duplicate": false,
       "entries": [
-        {
-          "item_id": 4000001,
-          "drop_weight": 900,
-          "min_count": 1,
-          "max_count": 1,
-          "tag": "mushroom_gel"
-        }
-      ] 
+        { "item_id": 4100103, "drop_weight": 1000, "min_count": 1, "max_count": 2, "tag": "luminous_mushroom_spore" }
+      ]
+    },
+    "UNIQUE_BRIAR_BOAR": {
+      "min_drop": 0,
+      "max_drop": 1,
+      "allow_duplicate": false,
+      "entries": [
+        { "item_id": 4100104, "drop_weight": 1000, "min_count": 1, "max_count": 1, "tag": "briar_tusk" }
+      ]
+    },
+    "UNIQUE_MOSS_GOLEM": {
+      "min_drop": 0,
+      "max_drop": 1,
+      "allow_duplicate": false,
+      "entries": [
+        { "item_id": 4100105, "drop_weight": 1000, "min_count": 1, "max_count": 1, "tag": "moss_golem_core" }
+      ]
+    },
+     "UNIQUE_CORRUPTED_GUARDIAN": {
+      "min_drop": 1,
+      "max_drop": 1,
+      "allow_duplicate": false,
+      "entries": [
+        { "item_id": 4100200, "drop_weight": 1000, "min_count": 1, "max_count": 1, "tag": "corrupted_guardian_heart_core" }
+      ]
     }
   }
 }

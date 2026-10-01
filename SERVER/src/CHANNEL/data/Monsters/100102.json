@@ -1,19 +1,19 @@
 {
     "monster_id"    : 100102,
-    "name"          : "Orange_MushRoom",
-    "hp"            : 100,
-    "attackDamage"  : 2,
-    "level"         : 10,
-    "exp"           : 5,
-    "moveSpeed"     : 30,
+    "name"          : "보랏빛 숲박쥐",
+    "hp"            : 65,
+    "attackDamage"  : 6,
+    "level"         : 7,
+    "exp"           : 40,
+    "moveSpeed"     : 45,
 
-    "common_drop_group_id": "FIELD_COMMON_LV1_20",
-    "unique_drop_group_id": "UNIQUE_ORANGE_MUSHROOM",
+    "common_drop_group_id": "FIELD_COMMON_LV6_10",
+    "unique_drop_group_id": "UNIQUE_VIOLET_FOREST_BAT",
 
     "collider" :[{
         "type" : "Rect2D",
-        "offset" :  {"x" : 0, "y" : 28},
-        "half":     {"w" :30, "h": 30}
+        "offset" :  {"x": 3, "y": 31},
+        "half":     {"w": 23, "h": 24}
     }],
 
     "isRanged" : false
