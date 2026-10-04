@@ -190,6 +190,7 @@ void TestPlayerPhysics() {
 }
 Monster MakeMonster(MapInstance& map,bool avoid,bool jump,float x=99,float y=90) {
     MonsterTemplate t{};
+    t.behavior="NORMAL";
     t.monsterId=100101; t.name="test"; t.hp=100; t.level=1; t.moveSpeed=200;
     t.mapId=42; t.mapInstance=&map; t.collisionType=ColliderType::Rect2D;
     t.offset={0,0}; t.half={10,10}; t.avoidCliff=avoid; t.canJump=jump;
@@ -200,6 +201,15 @@ void TestMonsterPhysics() {
     MapInstance map;
     auto data=MapData(); data.physics.platforms={{1,0,100,100}}; data.physics.climbables.clear();
     Check(map.Init(data)==1,"절벽 테스트 맵 초기화");
+    auto patrol=MakeMonster(map,true,false,40,90);
+    patrol.Update(Movement::StepSeconds);
+    Check(patrol.GetPos().xPos>40 && Near(patrol.GetPos().yPos,90),"NORMAL AI 처리 후 순찰 물리 이동");
+    auto airborne=MakeMonster(map,true,false,40,0);
+    airborne.Update(Movement::StepSeconds);
+    Check(airborne.GetPos().yPos>0 && airborne.MovementBody().vy>0,"NORMAL AI 처리 후 공중 몬스터 중력 적용");
+    airborne.SetState(E_Hit); // 수평 이동 없이 중력과 착지만 확인한다.
+    for(int i=0;i<120;++i) airborne.Update(Movement::StepSeconds);
+    Check(Near(airborne.GetPos().yPos,90) && airborne.MovementBody().mode==Movement::Mode::Grounded,"공중 몬스터는 중력으로 발판에 착지");
     auto walker=MakeMonster(map,true,false);
     walker.Update(Movement::StepSeconds);
     Check(Near(walker.GetPos().xPos,99) && walker.GetDir().xPos==-1,"절벽 회피 몬스터는 멈추고 방향 전환");
