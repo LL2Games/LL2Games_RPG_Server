@@ -26,119 +26,6 @@
     "minY": 100,
     "maxY": 700
   },
-
-  "physics": {
-    "minX": 0,
-    "maxX": 1536,
-    "killY": 1200,
-    "safeFeet": {
-      "x": 150,
-      "y": 820
-    },
-    "platforms": [
-      {
-        "id": 1,
-        "left": 55,
-        "right": 1480,
-        "y": 820
-      },
-      {
-        "id": 2,
-        "left": 548,
-        "right": 1478,
-        "y": 625
-      },
-      {
-        "id": 3,
-        "left": 60,
-        "right": 626,
-        "y": 530
-      },
-      {
-        "id": 4,
-        "left": 924,
-        "right": 1363,
-        "y": 485
-      },
-      {
-        "id": 5,
-        "left": 57,
-        "right": 1480,
-        "y": 325
-      },
-      {
-        "id": 6,
-        "left": 58,
-        "right": 1480,
-        "y": 120
-      }
-    ],
-    "climbables": [
-      {
-        "id": 1,
-        "kind": "ladder",
-        "x": 939,
-        "top": 625,
-        "bottom": 790,
-        "grabRange": 16,
-        "topPlatformId": 2
-      },
-      {
-        "id": 2,
-        "kind": "ladder",
-        "x": 210,
-        "top": 530,
-        "bottom": 676,
-        "grabRange": 16,
-        "topPlatformId": 3
-      },
-      {
-        "id": 3,
-        "kind": "ladder",
-        "x": 1139,
-        "top": 485,
-        "bottom": 616,
-        "grabRange": 16,
-        "topPlatformId": 4
-      },
-      {
-        "id": 4,
-        "kind": "ladder",
-        "x": 842,
-        "top": 325,
-        "bottom": 491,
-        "grabRange": 16,
-        "topPlatformId": 5
-      },
-      {
-        "id": 5,
-        "kind": "ladder",
-        "x": 1146,
-        "top": 325,
-        "bottom": 460,
-        "grabRange": 16,
-        "topPlatformId": 5
-      },
-      {
-        "id": 6,
-        "kind": "ladder",
-        "x": 437,
-        "top": 120,
-        "bottom": 263,
-        "grabRange": 16,
-        "topPlatformId": 6
-      },
-      {
-        "id": 7,
-        "kind": "ladder",
-        "x": 1309,
-        "top": 120,
-        "bottom": 282,
-        "grabRange": 16,
-        "topPlatformId": 6
-      }
-    ]
-  },
   "npcs": [
     {
       "spawnId": 1,
@@ -206,5 +93,23 @@
       "y": 630,
       "dialogue": ["마을 밖은 깊은 숲이야. 준비가 됐다면 동쪽 길로 나가면 돼."]
     }
-  ]
+  ],
+  "physics": {
+    "minX": 0,
+    "maxX": 1536,
+    "killY": 1200,
+    "safeFeet": {
+      "x": 150,
+      "y": 630
+    },
+    "platforms": [
+      {
+        "id": 1,
+        "left": 0,
+        "right": 1536,
+        "y": 630
+      }
+    ],
+    "climbables": []
+  }
 }
