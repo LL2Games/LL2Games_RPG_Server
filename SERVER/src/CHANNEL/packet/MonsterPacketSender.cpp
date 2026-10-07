@@ -70,7 +70,7 @@ void MonsterPacketSender::SendProjectileMove(Player* player, const std::vector<P
         return;
 
     std::vector<std::string> payload;
-    payload.reserve(1 + projectiles.size() * 4);
+    payload.reserve(1 + projectiles.size() * 9);
 
     payload.push_back(std::to_string(projectiles.size()));
 

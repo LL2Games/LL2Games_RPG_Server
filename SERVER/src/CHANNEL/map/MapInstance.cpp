@@ -123,13 +123,14 @@ void MapInstance::SendMapInfo()
         }
     }
 
-	//Broadcast
-	for (Player* player : players)
+    if (players.empty()) return;
+    // 전송 플래그를 변경하는 스냅샷은 한 번만 만들고 모든 수신자에게 공유한다.
+    const auto projectiles = m_projectileManager.CreateSnapshot();
+    if (projectiles.empty()) return;
+    for (Player* player : players)
     {
-        // 이동 결과는 PKT_MOVEMENT_SNAPSHOT으로 일원화한다.
-		SendProjectileMove(player);
+        MonsterPacketSender::SendProjectileMove(player, projectiles);
     }
-	//BroadcastProjectileMove(players);
 }
 
 int MapInstance::InitSpawnMonster()
@@ -496,25 +497,6 @@ void MapInstance::SendMonsterSnapshot(Player* player)
     	}
 	}
 	MonsterPacketSender::SendMonsterMove(player, aliveMonsters);
- }
-
- void MapInstance::SendProjectileMove(Player* player)
- {
-	if (player == nullptr)
-    {
-        K_LOG_ERROR( "player is nullptr");
-        return;
-    }
-
-	const std::vector<ProjectileSnapshotInfo> projectileInfos = m_projectileManager.CreateSnapshot();
-
-	if (projectileInfos.empty())
-	{
-		K_LOG_DEBUG("projectile nothing");
-		return;
-	}
-
-	MonsterPacketSender::SendProjectileMove(player, projectileInfos);
  }
 
 void MapInstance::SendEnterPackets(Player* player)
