@@ -1,5 +1,5 @@
 #include "Inventory.h"
-
+#include <utility>
 
 Inventory::Inventory(InventoryMetaInfo& inventoryMetaInfo)
 {
@@ -12,7 +12,7 @@ Inventory::Inventory(InventoryMetaInfo& inventoryMetaInfo)
     {
         InventorySlot slot{};
         slot.slotPos = i;
-        slot.isEnable = (i <= m_current_slot_size);
+        slot.isEnable = true;
         slot.inventoryType = m_inventoryType;
         slot.itemId = 0;
         slot.itemCount = 0;
@@ -153,7 +153,8 @@ bool Inventory::RemoveItemBySlot(int slotPos, int itemId, int count)
 
     if(it->second.itemCount == 0)
     {
-        m_slots.erase(it);
+        it->second.itemId = 0;
+        it->second.itemCount = 0;
     }
 
     return true;
@@ -298,4 +299,13 @@ bool Inventory::MoveItemSlot(const MoveItem& moveItem, std::vector<InventorySlot
     updatedSlots.push_back({moveItem.toSlotPos,toSlot->itemId,toSlot->itemCount});
 
     return true;
+}
+
+void Inventory::Swap(Inventory& other) noexcept
+{
+    m_slots.swap(other.m_slots);
+
+    std::swap(m_inventoryType, other.m_inventoryType);
+    std::swap(m_maxSlot, other.m_maxSlot);
+    std::swap(m_current_slot_size, other.m_current_slot_size);
 }

@@ -22,6 +22,7 @@ void PlayerPacketSender::SendPlayerInfo(Player* player)
     payload.push_back(std::to_string(player->GetMapId()));
     payload.push_back(std::to_string(player->GetPos().xPos));
     payload.push_back(std::to_string(player->GetPos().yPos));
+    payload.push_back(std::to_string(player->GetGold()));
     session->Send(PKT_PLAYER_INFO, payload);
 
     K_LOG_DEBUG("PlayerInfo Send Success.");

@@ -32,6 +32,8 @@ public:
 	std::vector<InventoryMetaInfo> GetAllMetaInfos() const;
 	std::vector<InventoryItemInfo> GetAllItemInfos() const;
 
+	bool GetSlotSnapshot(int inventoryType, int slotPos, InventorySlot& outSlot);
+
 	InventorySaveData MakeSaveInventoryData() const;
 
 	void Clear();

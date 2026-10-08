@@ -1,6 +1,8 @@
 #include "RedisUtility.h"
 #include "PlayerData.h"
 #include <sstream>
+#include <charconv>
+#include <system_error>
 
 bool GetStr(const Map& map, const std::string& key, std::string& value)
 {
@@ -37,14 +39,22 @@ bool GetFloat(const Map& map, const std::string& key, float& value)
 
 bool GetInt64(const Map& map, const std::string& key, int64_t& value)
 {
-    auto it = map.find(key);
-    if(it == map.end()) return false;
-    try{
-        value = std::stof(it->second);
-    }catch(...){
+    const auto iter = map.find(key);
+
+    if (iter == map.end() || iter->second.empty())
+        return false;
+
+    const std::string& text = iter->second;
+    int64_t parsed = 0;
+
+    const auto result = std::from_chars(text.data(),text.data() + text.size(), parsed);
+
+    if (result.ec != std::errc{} || result.ptr != text.data() + text.size())
+    {
         return false;
     }
 
+    value = parsed;
     return true;
 }
 
@@ -77,7 +87,7 @@ std::map<std::string, std::string> PlayerInfoToRedisMap(const PlayerInitData pla
     redisMap["level"] = std::to_string(stat.GetLevel());
     redisMap["exp"] = std::to_string(stat.GetExp());
     redisMap["need_exp"] = std::to_string(stat.GetNeedExp());
-    
+    redisMap["gold"] = std::to_string(playerData.gold);
     return redisMap;
 }
 

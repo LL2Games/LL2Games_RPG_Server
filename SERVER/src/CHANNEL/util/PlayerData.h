@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <cstdint>
 
 class Monster;
 
@@ -41,6 +42,7 @@ struct PlayerInitData{
     int map_id;
     float xPos;
     float yPos;
+    std::int64_t gold = 0;
 };
 
 

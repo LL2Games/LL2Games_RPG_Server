@@ -24,7 +24,8 @@ public:
 
     int GetItemCount(int slotPos, int itemId) const;
     void Clear();
-
+    
+    void Swap(Inventory& other) noexcept;
 public:
     int GetInventoryType() const {return m_inventoryType;}
     int GetMaxSlotSize() const {return m_maxSlot;}

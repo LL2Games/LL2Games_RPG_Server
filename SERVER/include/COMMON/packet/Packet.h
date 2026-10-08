@@ -27,8 +27,11 @@ class ItemService;
 class CombatService;
 class TradeService;
 class PortalService;
+class NPCInteractionService;
+class ShopService;
 
 class CommandDispatcher;
+class ShopManager;
 
 namespace PacketLimits
 {
@@ -98,6 +101,9 @@ enum PACKET_TYPE : uint16_t {
 
     PKT_NPC_SNAPSHOT        = 0x0050,
     PKT_NPC_INTERACT        = 0x0051,
+    PKT_SHOP_OPEN           = 0x0052,
+    PKT_SHOP_BUY            = 0x0053,
+    PKT_SHOP_SELL           = 0x0054,
 
     // 0x0060 ~ 0x007F : 드롭
     PKT_DROPITEMS           = 0x0060,
@@ -164,6 +170,9 @@ struct PacketContext
     CombatService* combat_service = nullptr;
     TradeService* trade_service = nullptr;
     PortalService* portal_service = nullptr;
+    NPCInteractionService* npc_interaction_service = nullptr;
+    ShopManager* shop_manager = nullptr;
+    ShopService* shop_service = nullptr;
 };
 
 typedef struct packet

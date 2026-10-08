@@ -43,6 +43,10 @@ Player::~Player()
 
 void Player::SetInitData(const PlayerInitData playerInitData)
 {
+    if (playerInitData.gold < 0)
+        throw std::runtime_error("invalid initial gold");
+
+    m_gold = playerInitData.gold;
     this->m_char_id = playerInitData.char_id;
     this->m_account_id = playerInitData.account_id;
     this->m_name = playerInitData.name;
@@ -57,6 +61,10 @@ void Player::SetInitData(const PlayerInitData playerInitData)
 
 void Player::SetInitData(const PlayerInitData playerInitData, const CharacterStat &stat)
 {
+    if (playerInitData.gold < 0)
+        throw std::runtime_error("invalid initial gold");
+
+    m_gold = playerInitData.gold;
     this->m_char_id = playerInitData.char_id;
     this->m_account_id = playerInitData.account_id;
     this->m_name = playerInitData.name;
@@ -80,18 +88,6 @@ void Player::SetInitData(const PlayerInitData playerInitData, const CharacterSta
     m_learnedSkills[20001].skill_level = 1; //스킬ID 20001을 레벨 1로 배웠다고 가정
 #endif  
 
-#if 0 /*gunoo22 260219 테스트로그*/
-    K_LOG_DEBUG( "gunoo22_TEST Player SetInitData");
-    K_LOG_DEBUG( "gunoo22_TEST char_id[%d]", playerInitData.char_id);
-    K_LOG_DEBUG( "gunoo22_TEST account_id[%s]", playerInitData.account_id.c_str());
-    K_LOG_DEBUG( "gunoo22_TEST name[%s]", playerInitData.name.c_str());
-    K_LOG_DEBUG( "gunoo22_TEST level[%d]", playerInitData.level);
-    K_LOG_DEBUG( "gunoo22_TEST job[%d]", playerInitData.job);
-    K_LOG_DEBUG( "gunoo22_TEST root_job[%d]", playerInitData.root_job);
-    K_LOG_DEBUG( "gunoo22_TEST map_id[%d]", playerInitData.map_id);
-    K_LOG_DEBUG( "gunoo22_TEST xPos[%f]", playerInitData.xPos);
-    K_LOG_DEBUG( "gunoo22_TEST yPos[%f]", playerInitData.yPos);
-#endif
 }
 
 
@@ -396,6 +392,7 @@ ExpResult Player::AddExp(int64_t exp)
 
 PlayerSaveData Player::MakeSaveData() const
 {
+    Gameplay::Guard guard(Gameplay::gate);
     PlayerSaveData saveData{};
 
      // 저장을 시작한 시점의 변경 버전
@@ -410,7 +407,12 @@ PlayerSaveData Player::MakeSaveData() const
         saveData.position.yPos = m_yPos;
     }
 
-    saveData.stat = GetStatSnapShot();
+     {
+        std::lock_guard<std::mutex> lock(m_statMutex);
+
+        saveData.stat = m_stat;
+        saveData.gold = m_gold;
+    }
 
     InventorySaveData inventorySaveData = m_inventoryManager.MakeSaveInventoryData();
     saveData.inventoryMetas = std::move(inventorySaveData.metaInfos);
@@ -638,4 +640,39 @@ Movement::Input Player::ConsumeMovement(float dt)
     const Movement::Input result = m_moveInput;
     m_moveInput.jump = false;
     return result;
+}
+
+bool Player::TryAddGold(std::int64_t amount)
+{
+    if (amount <= 0)
+        return false;
+
+    Gameplay::Guard guard(Gameplay::gate);
+    std::lock_guard<std::mutex> lock(m_statMutex);
+
+    // 더하기 전에 검사해서 오버플로를 방지한다.
+    if (amount > std::numeric_limits<std::int64_t>::max() - m_gold)
+        return false;
+
+    m_gold += amount;
+    MarkSaveNeeded();
+
+    return true;
+}
+
+bool Player::TrySpendGold(std::int64_t amount)
+{
+    if (amount <= 0)
+        return false;
+
+    Gameplay::Guard guard(Gameplay::gate);
+    std::lock_guard<std::mutex> lock(m_statMutex);
+
+    if (m_gold < amount)
+        return false;
+
+    m_gold -= amount;
+    MarkSaveNeeded();
+
+    return true;
 }

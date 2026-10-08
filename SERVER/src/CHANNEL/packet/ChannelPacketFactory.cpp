@@ -6,6 +6,9 @@
 #include "InventoryPacketHandler.h"
 #include "QuickSlotPacketHandler.h"
 #include "PortalHandler.h"
+#include "NPCInteractionHandler.h"
+#include "ShopBuyHandler.h"
+#include "ShopSellHandler.h"
 #include "K_slog.h"
 
 std::unique_ptr<IPacketHandler> ChannelPacketFactory::Create(uint16_t type)
@@ -45,6 +48,12 @@ std::unique_ptr<IPacketHandler> ChannelPacketFactory::Create(uint16_t type)
         case PKT_PORTAL_ENTER:
             return std::make_unique<PortalHandler>();
             break;
+        case PKT_NPC_INTERACT:
+            return std::make_unique<NPCInteractionHandler>();
+        case PKT_SHOP_BUY:
+            return std::make_unique<ShopBuyHandler>();
+        case PKT_SHOP_SELL:
+            return std::make_unique<ShopSellHandler>();
         default:
             break;
     }

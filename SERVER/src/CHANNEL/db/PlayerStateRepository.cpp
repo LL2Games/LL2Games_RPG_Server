@@ -120,6 +120,12 @@ PlayerStateRepository::PlayerStateRepository()
 
 bool PlayerStateRepository::SaveCharacter(MYSQL* connection, const PlayerSaveData& saveData, std::string& errMsg)
 {
+     if (saveData.gold < 0)
+    {
+        errMsg = "invalid gold";
+        return false;
+    }
+
     StatementGuard statement(connection);
 
     if (!statement)
@@ -130,7 +136,8 @@ bool PlayerStateRepository::SaveCharacter(MYSQL* connection, const PlayerSaveDat
 
     const char* query =
         "UPDATE `character` "
-        "SET level = ?, map_id = ?, `pos.x` = ?, `pos.y` = ? "
+        "SET level = ?, map_id = ?, `pos.x` = ?, `pos.y` = ?, "
+        "gold = ? "
         "WHERE char_id = ?";
 
     if (mysql_stmt_prepare(
@@ -146,9 +153,10 @@ bool PlayerStateRepository::SaveCharacter(MYSQL* connection, const PlayerSaveDat
     int mapId = saveData.mapId;
     float xPosition = saveData.position.xPos;
     float yPosition = saveData.position.yPos;
+    std::int64_t gold = saveData.gold;
     int characterId = saveData.characterId;
 
-    MYSQL_BIND parameters[5]{};
+    MYSQL_BIND parameters[6]{};
 
     parameters[0].buffer_type = MYSQL_TYPE_LONG;
     parameters[0].buffer = &level;
@@ -162,8 +170,13 @@ bool PlayerStateRepository::SaveCharacter(MYSQL* connection, const PlayerSaveDat
     parameters[3].buffer_type = MYSQL_TYPE_FLOAT;
     parameters[3].buffer = &yPosition;
 
-    parameters[4].buffer_type = MYSQL_TYPE_LONG;
-    parameters[4].buffer = &characterId;
+    parameters[4].buffer_type = MYSQL_TYPE_LONGLONG;
+    parameters[4].buffer = &gold;
+    parameters[4].buffer_length = sizeof(gold);
+    parameters[4].is_unsigned = false;
+
+    parameters[5].buffer_type = MYSQL_TYPE_LONG;
+    parameters[5].buffer = &characterId;
 
     if (mysql_stmt_bind_param(statement.Get(), parameters) != 0)
     {

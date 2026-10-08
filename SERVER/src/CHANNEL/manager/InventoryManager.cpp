@@ -43,7 +43,11 @@ bool InventoryManager::MoveItemSlots(const MoveItem& moveData,std::vector<Invent
 
 bool InventoryManager::AddItem(int itemId, int count, std::vector<AddItemResult>& addItemResults)
 { 
+    if (itemId <= 0 || count <= 0)
+        return false;
+
     auto itemManager = ItemManager::GetInstance();
+
     if(itemManager == nullptr)
     {
         K_LOG_ERROR( "itemManager is nullptr");
@@ -57,32 +61,64 @@ bool InventoryManager::AddItem(int itemId, int count, std::vector<AddItemResult>
         K_LOG_ERROR( "ItemData is nullptr. itemId[%d]", itemId);
         return false;
     }
+
+    if (ItemData->stackable && ItemData->max_stack <= 0)
+    {
+        K_LOG_ERROR("[AddItem] invalid max_stack. itemId[%d] max_stack[%d]",itemId, ItemData->max_stack);
+        return false;
+    }
+       
     
-    int inventoryType = inven::ConvertItemTypeToInventoryType(ItemData->type);
+    const int inventoryType = inven::ConvertItemTypeToInventoryType(ItemData->type);
+
+    if (inventoryType == inven::Invalid)
+    {
+        K_LOG_ERROR("[AddItem] invalid item type. itemId[%d] type[%s]",itemId, ItemData->type.c_str());
+        return false;
+    }
+        
 
     AddItemData addItemData{};
-
     addItemData.itemId = itemId;
     addItemData.count = count;
     addItemData.stackable = ItemData->stackable;
     addItemData.max_stack = ItemData->max_stack;
 
+    
+    std::lock_guard<std::mutex> lock(m_inventoryMutex);
+
+    auto iter = m_inventories.find(inventoryType);
+    if (iter == m_inventories.end())
     {
-        std::lock_guard<std::mutex> lock(m_inventoryMutex);
-
-        auto iter = m_inventories.find(inventoryType);
-        if (iter == m_inventories.end())
-        {
-            K_LOG_ERROR( "inventory not found. inventoryType[%d]", inventoryType);
-            return false;
-        }
-
-        if (!iter->second.AddItem(addItemData, addItemResults))
-        {
-            K_LOG_ERROR( "failed to add item. itemId[%d], count[%d], inventoryType[%d]", itemId, count, inventoryType);
-            return false;
-        }
+        K_LOG_ERROR("[AddItem] inventory not found. itemId[%d] inventoryType[%d]",itemId, inventoryType);
+        return false;
     }
+       
+
+    Inventory candidate = iter->second;
+    std::vector<AddItemResult> pendingResults;
+
+    if (!candidate.AddItem(addItemData, pendingResults))
+    {
+        K_LOG_ERROR(
+        "[AddItem] slot insertion failed. "
+        "itemId[%d] count[%d] inventoryType[%d] "
+        "maxSlots[%d] currentSlots[%d] maxStack[%d]",
+        itemId,
+        count,
+        inventoryType,
+        iter->second.GetMaxSlotSize(),
+        iter->second.GetCurrentSlotSize(),
+        ItemData->max_stack);
+        // 실패한 복사본은 버린다.
+        // 원본과 호출자의 결과 목록은 변경되지 않는다.
+        return false;
+    }
+    
+ // 결과 목록의 추가까지 성공한 뒤 원본에 반영한다.
+    addItemResults.insert(addItemResults.end(),pendingResults.begin(),pendingResults.end());
+
+    iter->second.Swap(candidate);
 
     return true;
 }
@@ -154,6 +190,28 @@ std::vector<InventoryItemInfo> InventoryManager::GetAllItemInfos() const
          );
     }
     return inventoryItemInfos;
+}
+
+bool InventoryManager::GetSlotSnapshot(int inventoryType, int slotPos, InventorySlot& outSlot)
+{
+    outSlot = {};
+
+    std::lock_guard<std::mutex> lock(m_inventoryMutex);
+
+    const auto iter = m_inventories.find(inventoryType);
+
+    if (iter == m_inventories.end())
+        return false;
+
+    const InventorySlot* slot = iter->second.FindSlot(slotPos);
+
+    if (slot == nullptr || !slot->isEnable || slot->itemId <= 0 || slot->itemCount <= 0)
+    {
+        return false;
+    }
+
+    outSlot = *slot;
+    return true;
 }
 
 void InventoryManager::Clear()

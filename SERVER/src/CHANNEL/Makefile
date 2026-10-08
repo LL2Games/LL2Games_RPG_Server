@@ -94,6 +94,8 @@ SRCS := \
 	manager/DropManager.cpp\
 	manager/ProjectileManager.cpp \
 	manager/LevelManager.cpp\
+	manager/NPCDataManager.cpp \
+	manager/ShopManager.cpp \
 	\
 	map/MapManager.cpp \
 	map/MapInstance.cpp \
@@ -121,6 +123,10 @@ SRCS := \
 	packet/PortalPacketSender.cpp\
 	packet/RevivePacket.cpp\
 	packet/NPCPacketSender.cpp\
+	packet/NPCInteractionHandler.cpp \
+	packet/ShopPacketSender.cpp \
+	packet/ShopBuyHandler.cpp \
+	packet/ShopSellHandler.cpp \
 	\
 	service/MapService.cpp \
 	service/StatService.cpp \
@@ -130,6 +136,8 @@ SRCS := \
 	service/PlayerDataSaveService.cpp \
 	service/PlayerSaveTask.cpp \
 	service/FinalPlayerDataSaveTask.cpp \
+	service/NPCInteractionService.cpp \
+	service/ShopService.cpp \
 	\
 	stat/PlayerStatRepository.cpp \
 	stat/CharacterStat.cpp \

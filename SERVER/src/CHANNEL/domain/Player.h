@@ -66,6 +66,7 @@ public:
     void SetLearnedSkill(const LearnedSkill& learnedSkill){m_learnedSkills[learnedSkill.skill_id] = learnedSkill;}
 
     void SetState(PlayerState state) {m_CurrentState = state;}
+    void SetFacing(int facing) { if (facing == -1 || facing == 1) m_dir = facing; }
 public:
     int GetCurHP() const
     {
@@ -116,6 +117,12 @@ public:
         m_statDirty = false;
     }
 
+    std::int64_t GetGold() const
+    {
+        std::lock_guard<std::mutex> lock(m_statMutex);
+        return m_gold;
+    }
+
     int GetJob() {return m_job;}
     int GetId() {return m_char_id;}
     int GetMapId() const;
@@ -146,6 +153,7 @@ public:
 
     int GetDir() {return m_dir;}
 
+    
 public:
 
     // 현재 플레이어가 공격 가능 상태인지 확인한다.
@@ -192,8 +200,9 @@ public:
     bool AcceptMovement(int epoch, int sequence, Movement::Input input);
     Movement::Input ConsumeMovement(float dt);
     void ResetMovement();
-    void SetFacing(int facing) { if (facing == -1 || facing == 1) m_dir = facing; }
-
+    
+    bool TryAddGold(std::int64_t amount);
+    bool TrySpendGold(std::int64_t amount);
 private:
     // Gameplay::gate와 m_statMutex를 이미 잡은 호출자 전용.
     void DeadLocked();
@@ -211,6 +220,7 @@ private:
     float m_xPos;
     float m_yPos;
     int m_dir = 1;
+    std::int64_t m_gold = 0;
 
     Collider2D m_collider;
 
