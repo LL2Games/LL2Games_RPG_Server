@@ -962,6 +962,20 @@ std::optional<PortalData> MapInstance::FindPortal(const std::string &portalId) c
 	return iter->second;
 }
 
+std::optional<NPCSpawnData> MapInstance::FindNPC(int spawnId) const
+{
+    if (spawnId <= 0)
+        return std::nullopt;
+
+    for (const NPCSpawnData& npc : m_npcSpawns)
+    {
+        if (npc.spawnId == spawnId)
+            return npc;
+    }
+
+    return std::nullopt;
+}
+
 bool MapInstance::HasPlayer()
 {
 	std::lock_guard<std::mutex> lock(m_playerMutex);

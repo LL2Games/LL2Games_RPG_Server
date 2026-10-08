@@ -1,0 +1,19 @@
+{
+  "shopId": 300001,
+  "name": "토비의 잡화점",
+  "allowSell": true,
+  "products": [
+    {
+      "productId": 1,
+      "itemId": 2000000,
+      "price": 30,
+      "maxPerPurchase": 99
+    },
+    {
+      "productId": 2,
+      "itemId": 2010009,
+      "price": 20,
+      "maxPerPurchase": 99
+    }
+  ]
+}

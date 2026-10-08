@@ -15,6 +15,7 @@ struct PlayerSaveData
     int characterId = 0;
     int mapId = 0;
     Vec2 position{};
+    std::int64_t gold = 0;
 
     CharacterStat stat{};
 

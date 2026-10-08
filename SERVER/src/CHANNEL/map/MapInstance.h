@@ -20,6 +20,7 @@
 #include <nlohmann/json.hpp>
 #include <functional>
 #include <mutex>
+#include <optional>
 
 class CombatService;
 
@@ -63,6 +64,7 @@ public:
     void BroadcastMovement();
     
     std::optional<PortalData> FindPortal(const std::string& portalId) const;
+    std::optional<NPCSpawnData> FindNPC(int spawnId) const;
 private:
     void BroadcastDropSpawn(std::vector<DropSpawnInfo> spawnedInfos);
     void BroadcastRemoveItem(std::vector<int> removeItems);

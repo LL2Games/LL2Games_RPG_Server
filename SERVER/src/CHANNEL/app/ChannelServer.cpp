@@ -111,10 +111,15 @@ bool ChannelServer::Init(const int port, const RedisConfig& redisConfig)
     // 서버 구동 시 JSON 파일을 읽어온다.
     if(!m_map_manager.Init()) return false;
     if(!m_item_manager->Init()) return false;
+    if(!m_shopManager->Init()) return false;
     if(!m_monster_manager->Init()) return false;
     if(!m_skill_manager->Init()) return false;
     if(!m_drop_manager->Init()) return false;
+    if (!m_npcDataManager.Init())return false;
+
     m_level_manager = LevelManager::GetInstance();
+    m_npcInteractionService.SetNPCManager(GetNPCDataManager());
+    m_shopService.Setup(GetNPCInteractionService(),GetShopManager());
 
     if (m_level_manager == nullptr)
     {

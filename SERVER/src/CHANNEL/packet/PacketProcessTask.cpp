@@ -62,7 +62,9 @@ void PacketProcessTask::Execute()
         ctx.item_service = m_server->GetItemService();
         ctx.combat_service = m_server->GetCombatService();
         ctx.trade_service = m_server->GetTradeService();
-
+        ctx.npc_interaction_service = m_server->GetNPCInteractionService();
+        ctx.shop_manager = m_server->GetShopManager();
+        ctx.shop_service = m_server->GetShopService();
         handler->Execute(&ctx);
     }
     catch (const std::exception& e)

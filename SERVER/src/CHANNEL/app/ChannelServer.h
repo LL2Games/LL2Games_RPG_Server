@@ -1,30 +1,35 @@
 #pragma once
 
-#include "ChannelSession.h"
-#include "PlayerManager.h"
-#include "PlayerService.h"
-#include "MapService.h"
-#include "MapManager.h"
-#include "MonsterManager.h"
-#include "MySqlConnectionPool.h"
-#include "RedisConnectionPool.h"
-#include "RedisClient.h"
 #include "common.h"
 
-#include "StatService.h"
+#include "ChannelSession.h"
+#include "CommandReceiver.h"
+#include "ChannelAuthResult.h"
+#include "PlayerSaveTask.h"
+#include "MySqlConnectionPool.h"
+#include "RedisConnectionPool.h"
+#include "ThreadPool.h"
+#include "RedisClient.h"
+
+#include "MonsterManager.h"
+#include "MapManager.h"
+#include "PlayerManager.h"
 #include "ItemManager.h"
 #include "SkillManager.h"
-#include "ItemService.h"
 #include "DropManager.h"
+#include "LevelManager.h"
+#include "NPCDataManager.h"
+#include "ShopManager.h"
 
-#include "ThreadPool.h"
-#include "CommandReceiver.h"
+#include "MapService.h"
+#include "PlayerService.h"
+#include "StatService.h"
 #include "CombatService.h"
 #include "TradeService.h"
-#include "LevelManager.h"
-#include "ChannelAuthResult.h"
+#include "ItemService.h"
 #include "PlayerDataSaveService.h"
-#include "PlayerSaveTask.h"
+#include "NPCInteractionService.h"
+#include "ShopService.h"
 
 #include <atomic>
 #include <queue>
@@ -63,6 +68,9 @@ public:
     void RequestStop() noexcept;
 public:
     PlayerManager* GetPlayerManager() { return &m_player_mamager; }
+    NPCDataManager* GetNPCDataManager(){return &m_npcDataManager;}
+    ShopManager* GetShopManager(){return m_shopManager;}
+    
     MapService* GetMapService() {return &m_map_service;}
     PlayerService* GetPlayerService() {return &m_player_service;}
     StatService* GetStatService() {return &m_stat_service;}
@@ -74,7 +82,8 @@ public:
     std::mutex& GetAuthLoadMutex() { return m_authLoadMutex; }
     RedisConnectionPool* GetRedisConnectionPool() { return &m_redisPool; }
     PlayerDataSaveService* GetPlayerDataSaveService(){return &m_playerDataSaveService;}
-
+    NPCInteractionService* GetNPCInteractionService(){return &m_npcInteractionService;}
+    ShopService* GetShopService(){return &m_shopService;}
     int GetChannelId() const {return m_channel_id;}
     void UpdateChannelState(const int interval, const int ttl);
     void UpdateChannelStateToRedis(const int ttl);
@@ -114,7 +123,8 @@ private:
     MonsterManager* m_monster_manager;
     SkillManager* m_skill_manager;
     DropManager* m_drop_manager;
-    
+    NPCDataManager m_npcDataManager;
+    ShopManager* m_shopManager = ShopManager::GetInstance();
     
     MapService m_map_service;
     StatService m_stat_service;
@@ -123,7 +133,8 @@ private:
     TradeService m_trade_service;
     LevelManager* m_level_manager;
     PlayerDataSaveService m_playerDataSaveService;
-
+    NPCInteractionService m_npcInteractionService;
+    ShopService m_shopService;
 
     ThreadPool m_pool;
     // ChannelAuth 전용 쓰레드

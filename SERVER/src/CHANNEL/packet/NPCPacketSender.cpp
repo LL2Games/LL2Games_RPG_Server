@@ -28,3 +28,27 @@ void NPCPacketSender::SendNPCSnapshot(Player* player, const std::vector<NPCSpawn
 
     session->Send(PKT_NPC_SNAPSHOT, payload);
 }
+
+void NPCPacketSender::SendInteractSuccess(ChannelSession* session, const NPCInteractionResult& result)
+{
+    if (session == nullptr)
+        return;
+
+    std::vector<std::string> payload;
+    payload.reserve(7 + result.dialogue.size());
+
+    payload.push_back(std::to_string(result.mapId));
+    payload.push_back(std::to_string(result.spawnId));
+    payload.push_back(std::to_string(result.npcId));
+    payload.push_back(result.name);
+    payload.push_back(result.role);
+
+    payload.push_back(std::to_string(result.dialogue.size()));
+
+    for (const std::string& line : result.dialogue)
+        payload.push_back(line);
+
+    payload.push_back(std::to_string(result.shopId));
+
+    session->SendOk(PKT_NPC_INTERACT, payload);
+}

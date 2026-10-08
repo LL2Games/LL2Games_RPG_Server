@@ -37,7 +37,8 @@ std::unique_ptr<Player> PlayerService::LoadPlayer(int characterId, RedisClient* 
     if (redis != nullptr)
     {
         auto redis_value = redis->HGetAll(redisKey);
-        if (redis_value.has_value() && !redis_value->empty())
+        if (redis_value.has_value() && !redis_value->empty() && 
+            GetInt64(*redis_value, "gold", playerInit.gold) &&playerInit.gold >= 0)
         {
             player = std::make_unique<Player>();
             GetInt(*redis_value, "char_id", playerInit.char_id);
@@ -545,7 +546,7 @@ bool PlayerService::LoadPlayerInfo(int characterId, PlayerInitData &playerInit)
     }
 
     const char* query =
-        "SELECT char_id, account_id, name, level, job, root_job, map_id, `pos.x`, `pos.y`"
+        "SELECT char_id, account_id, name, level, job, root_job, map_id, `pos.x`, `pos.y`, gold "
         "FROM `character` WHERE char_id = ?";
 
     if (mysql_stmt_prepare(stmt, query, strlen(query)) != 0)
@@ -586,7 +587,9 @@ bool PlayerService::LoadPlayerInfo(int characterId, PlayerInitData &playerInit)
     char accountIdBuffer[64]{};
     unsigned long accountIdLength = 0;
     bool accountIdIsNull = false;
-    MYSQL_BIND resultBind[9]{};
+    bool goldIsNull = false;
+    bool goldError = false;
+    MYSQL_BIND resultBind[10]{};
 
     resultBind[0].buffer_type = MYSQL_TYPE_LONG;
     resultBind[0].buffer = &playerInit.char_id;
@@ -621,6 +624,13 @@ bool PlayerService::LoadPlayerInfo(int characterId, PlayerInitData &playerInit)
     resultBind[8].buffer_type = MYSQL_TYPE_FLOAT;
     resultBind[8].buffer = &playerInit.yPos;
 
+    resultBind[9].buffer_type = MYSQL_TYPE_LONGLONG;
+    resultBind[9].buffer = &playerInit.gold;
+    resultBind[9].buffer_length = sizeof(playerInit.gold);
+    resultBind[9].is_unsigned = false;
+    resultBind[9].is_null = &goldIsNull;
+    resultBind[9].error = &goldError;
+
     if (mysql_stmt_bind_result(stmt, resultBind) != 0)
     {
         K_LOG_ERROR( "mysql_stmt_bind_result ERROR [%s]", mysql_stmt_error(stmt));
@@ -643,6 +653,17 @@ bool PlayerService::LoadPlayerInfo(int characterId, PlayerInitData &playerInit)
         mysql_stmt_free_result(stmt);
         mysql_stmt_close(stmt);
         m_mySql->ReleaseConnection(conn);
+        return false;
+    }
+
+    if (goldIsNull || goldError || playerInit.gold < 0)
+    {
+        K_LOG_ERROR("Invalid gold while loading character. characterId[%d]", characterId);
+
+        mysql_stmt_free_result(stmt);
+        mysql_stmt_close(stmt);
+        m_mySql->ReleaseConnection(conn);
+
         return false;
     }
 
