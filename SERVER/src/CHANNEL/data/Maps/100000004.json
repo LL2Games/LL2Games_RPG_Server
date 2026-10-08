@@ -38,5 +38,23 @@
     "maxX": 1250,
     "minY": 650,
     "maxY": 760
+  },
+  "physics": {
+    "minX": 0,
+    "maxX": 1536,
+    "killY": 1200,
+    "safeFeet": {
+      "x": 120,
+      "y": 730
+    },
+    "platforms": [
+      {
+        "id": 1,
+        "left": 0,
+        "right": 1536,
+        "y": 730
+      }
+    ],
+    "climbables": []
   }
 }

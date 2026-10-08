@@ -127,9 +127,8 @@ int Monster::Update(float dt) {
     if (m_behavior)
 	{
 	    m_behavior->Update(*this, dt);
-	    return 0;
 	}
-	switch (m_state)
+	else switch (m_state)
 	{
 		case E_Idle:
 		case E_Move: //gunoo22 260712 E_Move가 UpdatePatrol을 안하고있어서 몬스터가 안움직이고 있었음

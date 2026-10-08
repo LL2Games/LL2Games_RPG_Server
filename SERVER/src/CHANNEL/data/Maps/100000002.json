@@ -93,113 +93,130 @@
     "minY": 100,
     "maxY": 700
   },
-
   "physics": {
     "minX": 0,
     "maxX": 1536,
     "killY": 1200,
     "safeFeet": {
       "x": 150,
-      "y": 850
+      "y": 739
     },
     "platforms": [
       {
         "id": 1,
-        "left": 45,
-        "right": 1490,
-        "y": 850
+        "left": 82,
+        "right": 1450,
+        "y": 739
       },
       {
         "id": 2,
-        "left": 46,
-        "right": 630,
-        "y": 630
+        "left": 86,
+        "right": 410,
+        "y": 611
       },
       {
         "id": 3,
-        "left": 1080,
-        "right": 1490,
-        "y": 608
+        "left": 585,
+        "right": 755,
+        "y": 612
       },
       {
         "id": 4,
-        "left": 47,
-        "right": 927,
-        "y": 462
+        "left": 932,
+        "right": 1180,
+        "y": 612
       },
       {
         "id": 5,
-        "left": 795,
-        "right": 1487,
-        "y": 341
+        "left": 84,
+        "right": 1448,
+        "y": 491
       },
       {
         "id": 6,
-        "left": 361,
-        "right": 799,
-        "y": 236
+        "left": 346,
+        "right": 1447,
+        "y": 376
       },
       {
         "id": 7,
-        "left": 48,
-        "right": 453,
-        "y": 154
+        "left": 88,
+        "right": 410,
+        "y": 283
+      },
+      {
+        "id": 8,
+        "left": 1117,
+        "right": 1312,
+        "y": 285
+      },
+      {
+        "id": 9,
+        "left": 438,
+        "right": 1088,
+        "y": 197
+      },
+      {
+        "id": 10,
+        "left": 346,
+        "right": 754,
+        "y": 94
       }
     ],
     "climbables": [
       {
         "id": 1,
         "kind": "ladder",
-        "x": 315,
-        "top": 850,
-        "bottom": 990,
-        "grabRange": 16,
-        "topPlatformId": 1
-      },
-      {
-        "id": 2,
-        "kind": "ladder",
-        "x": 579,
-        "top": 630,
-        "bottom": 850,
+        "x": 314,
+        "top": 611,
+        "bottom": 735,
         "grabRange": 16,
         "topPlatformId": 2
       },
       {
+        "id": 2,
+        "kind": "ladder",
+        "x": 507,
+        "top": 491,
+        "bottom": 596,
+        "grabRange": 16,
+        "topPlatformId": 5
+      },
+      {
         "id": 3,
         "kind": "ladder",
-        "x": 1147,
-        "top": 608,
-        "bottom": 772,
+        "x": 1057,
+        "top": 491,
+        "bottom": 606,
         "grabRange": 16,
-        "topPlatformId": 3
+        "topPlatformId": 5
       },
       {
         "id": 4,
         "kind": "ladder",
-        "x": 565,
-        "top": 462,
-        "bottom": 624,
+        "x": 1057,
+        "top": 376,
+        "bottom": 486,
         "grabRange": 16,
-        "topPlatformId": 4
+        "topPlatformId": 6
       },
       {
         "id": 5,
         "kind": "ladder",
-        "x": 866,
-        "top": 462,
-        "bottom": 653,
+        "x": 152,
+        "top": 283,
+        "bottom": 381,
         "grabRange": 16,
-        "topPlatformId": 4
+        "topPlatformId": 7
       },
       {
         "id": 6,
         "kind": "ladder",
-        "x": 1130,
-        "top": 341,
-        "bottom": 505,
+        "x": 661,
+        "top": 94,
+        "bottom": 192,
         "grabRange": 16,
-        "topPlatformId": 5
+        "topPlatformId": 10
       }
     ]
   }
