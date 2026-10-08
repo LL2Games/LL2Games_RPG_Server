@@ -58,8 +58,8 @@ std::vector<ProjectileSnapshotInfo> ProjectileManager::CreateSnapshot()
         info.projectileTypeId = p->GetTypeId();
         info.ownerMonsterId = p->GetOwnerId();
         info.instanceId = p->GetInstanceId();
-        info.dirX = static_cast<int>(p->GetDir().xPos);
-        info.dirY = static_cast<int>(p->GetDir().yPos);
+        info.dirX = p->GetDir().xPos;
+        info.dirY = p->GetDir().yPos;
         info.range = p->GetRange();
         info.speed = p->GetSpeed();
         info.xPos = p->GetPos().xPos;

@@ -71,7 +71,6 @@ private:
     void SimulateStep(float dt);
     void SendMonsterSnapshot(Player* Enter_player);  
     void SendMonsterMove(Player* player);
-    void SendProjectileMove(Player* player);
     
     //void BroadcastProjectileMove(std::vector<Player*> players);
 
