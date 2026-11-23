@@ -85,12 +85,12 @@ all: $(TARGET)
 
 $(TARGET): $(OBJS) | $(BIN_DIR) $(LOG_DIR)
 	@echo " [LD] $@"
-	$(CXX) -o $@ $^ $(LIB_PATH) $(LFLAGS) $(LDFLAGS)
+	$(CXX) -o $@ $^ $(LIB_PATH) $(LFLAGS) $(LDFLAGS) -lssl -lcrypto
 
 $(OBJ_DIR)/%.o: %.cpp
 	@mkdir -p $(dir $@)
 	@echo " [CXX] $<"
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@ $(LIB_PATH) $(LFLAGS) $(LDFLAGS)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@ $(LIB_PATH) $(LFLAGS) $(LDFLAGS) 
 
 # ==================================
 # Directories

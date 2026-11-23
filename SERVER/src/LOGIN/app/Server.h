@@ -6,12 +6,14 @@
 #include "LoginPacketFactory.h"
 #include "RedisConnectionPool.h"
 #include "Packet.h"
+#include <memory>
+#include <openssl/ssl.h>
 // Reactor
 
 class Server
 {
 public:
-    bool Init(int port, const RedisConfig& redisConfig);
+    bool Init(int port, const RedisConfig& redisConfig, const char* certPath, const char* keyPath);
     void Run();
 
     void RequestStop() noexcept;
@@ -34,4 +36,7 @@ private:
 
 
     RedisConnectionPool m_redisPool;
+
+private:
+    std::unique_ptr<SSL_CTX, decltype(&SSL_CTX_free)> m_tlsContext{nullptr, SSL_CTX_free};
 };

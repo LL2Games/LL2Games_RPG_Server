@@ -6,10 +6,22 @@
 #include <arpa/inet.h>
 #include <cstring>
 #include <cerrno>
+#include <fcntl.h>
 
 
-bool Server::Init(int port, const RedisConfig& redisConfig)
+bool Server::Init(int port, const RedisConfig& redisConfig, const char* certPath, const char* keyPath)
 {
+    m_tlsContext.reset(SSL_CTX_new(TLS_server_method()));
+    if (!m_tlsContext ||
+        SSL_CTX_set_min_proto_version(m_tlsContext.get(), TLS1_2_VERSION) != 1 ||
+        SSL_CTX_use_certificate_chain_file(m_tlsContext.get(), certPath) != 1 ||
+        SSL_CTX_use_PrivateKey_file(m_tlsContext.get(), keyPath, SSL_FILETYPE_PEM) != 1 ||
+        SSL_CTX_check_private_key(m_tlsContext.get()) != 1)
+    {
+        K_LOG_ERROR("[LOGIN] TLS initialization failed");
+        return false;
+    }
+
     if (!m_redisPool.Init(redisConfig, redisConfig.poolCount))
     {
         K_LOG_ERROR( "RedisConnectionPool init failed");
@@ -42,13 +54,16 @@ bool Server::Init(int port, const RedisConfig& redisConfig)
 void Server::Run()
 {
     fd_set reads;
+    fd_set writes;
 
     while (m_running.load(std::memory_order_acquire))
     {
         FD_ZERO(&reads);
+        FD_ZERO(&writes);
         FD_SET(m_listen_fd, &reads);
 
         int fd_max = m_listen_fd;
+        bool hasBufferedTlsData = false;
 
         for (Client* client : m_clients)
         {
@@ -57,17 +72,30 @@ void Server::Run()
 
             const int fd = client->GetFD();
 
-            FD_SET(fd, &reads);
+           using State = Client::TlsHandshakeState;
+
+            const State state = client->GetTlsHandshakeState();
+            const bool watchWrite =
+                state == State::WantWrite ||(state == State::Ready &&(client->m_tlsReadWantsWrite ||
+                     (client->HasPendingTlsWrites() && !client->m_tlsWriteWantsRead)));
+                    
+            if (watchWrite)
+                FD_SET(fd, &writes);
+            else
+                FD_SET(fd, &reads);
+                    
+            if (client->HasBufferedTlsData())
+                hasBufferedTlsData = true;
 
             if (fd > fd_max)
                 fd_max = fd;
         }
 
         timeval timeout{};
-        timeout.tv_sec = 1;
+        timeout.tv_sec = hasBufferedTlsData ? 0 : 1;
         timeout.tv_usec = 0;
 
-        int ret = select(fd_max + 1, &reads, nullptr, nullptr, &timeout);
+        int ret = select(fd_max + 1, &reads, &writes, nullptr, &timeout);
         
         if(!m_running.load(std::memory_order_acquire))
             break;
@@ -82,9 +110,7 @@ void Server::Run()
             break;
         }
 
-        if(ret == 0)
-            continue;
-
+      
         // 신규 접속
         if (FD_ISSET(m_listen_fd, &reads))
             AcceptNewClient();
@@ -94,15 +120,48 @@ void Server::Run()
 
         for (Client* client : m_clients)
         {
-            if (FD_ISSET(client->GetFD(), &reads))
-            readableClients.push_back(client);
+            const int fd = client->GetFD();
+
+            if (FD_ISSET(fd, &reads) || FD_ISSET(fd, &writes) || client->HasBufferedTlsData())
+                readableClients.push_back(client);
         }
 
         for (Client* client : readableClients)
         {       
             if(!m_running.load(std::memory_order_acquire))
                 break;
-            ProcessClient(client);
+            using State = Client::TlsHandshakeState;
+
+            if (client->GetTlsHandshakeState() == State::Ready)
+            {
+                if (client->m_tlsReadWantsWrite || !client->HasPendingTlsWrites())
+                {
+                    ProcessClient(client);
+                }
+                else
+                {
+                    using WriteResult = Client::TlsWriteResult;
+                
+                    const WriteResult result = client->FlushTlsWrites();
+                    if (result == WriteResult::Failed)
+                    {
+                        DisconnectClient(client);
+                        continue;
+                    }
+                
+                    client->m_tlsWriteWantsRead = (result == WriteResult::WantRead);
+                }
+            
+                continue;
+            }
+
+            client->AdvanceTlsHandshake();
+
+            const State state = client->GetTlsHandshakeState();
+            if (state == State::Ready)
+                K_LOG_TRACE("[LOGIN] TLS handshake complete fd:%d", client->GetFD());
+            else if (state == State::Failed)
+                DisconnectClient(client);
         }
     }
     m_running.store(false, std::memory_order_release);
@@ -181,7 +240,27 @@ void Server::AcceptNewClient()
     if (client_fd < 0)
         return;
 
-    m_clients.push_back(new Client(client_fd));
+    const int flags = fcntl(client_fd, F_GETFL, 0);
+    if (client_fd >= FD_SETSIZE ||
+        flags == -1 ||
+        fcntl(client_fd, F_SETFL, flags | O_NONBLOCK) == -1)
+    {
+        K_LOG_ERROR("[LOGIN] Cannot prepare client socket fd:%d", client_fd);
+        close(client_fd);
+        return;
+    }
+
+    auto client = std::make_unique<Client>(client_fd);
+    if (!client->AttachTls(m_tlsContext.get()))
+    {
+        K_LOG_ERROR("[LOGIN] Failed to attach TLS to fd:%d", client_fd);
+        client.reset();
+        close(client_fd);
+        return;
+    }
+
+    m_clients.push_back(client.get());
+    client.release();
 
     K_LOG_TRACE( "[%s] Client %d connected\n", "LOGIN", client_fd);
 }
@@ -192,30 +271,25 @@ void Server::ProcessClient(Client *cli)
         return;
 
     const int fd = cli->GetFD();
-    char receiveBuffer[PacketLimits::kReceiveChunkSize];
-    ssize_t receivedSize = 0;
+    using Result = Client::TlsReadResult;
 
-    // recv가 시그널로 중단된 경우에만 재시도
-    do
-    {
-        receivedSize = recv(fd, receiveBuffer, sizeof(receiveBuffer),0);
-    }
-    while (receivedSize < 0 && errno == EINTR);
+    auto& chunk = cli->m_tlsReadChunk;
+    std::size_t receivedSize = 0;
+    const Result result = cli->ReadTls(chunk.data(), chunk.size(), receivedSize);
 
-    if (receivedSize == 0)
+    cli->m_tlsReadWantsWrite = (result == Result::WantWrite);
+
+    if (result == Result::WantRead || result == Result::WantWrite)
+        return;
+
+    if (result == Result::Closed || result == Result::Failed)
     {
         DisconnectClient(cli);
         return;
     }
 
-    if (receivedSize < 0)
-    {
-        K_LOG_ERROR("[LOGIN] recv failed fd:%d errno:%d",fd,errno);
-        DisconnectClient(cli);
-        return;
-    }
-    cli->m_recvBuffer.insert(cli->m_recvBuffer.end(), receiveBuffer, receiveBuffer + receivedSize);
-    K_LOG_DEBUG("[LOGIN] recv fd:%d size:%zd buffered:%zu", fd, receivedSize, cli->m_recvBuffer.size());
+    cli->m_recvBuffer.insert(cli->m_recvBuffer.end(),chunk.data(),chunk.data() + receivedSize);
+    K_LOG_DEBUG("[LOGIN] recv fd:%d size:%zu buffered:%zu", fd, receivedSize, cli->m_recvBuffer.size());
 
     while (true)
     {

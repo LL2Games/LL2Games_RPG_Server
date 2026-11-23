@@ -89,7 +89,7 @@ int main(int ac, char **av)
         }
 
         Server server;
-        bool start = server.Init(g_config.loginServer.port, g_config.redis);
+        bool start = server.Init(g_config.loginServer.port, g_config.redis, "/home/ljh/ll2-tls-lab/server.crt", "/home/ljh/ll2-tls-lab/server.key");
         if (start == false)
         {
             K_slog_close();
