@@ -1,17 +1,21 @@
+
+#include <nlohmann/json.hpp>
+#include <fstream>
+#include <utility>
+
 #include "common.h"
 #include "MapInstance.h"
 #include "Monster.h"
 #include "CommonEnum.h"
 #include "IProjectile.h"
 #include "timeUtility.h"
-#include <nlohmann/json.hpp>
-#include <fstream>
 #include "MonsterPacketSender.h"
 #include "PlayerPacketSender.h"
 #include "ItemPacketSender.h"
 #include "StatInfoPacket.h"
 #include "GameplayGate.h"
 #include "NPCPacketSender.h"
+#include "PacketParser.h"
 
 
 #define MAPDELETELIMIT 5
@@ -1078,10 +1082,37 @@ void MapInstance::BroadcastMovement() {
                 static_cast<int>(m.GetState()), m.GetCurrentHP(), m.GetMaxHP());
         }
     }
-    // gameplay gate가 퇴장/destructor를 막는 동안만 raw pointer 사용.
-    for (auto* p : recipients) {
-        if (auto* session = p->GetSession())
-            for (const auto& row : rows) session->Send(PKT_MOVEMENT_SNAPSHOT, row.fields);
+    constexpr std::size_t maxBatchBytes = 16 * 1024;
+    std::vector<std::string> batches;
+    std::string batch;
+    batch.reserve(maxBatchBytes);
+    
+    for (const auto& row : rows)
+    {
+        const std::string body = PacketParser::MakeBody(row.fields);
+        const std::string packet =
+            PacketParser::MakePacket(PKT_MOVEMENT_SNAPSHOT, body);
+    
+        if (!batch.empty() && batch.size() + packet.size() > maxBatchBytes)
+        {
+            batches.push_back(std::move(batch));
+            batch.clear();
+            batch.reserve(maxBatchBytes);
+        }
+    
+        batch.append(packet);
+    }
+    
+    if (!batch.empty())
+        batches.push_back(std::move(batch));
+    
+    for (auto* player : recipients)
+    {
+        if (auto* session = player->GetSession())
+        {
+            for (const auto& snapshotBatch : batches)
+                session->EnqueueSend(snapshotBatch);
+        }
     }
 }
 

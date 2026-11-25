@@ -19,7 +19,7 @@ LOG_DIR				:= $(PROJECT_ROOT)/logs/channel
 # ==================================
 CXX          := $(COMMON_CXX)
 CXXFLAGS     := $(COMMON_CXXFLAGS)
-LFLAGS		 := $(COMMON_LFLAGS)
+LFLAGS		 := $(COMMON_LFLAGS) -lssl -lcrypto
 LDFLAGS      := -pthread \
                 -Wl,-rpath=$(LIB_DIR)/mysql \
                 -Wl,-rpath=$(LIB_DIR)/hiredis

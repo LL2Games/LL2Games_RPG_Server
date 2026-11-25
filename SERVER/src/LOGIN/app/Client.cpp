@@ -31,6 +31,7 @@ int Client::SendNok(const int type, const std::string &errMsg)
 
  bool Client::AttachTls(SSL_CTX* context)
  {
+    // 연결 전용 객체 생성
     m_tls.reset(SSL_new(context));
     return m_tls && SSL_set_fd(m_tls.get(), m_fd) == 1;
  }
@@ -65,6 +66,7 @@ Client::TlsReadResult Client::ReadTls(char* buffer, std::size_t capacity, std::s
     bytesRead = 0;
     ERR_clear_error();
 
+    // TLS 데이터를 복호화해 buffer에 저장하고, 읽은 바이트 수를 bytesRead에 기록
     const int result = SSL_read_ex(m_tls.get(), buffer, capacity, &bytesRead);
     if (result == 1)
         return TlsReadResult::Data;
@@ -95,6 +97,7 @@ Client::TlsWriteResult Client::FlushTlsWrites()
         std::size_t bytesWritten = 0;
 
         ERR_clear_error();
+        // packet.data()의 게임 데이터를 OpenSSL이 TLS로 암호화해서, m_tls에 연결된 fd로 보냅니다
         const int result = SSL_write_ex(m_tls.get(), packet.data(), packet.size(), &bytesWritten);
 
         if (result == 1)

@@ -14,9 +14,6 @@
 #include "MapManager.h"
 #endif
 
-
-
-#if 1
 namespace
 {
     AppConfig g_config;
@@ -24,6 +21,7 @@ namespace
 
 int main(int ac, char **av)
 {
+    std::signal(SIGPIPE, SIG_IGN);
     std::string daemonName = CHANNEL_DAEMON_NAME;
     try
     {
@@ -102,7 +100,7 @@ int main(int ac, char **av)
         }
         ChannelServer channelServer(channelIndex + 1, g_config.channelServer.threadCount, g_config.channelServer.maxUserCount); // 채널 인덱스는 1부터 시작
 
-        bool start = channelServer.Init(g_config.channelServer.port + channelIndex, g_config.redis);
+        bool start = channelServer.Init(g_config.channelServer.port + channelIndex, g_config.redis, "/home/ljh/ll2-tls-lab/server.crt", "/home/ljh/ll2-tls-lab/server.key");
         if (start == false)
         {
             K_slog_close();
@@ -193,33 +191,3 @@ int main(int ac, char **av)
 
     return 0;
 }
-#else
-int main(int ac, char **av)
-{
-    // log
-    K_slog_init(CHANNEL_LOG_PATH, CHANNEL_DAEMON_NAME);
-    K_LOG_TRACE( "[%s]==============START==============", CHANNEL_DAEMON_NAME);
-
-    bool Start = false;
-
-    ChannelServer channelServer;
-
-    if (ac == 2)
-    {
-        Start = channelServer.Init(PORT + atoi(av[1]));
-    }
-    else
-        Start = channelServer.Init(PORT);
-
-    if (Start == false)
-    {
-        return -1;
-    }
-
-    channelServer.Run();
-
-    K_LOG_TRACE( "[%s]..................the End..............", CHANNEL_DAEMON_NAME);
-    K_slog_close();
-    return 0;
-}
-#endif

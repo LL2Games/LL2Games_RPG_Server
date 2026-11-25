@@ -32,5 +32,14 @@ void PlayerHandler::MovementInputPacket(PacketContext* ctx) {
     if (mapId != player->GetMapId() ||
         mapId != static_cast<int>(player->GetCurrentMap()->GetMapId()) ||
         !player->GetCurrentMap()->checkPlayer(player->GetId())) return;
+    const bool accepted =
     player->AcceptMovement(epoch, sequence, {horizontal, vertical, jump == 1});
+
+    if (player->GetId() == 900299)
+    {
+        K_LOG_TRACE(
+        "[MOVE TEST] char:%d seq:%d epoch:%d serverEpoch:%d accepted:%d queued:%zu",
+        player->GetId(), sequence, epoch, player->MovementEpoch(),
+        accepted ? 1 : 0, session->PendingSendCount());
+    }
 }

@@ -12,6 +12,7 @@
 
 #include <memory>
 #include <utility>
+#include <openssl/err.h>
 
 //threadCount == 0 인경우 하드웨어 CPU 코어 수를 계산하여 스레드풀 생성
 ChannelServer::ChannelServer(const int channelId, const int threadCount, const int maxUserCount) : 
@@ -89,25 +90,43 @@ void ChannelServer::OnSend(int fd)
         session = it->second;
     }
 
-    if (!session->FlushSend())
+    using Result = ChannelSession::TlsWriteResult;
+    const Result result = session->FlushTlsWrites();
+
+    if (result == Result::Failed)
     {
         OnDisconnect(fd);
         return;
     }
 
-    if (!session->HasPendingSend())
-    {
-        DisableWriteEvent(fd);
+    session->m_tlsWriteState.store(result);
 
-        if (session->HasPendingSend())
-        {
-            EnableWriteEvent(fd);
-        }
+    if ((result == Result::Drained || result == Result::Pending) && session->HasBufferedTlsData())
+    {
+        OnReceive(fd);
+        return;
     }
+
+    EnableWriteEvent(fd);
 }
 
-bool ChannelServer::Init(const int port, const RedisConfig& redisConfig)
+bool ChannelServer::Init(const int port, const RedisConfig& redisConfig, const char* certPath, const char* keyPath)
 {
+    m_tlsContext.reset(SSL_CTX_new(TLS_server_method()));
+
+    if (!m_tlsContext ||
+        SSL_CTX_set_min_proto_version(m_tlsContext.get(), TLS1_2_VERSION) != 1 ||
+        SSL_CTX_use_certificate_chain_file(m_tlsContext.get(), certPath) != 1 ||
+        SSL_CTX_use_PrivateKey_file(m_tlsContext.get(), keyPath, SSL_FILETYPE_PEM) != 1 ||
+        SSL_CTX_check_private_key(m_tlsContext.get()) != 1)
+    {
+        K_LOG_ERROR("[CHANNEL] TLS initialization failed");
+        ERR_print_errors_fp(stderr);
+        m_tlsContext.reset();
+        return false;
+    }
+
+    K_LOG_TRACE("[CHANNEL] TLS context initialized");
     // 서버 구동 시 JSON 파일을 읽어온다.
     if(!m_map_manager.Init()) return false;
     if(!m_item_manager->Init()) return false;
@@ -293,8 +312,36 @@ void ChannelServer::GameLoop()
     constexpr auto saveInterval = std::chrono::seconds(60);
 
     auto nextSaveTime =std::chrono::steady_clock::now() + saveInterval;
+    constexpr auto sendQueueLogInterval = std::chrono::seconds(1);
+    auto nextSendQueueLogTime = std::chrono::steady_clock::now() + sendQueueLogInterval;
     while(m_running.load(std::memory_order_acquire))
     {
+        const auto queueSampleTime = std::chrono::steady_clock::now();
+        if (queueSampleTime >= nextSendQueueLogTime)
+        {
+            nextSendQueueLogTime = queueSampleTime + sendQueueLogInterval;
+        
+            std::size_t sessionCount = 0;
+            std::size_t totalPendingBytes = 0;
+            std::size_t maxPendingBytes = 0;
+        
+            {
+                std::lock_guard<std::mutex> lock(m_sessionMutex);
+                sessionCount = m_sessions.size();
+            
+                for (const auto& entry : m_sessions)
+                {
+                    const std::size_t pendingBytes = entry.second->PendingSendBytes();
+                    totalPendingBytes += pendingBytes;
+                
+                    if (pendingBytes > maxPendingBytes)
+                        maxPendingBytes = pendingBytes;
+                }
+            }
+        
+            K_LOG_TRACE("[SEND QUEUE] sessions:%zu total_bytes:%zu max_session_bytes:%zu",
+                        sessionCount, totalPendingBytes, maxPendingBytes);
+        }
         // m_epfd에 등록된 관심 목록에서 이벤트가 발생한 것들을 기다렸다가 m_events 배열에 채워 넣고 발생한 이벤트 개수를 n에 저장/ -1은 무한 대기의 의미 이벤트가 발생할 때 까지 계속 블로킹 
         int n = epoll_wait(m_epfd, m_events.data(), static_cast<int>(m_events.size()), 10);
 
@@ -324,21 +371,84 @@ void ChannelServer::GameLoop()
                 continue;
             }
 
-            if (e & EPOLLIN)
-            {
-                OnReceive(fd);
-            }
-
+            ChannelSession* session = nullptr;
             {
                 std::lock_guard<std::mutex> lock(m_sessionMutex);
-
-                if(m_sessions.find(fd) == m_sessions.end())
+                const auto it = m_sessions.find(fd);
+                if (it == m_sessions.end())
                     continue;
+            
+                session = it->second;
             }
 
-            if(e & EPOLLOUT)
+            using State = ChannelSession::TlsHandshakeState;
+
+
+           if (session->GetTlsHandshakeState() == State::Ready)
             {
-                OnSend(fd);
+                using Result = ChannelSession::TlsWriteResult;
+                const Result writeState = session->m_tlsWriteState.load();
+            
+                if (session->m_tlsReadWantsWrite)
+                {
+                    if (e & EPOLLOUT)
+                        OnReceive(fd);
+                    continue;
+                }
+            
+                if (writeState == Result::WantRead || writeState == Result::WantWrite)
+                {
+                    const auto retryEvent =
+                        writeState == Result::WantRead ? EPOLLIN : EPOLLOUT;
+                
+                    if (e & retryEvent)
+                        OnSend(fd);
+                    continue;
+                }
+            
+                if (e & EPOLLIN)
+                {
+                    OnReceive(fd);
+                
+                    std::lock_guard<std::mutex> lock(m_sessionMutex);
+                    const auto it = m_sessions.find(fd);
+                    if (it == m_sessions.end())
+                        continue;
+                
+                    session = it->second;
+                }
+            
+                if ((e & EPOLLOUT) && !session->m_tlsReadWantsWrite &&
+                    session->HasPendingSend())
+                {
+                    OnSend(fd);
+                }
+            
+                continue;
+            }
+            const State state = session->AdvanceTlsHandshake();
+
+            if (state == State::Ready)
+            {
+                K_LOG_TRACE("[CHANNEL] TLS handshake complete fd:%d", fd);
+                OnReceive(fd);
+                continue;
+            }
+
+            if (state == State::Failed)
+            {
+                OnDisconnect(fd);
+                continue;
+            }
+
+            epoll_event event{};
+            event.events = EPOLLRDHUP | (state == State::WantWrite ? EPOLLOUT : EPOLLIN);
+            event.data.fd = fd;
+
+            if (epoll_ctl(m_epfd, EPOLL_CTL_MOD, fd, &event) < 0)
+            {
+                K_LOG_ERROR("[CHANNEL] Failed to update fd:%d errno:%d", fd, errno);
+                OnDisconnect(fd);
             }
         }
         ProcessAuthResults();
@@ -403,27 +513,32 @@ void ChannelServer::OnAccept()
             continue;
         }
 
-        epoll_event cev{};
-        // EPOLLIN : 읽기 가능한 상태
-        // EPOLLRDHUP : 상대방이 연결의 읽기 방향을 닫았음
-        // 이 두개를 같이 설정하는 이유는 클라이언트가 데이터를 보냈거나 연결 종료를 했을 경우 두 경우을 알기 위해서 두 개로 설정
-        cev.events = EPOLLIN | EPOLLRDHUP;
-        cev.data.fd = cfd;
-
-        if(epoll_ctl(m_epfd, EPOLL_CTL_ADD, cfd, &cev) < 0)
+        const uint64_t sessionId = m_nextSessionId.fetch_add(1);
+        const uint64_t generation = 1;
+        auto session = std::make_unique<ChannelSession>(cfd, this, sessionId, generation);
+        
+        if (!session->AttachTls(m_tlsContext.get()))
         {
+            K_LOG_ERROR("[CHANNEL] Failed to attach TLS fd:%d", cfd);
             close(cfd);
             continue;
         }
 
-        uint64_t sessionId = m_nextSessionId.fetch_add(1);
-        uint64_t generation = 1;
+        epoll_event event{};
+        event.events = EPOLLIN | EPOLLRDHUP;
+        event.data.fd = cfd;
 
-        ChannelSession* session =  new ChannelSession(cfd, this, sessionId, generation);
+        if (epoll_ctl(m_epfd, EPOLL_CTL_ADD, cfd, &event) < 0)
+        {
+            K_LOG_ERROR("[CHANNEL] Failed to register fd:%d errno:%d", cfd, errno);
+            close(cfd);
+            continue;
+        }
 
         {
             std::lock_guard<std::mutex> lock(m_sessionMutex);
-            m_sessions[cfd] = session;
+            m_sessions.emplace(cfd, session.get());
+            session.release();
         }
 
         {
@@ -443,52 +558,45 @@ void ChannelServer::OnAccept()
 
 void ChannelServer::OnReceive(int fd)
 {
-    char temp[PacketLimits::kReceiveChunkSize];
-    ssize_t tempLen = 0;
-    std::string buf;
-
-    do
-    {
-        memset(temp, 0x00, sizeof(temp));
-        tempLen = recv(fd, temp, sizeof(temp), 0);
-
-        if (tempLen > 0)
-        {
-            buf.append(temp, tempLen);
-        }
-        else if (tempLen == 0)
-        {
-            // 진짜 클라이언트 종료
-            OnDisconnect(fd);
-            return;
-        }
-        else
-        {
-            if (errno == EAGAIN || errno == EWOULDBLOCK)
-                break; // 정상. 지금 읽을 데이터 없음
-        
-            // 진짜 recv 에러
-            OnDisconnect(fd);
-            return;
-        }
-    } while (tempLen == static_cast<ssize_t>(PacketLimits::kReceiveChunkSize));
-
-    //K_LOG_DEBUG( "fd %d\n", fd);
-    ChannelSession* session = nullptr;
-
+     ChannelSession* session = nullptr;
     {
         std::lock_guard<std::mutex> lock(m_sessionMutex);
-
-        auto it = m_sessions.find(fd);
-        if(it == m_sessions.end())
+        const auto it = m_sessions.find(fd);
+        if (it == m_sessions.end())
             return;
 
         session = it->second;
     }
-    if(!session->OnBytes((const uint8_t*)buf.c_str(), buf.size()))
+
+    using Result = ChannelSession::TlsReadResult;
+    auto& chunk = session->m_tlsReadChunk;
+
+    do
     {
-        OnDisconnect(fd);
-    }
+        std::size_t bytesRead = 0;
+        const Result result = session->ReadTls(
+            chunk.data(), chunk.size(), bytesRead);
+
+        session->m_tlsReadWantsWrite = (result == Result::WantWrite);
+
+        if (result == Result::Closed || result == Result::Failed)
+        {
+            OnDisconnect(fd);
+            return;
+        }
+
+        if (result == Result::WantRead || result == Result::WantWrite)
+            break;
+
+        if (!session->OnBytes(
+                reinterpret_cast<const uint8_t*>(chunk.data()), bytesRead))
+        {
+            OnDisconnect(fd);
+            return;
+        }
+    } while (session->HasBufferedTlsData());
+
+    EnableWriteEvent(fd);
 }
 
 ChannelSession* ChannelServer::FindValidSession(int fd, uint64_t sessionId, uint64_t generation)
@@ -596,7 +704,7 @@ void ChannelServer::BroadcastServerShutdown()
 
     for (const auto& [fd, session] : m_sessions)
     {
-        if (session == nullptr || session->IsClosing())
+        if (session == nullptr || session->IsClosing() || session->GetTlsHandshakeState() != ChannelSession::TlsHandshakeState::Ready)
             continue;
 
         session->Send(PKT_SERVER_SHUTDOWN_NOTIFY, {});
@@ -624,7 +732,7 @@ void ChannelServer::DrainSessionSendQueues()
                     continue;
 
                 hasPendingSend = true;
-                session->FlushSend();
+                session->FlushTlsWrites();
             }
         }
 
@@ -645,13 +753,37 @@ void ChannelServer::DrainSessionSendQueues()
 // EPOLLOUT은 계속 켜두면 반복적으로 발생하므로, FlushSend 완료 후 다시 끈다.
 void ChannelServer::EnableWriteEvent(int fd)
 {
-    epoll_event ev{};
-    ev.data.fd = fd;
-    ev.events = EPOLLIN | EPOLLRDHUP | EPOLLOUT;
+     if (!m_running.load(std::memory_order_acquire))
+        return;
 
-    if (epoll_ctl(m_epfd, EPOLL_CTL_MOD, fd, &ev) < 0)
+    std::lock_guard<std::mutex> lock(m_sessionMutex);
+    const auto it = m_sessions.find(fd);
+    if (it == m_sessions.end())
+        return;
+
+    const ChannelSession* session = it->second;
+    using Result = ChannelSession::TlsWriteResult;
+    const Result writeState = session->m_tlsWriteState.load();
+
+    epoll_event event{};
+    event.data.fd = fd;
+    event.events = EPOLLRDHUP;
+
+    if (session->m_tlsReadWantsWrite || writeState == Result::WantWrite)
     {
-        K_LOG_ERROR( "EPOLL_CTL_MOD enable write failed fd:%d errno:%d", fd, errno);
+        event.events |= EPOLLOUT;
+    }
+    else
+    {
+        event.events |= EPOLLIN;
+
+        if (writeState != Result::WantRead && session->HasPendingSend())
+            event.events |= EPOLLOUT;
+    }
+
+    if (epoll_ctl(m_epfd, EPOLL_CTL_MOD, fd, &event) < 0)
+    {
+        K_LOG_ERROR("[CHANNEL] Failed to update fd:%d errno:%d", fd, errno);
     }
 }
 

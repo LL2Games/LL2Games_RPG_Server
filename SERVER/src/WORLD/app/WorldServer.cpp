@@ -5,6 +5,9 @@
 #include <arpa/inet.h>
 #include <cerrno>
 #include <unistd.h>
+#include <cstdio>
+#include <openssl/err.h>
+#include <fcntl.h>
 #include "PacketParser.h"
 
 WorldServer::WorldServer() {}
@@ -22,9 +25,24 @@ int WorldServer::Init(const std::string &configPath)
     return 0;
 }
 
-int WorldServer::Init(const int port,const RedisConfig& redisConfig)
+int WorldServer::Init(const int port,const RedisConfig& redisConfig, const char* certPath, const char* keyPath)
 {
+    m_tlsContext.reset(SSL_CTX_new(TLS_server_method()));
 
+    if (!m_tlsContext ||
+        SSL_CTX_set_min_proto_version(m_tlsContext.get(), TLS1_2_VERSION) != 1 ||
+        SSL_CTX_use_certificate_chain_file(m_tlsContext.get(), certPath) != 1 ||
+        SSL_CTX_use_PrivateKey_file(m_tlsContext.get(), keyPath, SSL_FILETYPE_PEM) != 1 ||
+        SSL_CTX_check_private_key(m_tlsContext.get()) != 1)
+    {
+        K_LOG_ERROR("[WORLD] TLS initialization failed");
+        ERR_print_errors_fp(stderr);
+        m_tlsContext.reset();
+        return -1;
+    }
+
+    K_LOG_TRACE("[WORLD] TLS context initialized");
+    
     if (!m_redisPool.Init(redisConfig, redisConfig.poolCount))
     {
         K_LOG_ERROR( "RedisConnectionPool init failed");
@@ -71,25 +89,43 @@ int WorldServer::Init(const int port,const RedisConfig& redisConfig)
 int WorldServer::Run()
 {
     fd_set reads;
+    fd_set writes;
 
     while (m_running.load(std::memory_order_acquire))
     {
         FD_ZERO(&reads);
+        FD_ZERO(&writes);
         FD_SET(m_listen_fd, &reads);
 
         int fd_max = m_listen_fd;
+        bool hasBufferedTlsData = false;
         for (const auto& [fd, session] : m_sessions)
         {
-            FD_SET(fd, &reads);
-            if (fd > fd_max) fd_max = fd;
+            if (session->HasBufferedTlsData()) hasBufferedTlsData = true;
+            using State = WorldSession::TlsHandshakeState;
+            const State state = session->GetTlsHandshakeState();
+
+            const bool watchWrite =
+                state == State::WantWrite ||
+                (state == State::Ready &&
+                 (session->m_tlsReadWantsWrite ||
+                  (session->HasPendingTlsWrites() && !session->m_tlsWriteWantsRead)));
+                
+            if (watchWrite)
+                FD_SET(fd, &writes);
+            else
+                FD_SET(fd, &reads);
+
+            if (fd > fd_max)
+                fd_max = fd;
         }
 
         //RequestStop()을 최대 1초 안에 확인
         timeval timeout{};
-        timeout.tv_sec = 1;
+        timeout.tv_sec = hasBufferedTlsData ? 0 : 1; 
         timeout.tv_usec = 0;
 
-        const int ret = select(fd_max + 1, &reads, nullptr, nullptr, &timeout);
+        const int ret = select(fd_max + 1, &reads, &writes, nullptr, &timeout);
         
         //select에서 깨어난 직후 종료 요청부터 확인
         if(!m_running.load(std::memory_order_acquire))
@@ -105,7 +141,7 @@ int WorldServer::Run()
         }
 
         // 타임아웃
-        if(ret == 0)
+        if (ret == 0 && !hasBufferedTlsData)
             continue;
 
         if (FD_ISSET(m_listen_fd, &reads))
@@ -116,7 +152,7 @@ int WorldServer::Run()
 
         for (const auto& [fd, session] : m_sessions)
         {
-            if (FD_ISSET(fd, &reads))
+            if (FD_ISSET(fd, &reads) || FD_ISSET(fd, &writes) || session->HasBufferedTlsData())
                 read2Fd.push_back(fd);
         }
 
@@ -125,7 +161,41 @@ int WorldServer::Run()
             if(!m_running.load(std::memory_order_acquire))
                 break;
 
-            OnReceive(fd);
+            const auto it = m_sessions.find(fd);
+            if (it == m_sessions.end())
+                continue;
+
+            WorldSession* session = it->second;
+            using State = WorldSession::TlsHandshakeState;
+
+            if (session->GetTlsHandshakeState() != State::Ready)
+            {
+                const State state = session->AdvanceTlsHandshake();
+            
+                if (state == State::Ready)
+                    K_LOG_TRACE("[WORLD] TLS handshake complete fd:%d", fd);
+                else if (state == State::Failed)
+                    OnDisconnect(fd);
+            
+                continue;
+            }
+
+            if (session->m_tlsReadWantsWrite || !session->HasPendingTlsWrites())
+            {
+                OnReceive(fd);  // 내부에서 ReadTls()로 읽고 패킷 파싱
+                continue;
+            }
+
+            using WriteResult = WorldSession::TlsWriteResult;
+            const WriteResult result = session->FlushTlsWrites();
+
+            if (result == WriteResult::Failed)
+            {
+                OnDisconnect(fd);
+                continue;
+            }
+
+            session->m_tlsWriteWantsRead = (result == WriteResult::WantRead);
         }
 
     }
@@ -167,7 +237,7 @@ void WorldServer::BroadcastServerShutdown()
 {
     for(const auto& [fd, session] : m_sessions)
     {
-        if(session == nullptr)
+        if(session == nullptr || session->GetTlsHandshakeState() != WorldSession::TlsHandshakeState::Ready)
             continue;
 
         session->Send(PKT_SERVER_SHUTDOWN_NOTIFY, {});
@@ -187,8 +257,23 @@ int WorldServer::OnAccept()
     }
 
     K_LOG_TRACE( "client_accept[fd=%d]", client_fd);
-    WorldSession *session = new WorldSession(client_fd);
-    m_sessions[client_fd] = session;
+    const int flags = fcntl(client_fd, F_GETFL,0 );
+    if(client_fd >= FD_SETSIZE || flags == -1 || fcntl(client_fd, F_SETFL, flags | O_NONBLOCK) == -1)
+    {
+        close(client_fd);
+        return -1;
+    }
+
+    auto session = std::make_unique<WorldSession>(client_fd);
+    if(!session->AttachTls(m_tlsContext.get()))
+    {
+        K_LOG_ERROR("[WORLD] Failed to attach TLS fd:%d", client_fd );
+        close(client_fd);
+        return -1;
+    }
+
+    m_sessions.emplace(client_fd, session.get());
+    session.release();
 
     return 0;
 }
@@ -205,34 +290,25 @@ int WorldServer::OnReceive(int fd)
 
     WorldSession* session = sessionIt->second;
 
-    char receiveBuffer[PacketLimits::kReceiveChunkSize];
-    ssize_t receivedSize = 0;
+  using Result = WorldSession::TlsReadResult;
 
-    // 시그널로 recv()가 중단된 경우에만 재시도한다.
-    do
-    {
-        receivedSize = recv(fd, receiveBuffer, sizeof(receiveBuffer),0);
-    }
-    while (receivedSize < 0 && errno == EINTR);
+    auto& chunk = session->m_tlsReadChunk;
+    std::size_t receivedSize = 0;
+    const Result result =
+        session->ReadTls(chunk.data(), chunk.size(), receivedSize);
 
-    if (receivedSize == 0)
+    session->m_tlsReadWantsWrite = (result == Result::WantWrite);
+
+    if (result == Result::WantRead || result == Result::WantWrite)
+        return 0;
+
+    if (result == Result::Closed || result == Result::Failed)
     {
         OnDisconnect(fd);
-        return 1;
+        return result == Result::Closed ? 1 : -1;
     }
 
-    if (receivedSize < 0)
-    {
-        const int recvError = errno;
-
-        K_LOG_ERROR("[WORLD] recv failed fd:%d errno:%d", fd, recvError);
-        OnDisconnect(fd);
-        return -1;
-    }
-
-    session->m_recvBuffer.insert(session->m_recvBuffer.end(), receiveBuffer, receiveBuffer + receivedSize);
-
-    K_LOG_DEBUG("[WORLD] recv fd:%d size:%zd buffered:%zu", fd, receivedSize,session->m_recvBuffer.size());
+    session->m_recvBuffer.insert(session->m_recvBuffer.end(), chunk.data(), chunk.data() + receivedSize);
 
     while (true)
     {

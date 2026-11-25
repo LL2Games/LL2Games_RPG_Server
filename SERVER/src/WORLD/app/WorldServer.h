@@ -2,6 +2,9 @@
 #include <string>
 #include <map>
 #include <atomic>
+#include <memory>
+#include <openssl/ssl.h>
+
 #include "MySqlConnectionPool.h"
 #include "RedisClient.h"
 #include "WorldSession.h"
@@ -10,13 +13,14 @@
 #include "WorldPacketFactory.h"
 #include "RedisConnectionPool.h"
 
+
 class WorldServer
 {
 public:
     WorldServer();
     ~WorldServer();
     int Init(const std::string& configPath);
-    int Init(const int port, const RedisConfig& redisConfig);
+    int Init(const int port, const RedisConfig& redisConfig, const char* certPath, const char* keyPath);
     int Run();
     int OnAccept();
     int OnReceive(int fd);
@@ -42,4 +46,8 @@ private:
     RedisConnectionPool m_redisPool;
 
     std::atomic_bool m_running{false};
+
+private:
+    std::unique_ptr<SSL_CTX, decltype(&SSL_CTX_free)> m_tlsContext{nullptr, SSL_CTX_free};
+   
 };

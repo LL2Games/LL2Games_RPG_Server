@@ -38,5 +38,6 @@ private:
     RedisConnectionPool m_redisPool;
 
 private:
+    //로그인 서버의 모든 TLS 연결이 공유하는 설정
     std::unique_ptr<SSL_CTX, decltype(&SSL_CTX_free)> m_tlsContext{nullptr, SSL_CTX_free};
 };

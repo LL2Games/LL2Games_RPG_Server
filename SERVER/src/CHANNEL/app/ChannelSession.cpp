@@ -9,6 +9,8 @@
 #include "PacketProcessTask.h"
 #include "GameplayGate.h"
 
+#include <openssl/err.h>
+
 ChannelSession::ChannelSession(int fd, ChannelServer* server, uint64_t sessionId, uint64_t generation)
     : m_fd(fd),
       m_server(server),
@@ -175,6 +177,7 @@ int ChannelSession::EnqueueSend(std::string packet)
 
         needEnableWrite = m_sendQueue.empty();
         m_sendQueue.push_back(std::move(packet));
+        m_pendingSendBytes += m_sendQueue.back().size();
 
     }
 
@@ -209,6 +212,7 @@ bool ChannelSession::FlushSend()
 
             if (m_sendOffset == packet.size())
             {
+                m_pendingSendBytes -= packet.size();
                 m_sendQueue.pop_front();
                 m_sendOffset = 0;
             }
@@ -340,4 +344,116 @@ void ChannelSession::FinalizePlayer()
     {
         K_LOG_ERROR("[ChannelSession Finalize] playerManager is null. player id:%d",playerId);
     }
+}
+
+bool ChannelSession::AttachTls(SSL_CTX* context)
+{
+    m_tls.reset(SSL_new(context));
+
+    if(!m_tls || SSL_set_fd(m_tls.get(), m_fd) != 1)
+    {
+        m_tls.reset();
+        return false;
+    }
+
+    return true;
+}
+
+ChannelSession::TlsHandshakeState ChannelSession::AdvanceTlsHandshake()
+{
+    ERR_clear_error();
+
+    const int result = SSL_accept(m_tls.get());
+
+    if(result == 1)
+    {
+        m_tlsHandshakeState = TlsHandshakeState::Ready;
+        return m_tlsHandshakeState;
+    }
+
+    const int sslError = SSL_get_error(m_tls.get(), result);
+    switch(sslError)
+    {
+        case SSL_ERROR_WANT_READ:
+            m_tlsHandshakeState = TlsHandshakeState::WantRead;
+            break;
+        case SSL_ERROR_WANT_WRITE:
+            m_tlsHandshakeState = TlsHandshakeState::WantWrite;
+            break;
+        default:
+            K_LOG_ERROR("[Channel] TLS handshake failed fd:%d sslError:%d", m_fd, sslError);
+            m_tlsHandshakeState = TlsHandshakeState::Failed;
+            break;
+    }
+
+    return m_tlsHandshakeState;
+}
+
+ChannelSession::TlsReadResult ChannelSession::ReadTls(char* buffer, std::size_t capacity, std::size_t& bytesRead)
+{
+    bytesRead = 0;
+    ERR_clear_error();
+
+    const int result = SSL_read_ex(m_tls.get(), buffer, capacity, &bytesRead);
+    if (result == 1)
+        return TlsReadResult::Data;
+
+    switch (SSL_get_error(m_tls.get(), result))
+    {
+    case SSL_ERROR_WANT_READ:
+        return TlsReadResult::WantRead;
+    case SSL_ERROR_WANT_WRITE:
+        return TlsReadResult::WantWrite;
+    case SSL_ERROR_ZERO_RETURN:
+        return TlsReadResult::Closed;
+    default:
+        return TlsReadResult::Failed;
+    }
+}
+
+ChannelSession::TlsWriteResult ChannelSession::FlushTlsWrites()
+{
+    if (IsClosing() || GetTlsHandshakeState() != TlsHandshakeState::Ready)
+        return TlsWriteResult::Failed;
+
+    std::lock_guard<std::mutex> lock(m_sendMutex);
+
+    constexpr std::size_t maxPacketsPerFlush = 32;
+    constexpr std::size_t maxBytesPerFlush = 64 * 1024;
+    std::size_t bytesSent = 0;
+    for (std::size_t sent = 0; sent < maxPacketsPerFlush && bytesSent < maxBytesPerFlush && !m_sendQueue.empty(); ++sent)
+    {
+        const std::string& packet = m_sendQueue.front();
+        std::size_t bytesWritten = 0;
+        ERR_clear_error();
+
+        const int result = SSL_write_ex(
+            m_tls.get(), packet.data(), packet.size(), &bytesWritten);
+
+        if (result == 1)
+        {
+            bytesSent += bytesWritten;
+            if (result == 1)
+            {
+                bytesSent += bytesWritten;
+                m_pendingSendBytes -= packet.size();
+                m_sendQueue.pop_front();
+                continue;
+            }
+            m_sendQueue.pop_front();
+            continue;
+        }
+
+        switch (SSL_get_error(m_tls.get(), result))
+        {
+        case SSL_ERROR_WANT_READ:
+            return TlsWriteResult::WantRead;
+        case SSL_ERROR_WANT_WRITE:
+            return TlsWriteResult::WantWrite;
+        default:
+            return TlsWriteResult::Failed;
+        }
+    }
+
+    return m_sendQueue.empty() ? TlsWriteResult::Drained : TlsWriteResult::Pending;
 }

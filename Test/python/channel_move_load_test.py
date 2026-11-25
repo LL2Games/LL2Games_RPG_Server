@@ -2,6 +2,8 @@ import argparse
 import socket
 import struct
 import time
+import ssl
+from contextlib import ExitStack
 from collections import Counter, deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -192,7 +194,19 @@ def run_client(args, character_id, ticket, client_index):
         "packets_recv": 0, "bytes_recv": 0, "elapsed_ms": 0.0, "error": "",
     }
     try:
-        with socket.create_connection((args.host,args.port),args.timeout) as sock:
+          with ExitStack() as stack:
+            sock = stack.enter_context(
+                socket.create_connection((args.host, args.port), args.timeout)
+            )
+            if args.tls_context is not None:
+                sock = stack.enter_context(
+                    args.tls_context.wrap_socket(
+                        sock,
+                        server_hostname=args.tls_server_name or args.host,
+                    )
+                )
+
+            reader = PacketReader(sock)
             reader = PacketReader(sock)
             auth_start = time.perf_counter()
             sock.sendall(make_packet(PKT_CHANNEL_AUTH,make_body(ticket)))
@@ -219,12 +233,14 @@ def run_client(args, character_id, ticket, client_index):
 
             sequence = 0
             acknowledged = False
+            own_snapshot_count = 0
+            max_seen_seq = 0
             interval = 1.0/args.moves_per_sec if args.moves_per_sec>0 else args.duration
             next_send = time.perf_counter()
             end_at = next_send+args.duration
             while time.perf_counter()<end_at:
                 now = time.perf_counter()
-                if args.moves_per_sec>0 and now>=next_send:
+                if args.moves_per_sec> 0 and now>=next_send:
                     sequence += 1
                     # 좌우를 번갈아 이동. 좌표나 속도는 보내지 않는다.
                     direction = 1 if (int(now-start)+client_index)%2==0 else -1
@@ -242,6 +258,9 @@ def run_client(args, character_id, ticket, client_index):
                 result["move_recv"] += 1
                 if int(fields[0])!=map_id or fields[1]!="0" or int(fields[2])!=character_id:
                     continue
+                
+                own_snapshot_count += 1
+                max_seen_seq = max(max_seen_seq, int(fields[5]))
                 if int(fields[14])<=0:
                     raise RuntimeError("player died during movement test")
                 new_epoch = int(fields[3])
@@ -250,8 +269,32 @@ def run_client(args, character_id, ticket, client_index):
                     sequence = 0
                 if int(fields[5])>0:
                     acknowledged = True
-            if args.moves_per_sec>0 and not acknowledged:
-                raise RuntimeError("no input acknowledged by own snapshot")
+            if args.moves_per_sec > 0 and not acknowledged:
+                late_seq = 0
+                deadline = time.perf_counter() + 10.0
+
+                while time.perf_counter() < deadline:
+                    try:
+                        kind, fields = reader.next(0.1)
+                    except socket.timeout:
+                        continue
+
+                    if kind != PKT_MOVEMENT_SNAPSHOT or len(fields) != 16:
+                        continue
+                    if (int(fields[0]) != map_id or fields[1] != "0"
+                            or int(fields[2]) != character_id
+                            or int(fields[3]) != epoch):
+                        continue
+
+                    late_seq = int(fields[5])
+                    if late_seq > 0:
+                        break
+
+                raise RuntimeError(
+                    f"no input acknowledged by own snapshot: "
+                    f"own_snapshots={own_snapshot_count}, "
+                    f"max_seen_seq={max_seen_seq}, late_seq={late_seq}"
+                )
             result["success"] = True
     except Exception as exception:
         result["error"] = repr(exception)
@@ -292,7 +335,13 @@ def main():
     parser.add_argument("--duration", type=float, default=30.0)
     parser.add_argument("--moves-per-sec", type=float, default=5.0)
     parser.add_argument("--verbose", action="store_true")
+    parser.add_argument("--tls-ca", help="검증에 사용할 CA 인증서 PEM 경로")
+    parser.add_argument("--tls-server-name", help="인증서에서 검증할 서버 이름 또는 IP")
     args = parser.parse_args()
+    args.tls_context = None
+    if args.tls_ca:
+        args.tls_context = ssl.create_default_context(cafile=args.tls_ca)
+        args.tls_context.minimum_version = ssl.TLSVersion.TLSv1_2
     if args.duration <= 0 or args.moves_per_sec < 0 or args.timeout <= 0 or args.recv_timeout <= 0:
         parser.error("duration/timeout/recv-timeout must be positive; moves-per-sec must be nonnegative")
 

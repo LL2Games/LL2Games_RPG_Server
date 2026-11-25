@@ -8,6 +8,9 @@
 #include <cstdint>
 #include <atomic>
 #include <condition_variable>
+#include <memory>
+#include <list>
+#include <openssl/ssl.h>
 
 class ChannelServer;
 
@@ -63,6 +66,48 @@ public:
     void WaitForNoTasks();
     bool IsClosing() const { return m_closing.load(); }
 
+public:
+    enum class TlsHandshakeState { WantRead, WantWrite, Ready, Failed};
+    enum class TlsReadResult { Data, WantRead, WantWrite, Closed, Failed };
+    enum class TlsWriteResult { Drained, Pending, WantRead, WantWrite, Failed };
+    
+    bool AttachTls(SSL_CTX* context);
+    bool HasPendingTlsWrites() const
+    {
+       return !m_tlsSendQueue.empty();
+    }
+ 
+    bool HasBufferedTlsData() const
+    {
+        return SSL_pending(m_tls.get()) > 0;    
+    }
+    TlsHandshakeState AdvanceTlsHandshake();
+    TlsReadResult ReadTls(char* buffer, std::size_t capacity, std::size_t& bytesRead);
+    TlsWriteResult FlushTlsWrites();
+    TlsHandshakeState GetTlsHandshakeState() const { return m_tlsHandshakeState;}
+ 
+    std::array<char, PacketLimits::kReceiveChunkSize> m_tlsReadChunk{};
+    std::atomic_bool m_tlsReadWantsWrite{false};
+    std::atomic<TlsWriteResult> m_tlsWriteState{TlsWriteResult::Drained};
+
+    // Test
+    std::size_t PendingSendCount() const
+    {
+        std::lock_guard<std::mutex> lock(m_sendMutex);
+        return m_sendQueue.size();
+    }
+    std::size_t PendingSendBytes() const
+    {
+        std::lock_guard<std::mutex> lock(m_sendMutex);
+        return m_pendingSendBytes;
+    }
+
+    void EnqueueMovementSnapshot(std::shared_ptr<const std::string> snapshot);
+private:
+    std::unique_ptr<SSL, decltype(&SSL_free)> m_tls{nullptr, SSL_free};
+    TlsHandshakeState m_tlsHandshakeState = TlsHandshakeState::WantRead;
+    std::deque<std::string> m_tlsSendQueue;
+
 private:
     int m_fd = -1;
     ChannelServer* m_server = nullptr;
@@ -74,6 +119,7 @@ private:
     ChannelPacketFactory m_factory;
 
     std::deque<std::string> m_sendQueue;
+    std::size_t m_pendingSendBytes = 0;
     size_t m_sendOffset = 0;
     mutable std::mutex m_sendMutex;
 

@@ -39,6 +39,8 @@
 #include <unordered_set>
 #include <thread>
 #include <condition_variable>
+#include <memory>
+#include <openssl/ssl.h>
 
 class ChannelServerTestAccess;
 
@@ -49,7 +51,7 @@ public:
     ChannelServer(const int channelId, const int threadCount, const int maxUserCount);
     ~ChannelServer();
 
-    bool Init(const int port, const RedisConfig& redisConfig);
+    bool Init(const int port, const RedisConfig& redisConfig, const char* certPath, const char* keyPath);
     void Run();
 
     void OnReceive(int fd);
@@ -167,4 +169,6 @@ private:
     
     unsigned int m_max_user_count;
     std::unordered_set<int> m_finalPlayerDataSavePending;
+
+    std::unique_ptr<SSL_CTX, decltype(&SSL_CTX_free)> m_tlsContext{nullptr, SSL_CTX_free};
 };

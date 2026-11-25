@@ -240,6 +240,7 @@ void Server::AcceptNewClient()
     if (client_fd < 0)
         return;
 
+    // 통신 fd를 Nonblocking으로 변경
     const int flags = fcntl(client_fd, F_GETFL, 0);
     if (client_fd >= FD_SETSIZE ||
         flags == -1 ||

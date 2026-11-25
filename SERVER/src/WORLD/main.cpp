@@ -91,7 +91,7 @@ int main(int ac, char **av)
 
         WorldServer server;
 
-        if (server.Init(g_config.worldServer.port, g_config.redis) != 0)
+        if (server.Init(g_config.worldServer.port, g_config.redis,"/home/ljh/ll2-tls-lab/server.crt", "/home/ljh/ll2-tls-lab/server.key") != 0)
         {
             K_slog_close();
             return -1;
